@@ -1,0 +1,1 @@
+This software aim to provide full control for Korg padKONTROL
