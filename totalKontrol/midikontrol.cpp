@@ -6,8 +6,8 @@
 
 MidiKontrol::MidiKontrol()
 {
-    this->padKontrolInputPort=0;
-    this->padKontrolOutputPort=0;
+    this->inputPort=0;
+    this->outputPort=0;
     // RtMidi constructor
     try {
       this->midiin = new RtMidiIn();
@@ -58,16 +58,25 @@ QStringList MidiKontrol::getOutputDevicesList()
     return deviceOutputList;
 }
 
-void MidiKontrol::setPadKontrolInputPort(unsigned int InputPort)
+void MidiKontrol::setInputPort(unsigned int InputPort)
 {
-    this->midiin->openPort(InputPort);
+    this->inputPort=InputPort;
+
 }
 
-void MidiKontrol::setPadKontrolOutputPort(unsigned int OutputPort)
+void MidiKontrol::setOutputPort(unsigned int OutputPort)
 {
+    this->outputPort=OutputPort;
     this->midiout->openPort(OutputPort);
 }
-
+int MidiKontrol::getInputPort()
+{
+    return this->inputPort;
+}
+int MidiKontrol::getOutputPort()
+{
+    return this->outputPort;
+}
 void MidiKontrol::sendSysEx(QString *message)
 {
     std::vector <unsigned char> toSend;
@@ -83,10 +92,17 @@ void MidiKontrol::sendSysEx(QString *message)
     this->midiout->sendMessage(&toSend);
 }
 
-void MidiKontrol::listenInput(PadKontrol *pad)
+void MidiKontrol::listenInput()
 {
     // Don't ignore sysex, timing, or active sensing messages.
+    this->midiin->openPort(this->inputPort);
     this->midiin->ignoreTypes( false, false, false );
-    this->midiListener = new MidiListener(pad);
+    this->midiListener = new MidiListener(this);
     this->midiListener->start();
+}
+
+void MidiKontrol::closeInput()
+{
+    this->midiin->closePort();
+    this->midiListener->setListenning(false);
 }

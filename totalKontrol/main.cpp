@@ -1,5 +1,3 @@
-#include <iostream>
-#include <cstdlib>
 #include <signal.h>
 #include <QApplication>
 #include "lib/RtMidi.h"

@@ -1,28 +1,40 @@
 #include "midilistener.h"
 #include "padkontrol.h"
 
-MidiListener::MidiListener(class PadKontrol *pad)
+MidiListener::MidiListener(MidiKontrol *midi)
 {
-    this->pad = pad;
+    this->midi = midi;
+    this->listenning=true;
 }
+MidiListener::~MidiListener()
+{
+    this->midi->midiin->closePort();
+    this->listenning=false;
+}
+
 
 void MidiListener::run()
 {
-    bool ok;
     QString receviedMessage;
     std::vector <unsigned char> message;
-    while ( true )
+    receviedMessage.clear();
+    while(this->listenning)
     {
-
-        this->pad->padMidiKontrol->midiin->getMessage(&message);
+        this->midi->midiin->getMessage(&message);
         if(message.size()>0)
         {
             for(unsigned int i=0;i<message.size();i++)
             {
-                receviedMessage.append(QString::number(message[i], 16));
+                receviedMessage.append(QString::number((int)message[i], 16));
             }
             emit midiMessage(receviedMessage);
             receviedMessage.clear();
         }
+        msleep(5);
     }
+}
+
+void MidiListener::setListenning(bool listenning)
+{
+    this->listenning = listenning;
 }

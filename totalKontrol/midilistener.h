@@ -2,19 +2,22 @@
 #define MIDILISTENER_H
 
 #include <QThread>
-#include "padkontrol.h"
+#include "midikontrol.h"
 
 class MidiListener : public QThread
 {
     Q_OBJECT
 
 public:
-    MidiListener(class PadKontrol *pad);
-    class PadKontrol *pad;
+    MidiListener(class MidiKontrol *midi);
+    ~MidiListener();
+    class MidiKontrol *midi;
     virtual void run();
+    void setListenning(bool listenning);
+    bool listenning;
 signals:
     void midiMessage(QString message);
-
+    
 };
 
 #endif // MIDILISTENER_H

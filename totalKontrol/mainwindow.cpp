@@ -48,11 +48,11 @@ MainWindow::MainWindow(QWidget *parent) :
     centralWidget()->setLayout(layout);
     PadKontrol *padKontrol = new PadKontrol();
     connect(deviceInComboBox,
-            SIGNAL(currentIndexChanged(int)),
+            SIGNAL(activated(int)),
             padKontrol,
             SLOT(connectPadIn(int)));
     connect(deviceOutComboBox,
-            SIGNAL(currentIndexChanged(int)),
+            SIGNAL(activated(int)),
             padKontrol,
             SLOT(connectPadOut(int)));
     connect(nativeModeOnBtn,

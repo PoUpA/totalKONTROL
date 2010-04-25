@@ -12,6 +12,7 @@ class PadKontrol : public QObject
 public:
     PadKontrol();
     PadKontrol(int padIn, int padOut);
+    ~PadKontrol();
 
     class MidiKontrol *padMidiKontrol;
     bool isInit();

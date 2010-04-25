@@ -18,9 +18,13 @@ public:
     class MidiListener *midiListener;
     RtMidiIn  *midiin;
     RtMidiOut *midiout;
-    void setPadKontrolInputPort(unsigned int InputPort);
-    void setPadKontrolOutputPort(unsigned int OutputPort);
-    void listenInput(class PadKontrol *pad);
+    void setInputPort(unsigned int InputPort);
+    void setOutputPort(unsigned int OutputPort);
+    int getInputPort();
+    int getOutputPort();
+
+    void listenInput();
+    void closeInput();
 
     void sendSysEx(QString *message);
 
@@ -28,8 +32,8 @@ public:
 private:
 
 
-    unsigned int padKontrolInputPort;
-    unsigned int padKontrolOutputPort;
+    unsigned int inputPort;
+    unsigned int outputPort;
 };
 
 #endif // MIDIKONTROL_H
