@@ -39,12 +39,15 @@ MainWindow::MainWindow(QWidget *parent) :
     QPushButton *nativeModeOnBtn = new QPushButton("Enter Native mode", this);
     QPushButton *nativeModeOffBtn = new QPushButton("Exit Native mode", this);
     QLabel *padMessage = new QLabel;
+    QPushButton *btnSetting = new QPushButton;
+
     QGridLayout *layout = new QGridLayout;
     layout->addWidget(deviceOutGroup, 0, 0);
     layout->addWidget(deviceInGroup, 0, 1);
     layout->addWidget(nativeModeOnBtn,1,0);
     layout->addWidget(nativeModeOffBtn,1,1);
     layout->addWidget(padMessage,2,1);
+    layout->addWidget(btnSetting,3,1);
     centralWidget()->setLayout(layout);
     PadKontrol *padKontrol = new PadKontrol();
     connect(deviceInComboBox,
@@ -63,6 +66,7 @@ MainWindow::MainWindow(QWidget *parent) :
             SIGNAL(clicked()),
             padKontrol,
             SLOT(exitNativeMode()));
+    connect(padKontrol,SIGNAL(btnSettingsOn()),btnSetting,SLOT(toggle()));
     setWindowTitle(tr("totalKontrol"));
 
     connect(padKontrol,SIGNAL(midiMessage(QString)),padMessage,SLOT(setText(QString)));

@@ -60,9 +60,20 @@ bool PadKontrol::isInit()
 
 void PadKontrol::messageMapper(QString message)
 {
+
+
     if(message == "f042406e84827ff7"){
         QString yesLcd;
         yesLcd = "F042406E083F0A01692C424A0800782D78F7";
         this->padMidiKontrol->sendSysEx(&yesLcd);
+
+        emit btnSettingsOn();
     }
+    if(message == "f042406e84807ff7"){
+        QString yesLcd;
+        yesLcd = "F042406E08220400594553F7";
+        this->padMidiKontrol->sendSysEx(&yesLcd);
+        emit btnSceneOn();
+    }
+
 }
