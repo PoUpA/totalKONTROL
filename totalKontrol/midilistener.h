@@ -17,6 +17,7 @@ public:
     bool listenning;
 signals:
     void midiMessage(QString message);
+    void midiMessage(PmEvent message);
     
 };
 

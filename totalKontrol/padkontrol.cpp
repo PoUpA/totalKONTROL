@@ -1,5 +1,8 @@
 #include "padkontrol.h"
 #include "midikontrol.h"
+#include <iostream>
+#include <stdlib.h>
+
 
 PadKontrol::PadKontrol()
 {
@@ -20,11 +23,32 @@ PadKontrol::~PadKontrol()
 
 void PadKontrol::connectPadIn(int padIn)
 {
-    this->padMidiKontrol->setInputPort(padIn);
+    QMapIterator<int, QString> j(this->padMidiKontrol->getInputDevicesList());
+    int index = 0;
+    while (j.hasNext()) {
+         j.next();
+         if(index==padIn){
+            this->padMidiKontrol->setInputPort(j.key());
+         }
+         index++;
+         //std::cout << j.key() << j.value() <<std::endl;
+    }
+
+
 }
 void PadKontrol::connectPadOut(int padOut)
 {
-    this->padMidiKontrol->setOutputPort(padOut);
+    QMapIterator<int, QString> j(this->padMidiKontrol->getOutputDevicesList());
+    int index = 0;
+    while (j.hasNext()) {
+         j.next();
+         if(index==padOut){
+            this->padMidiKontrol->setOutputPort(j.key());
+         }
+         index++;
+         //std::cout << j.key() << j.value() <<std::endl;
+    }
+
 }
 
 void PadKontrol::enterNativeMode()
@@ -34,10 +58,18 @@ void PadKontrol::enterNativeMode()
 
         this->padMidiKontrol->listenInput();
         connect(padMidiKontrol->midiListener,SIGNAL(midiMessage(QString)),this,SIGNAL(midiMessage(QString)));
-        connect(padMidiKontrol->midiListener,SIGNAL(midiMessage(QString)),this,SLOT(messageMapper(QString)));
+        //connect(padMidiKontrol->midiListener,SIGNAL(midiMessage(QString)),this,SLOT(messageMapper(QString)));
         this->init=true;
         QString sysEx;
-        sysEx = "F042406E08000001F7F042406E083F2A00000505057F7E7F7F030A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0102030405060708090A0B0C0d0E0F10F7F042406E083F0A01000000000000292929F7";
+        sysEx = "F042406E08000001F7";
+        this->padMidiKontrol->sendSysEx(&sysEx);
+        sysEx = "f042406e083f0a01000000000000000000F7";
+        this->padMidiKontrol->sendSysEx(&sysEx);
+        sysEx = "f042406e0822040150574ef7";
+        this->padMidiKontrol->sendSysEx(&sysEx);
+        sysEx = "f042406e083f2a00000505057f7e7f7f030a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0102030405060708090a0b0c0d0e0f10f7";
+        this->padMidiKontrol->sendSysEx(&sysEx);
+        sysEx = "f042406e083f0a010000000000004B5450F7";
         this->padMidiKontrol->sendSysEx(&sysEx);
 
     }
@@ -50,7 +82,7 @@ void PadKontrol::exitNativeMode()
     this->padMidiKontrol->sendSysEx(&sysEx);
     this->padMidiKontrol->closeInput();
     disconnect(padMidiKontrol->midiListener,SIGNAL(midiMessage(QString)),this,SIGNAL(midiMessage(QString)));
-    disconnect(padMidiKontrol->midiListener,SIGNAL(midiMessage(QString)),this,SLOT(messageMapper(QString)));
+    //disconnect(padMidiKontrol->midiListener,SIGNAL(midiMessage(QString)),this,SLOT(messageMapper(QString)));
 }
 
 bool PadKontrol::isInit()
@@ -60,20 +92,8 @@ bool PadKontrol::isInit()
 
 void PadKontrol::messageMapper(QString message)
 {
+//TODO : translate midi notes on virtual channel to sysex for output
+    //std::cout << message.toStdString() << std::endl;
 
-
-    if(message == "f042406e84827ff7"){
-        QString yesLcd;
-        yesLcd = "F042406E083F0A01692C424A0800782D78F7";
-        this->padMidiKontrol->sendSysEx(&yesLcd);
-
-        emit btnSettingsOn();
-    }
-    if(message == "f042406e84807ff7"){
-        QString yesLcd;
-        yesLcd = "F042406E08220400594553F7";
-        this->padMidiKontrol->sendSysEx(&yesLcd);
-        emit btnSceneOn();
-    }
 
 }

@@ -1,6 +1,5 @@
 #include <signal.h>
 #include <QApplication>
-#include "lib/RtMidi.h"
 #include "mainwindow.h"
 
 bool done;
