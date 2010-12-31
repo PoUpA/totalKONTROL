@@ -64,6 +64,11 @@ void MidiListener::run()
                 receviedMessage.clear();
             }
         }
+        if(Pm_Poll(this->midi->midiin)==0){
+           usleep(2);
+        }
+
+
     }
 }
 
