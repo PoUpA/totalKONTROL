@@ -240,6 +240,118 @@ void virtualMidiKontrol::messageMapper(QString message)
     else if(message == "f042406e848e0f7"){
         midiNote.message=Pm_Message(0x80, 21, 0);
     }
+    //button pad1 On
+    else if(message.startsWith("f042406e84540")&&message.endsWith("f7")){
+        bool ok;
+        message = message.remove(0,13);
+        message = message.left(2);
+        //std::cout << message.toUInt(&ok,16) << std::endl;
+       // QString tempMessage = message.chop(2).remove(0,13);
+        midiNote.message=Pm_Message(0x90, 22, message.toUInt(&ok,16));
+        // midiNote.message=Pm_Message(0x90, 22, 127);
+    }
+    //button pad1 Off
+    else if(message == "f042406e845040f7"){
+        midiNote.message=Pm_Message(0x80, 22, 0);
+    }
+    //button pad2 On
+    else if(message.startsWith("f042406e84541")&&message.endsWith("f7")){
+        bool ok;
+        message = message.remove(0,13);
+        message = message.left(2);
+        //std::cout << message.toUInt(&ok,16) << std::endl;
+       // QString tempMessage = message.chop(2).remove(0,13);
+        midiNote.message=Pm_Message(0x90, 23, message.toUInt(&ok,16));
+        // midiNote.message=Pm_Message(0x90, 22, 127);
+    }
+    //button pad2 Off
+    else if(message == "f042406e845140f7"){
+        midiNote.message=Pm_Message(0x80, 23, 0);
+    }
+    //button pad3 On
+    else if(message.startsWith("f042406e84542")&&message.endsWith("f7")){
+        bool ok;
+        message = message.remove(0,13);
+        message = message.left(2);
+        //std::cout << message.toUInt(&ok,16) << std::endl;
+       // QString tempMessage = message.chop(2).remove(0,13);
+        midiNote.message=Pm_Message(0x90, 24, message.toUInt(&ok,16));
+        // midiNote.message=Pm_Message(0x90, 22, 127);
+    }
+    //button pad3 Off
+    else if(message == "f042406e845240f7"){
+        midiNote.message=Pm_Message(0x80, 24, 0);
+    }
+    //button pad4 On
+    else if(message.startsWith("f042406e84543")&&message.endsWith("f7")){
+        bool ok;
+        message = message.remove(0,13);
+        message = message.left(2);
+        //std::cout << message.toUInt(&ok,16) << std::endl;
+       // QString tempMessage = message.chop(2).remove(0,13);
+        midiNote.message=Pm_Message(0x90, 25, message.toUInt(&ok,16));
+        // midiNote.message=Pm_Message(0x90, 22, 127);
+    }
+    //button pad4 Off
+    else if(message == "f042406e845340f7"){
+        midiNote.message=Pm_Message(0x80, 25, 0);
+    }
+    //button pad5 On
+    else if(message.startsWith("f042406e84544")&&message.endsWith("f7")){
+        bool ok;
+        message = message.remove(0,13);
+        message = message.left(2);
+        //std::cout << message.toUInt(&ok,16) << std::endl;
+       // QString tempMessage = message.chop(2).remove(0,13);
+        midiNote.message=Pm_Message(0x90, 26, message.toUInt(&ok,16));
+        // midiNote.message=Pm_Message(0x90, 22, 127);
+    }
+    //button pad5 Off
+    else if(message == "f042406e845440f7"){
+        midiNote.message=Pm_Message(0x80, 26, 0);
+    }
+    //button pad6 On
+    else if(message.startsWith("f042406e84545")&&message.endsWith("f7")){
+        bool ok;
+        message = message.remove(0,13);
+        message = message.left(2);
+        //std::cout << message.toUInt(&ok,16) << std::endl;
+       // QString tempMessage = message.chop(2).remove(0,13);
+        midiNote.message=Pm_Message(0x90, 27, message.toUInt(&ok,16));
+        // midiNote.message=Pm_Message(0x90, 22, 127);
+    }
+    //button pad6 Off
+    else if(message == "f042406e845540f7"){
+        midiNote.message=Pm_Message(0x80, 27, 0);
+    }
+    //button pad7 On
+    else if(message.startsWith("f042406e84546")&&message.endsWith("f7")){
+        bool ok;
+        message = message.remove(0,13);
+        message = message.left(2);
+        //std::cout << message.toUInt(&ok,16) << std::endl;
+       // QString tempMessage = message.chop(2).remove(0,13);
+        midiNote.message=Pm_Message(0x90, 28, message.toUInt(&ok,16));
+        // midiNote.message=Pm_Message(0x90, 22, 127);
+    }
+    //button pad7 Off
+    else if(message == "f042406e845640f7"){
+        midiNote.message=Pm_Message(0x80, 28, 0);
+    }
+    //button pad8 On
+    else if(message.startsWith("f042406e84547")&&message.endsWith("f7")){
+        bool ok;
+        message = message.remove(0,13);
+        message = message.left(2);
+        //std::cout << message.toUInt(&ok,16) << std::endl;
+       // QString tempMessage = message.chop(2).remove(0,13);
+        midiNote.message=Pm_Message(0x90, 29, message.toUInt(&ok,16));
+        // midiNote.message=Pm_Message(0x90, 22, 127);
+    }
+    //button pad8 Off
+    else if(message == "f042406e845740f7"){
+        midiNote.message=Pm_Message(0x80, 29, 0);
+    }
     else {
         return;
     }
