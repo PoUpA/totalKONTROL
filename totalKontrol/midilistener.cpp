@@ -45,7 +45,17 @@ void MidiListener::run()
                     // if this is a status byte that's not MIDI_EOX, the sysex
                     // message is incomplete and there is no more sysex data
                     //Convert data to understandable string
-                   receviedMessage.append(QString::number((int)data, 16));
+                    if((int)data<16){
+                        //std::cout << "0" <<QString::number((int)data, 16).toStdString() << std::endl;
+                        receviedMessage.append("0");
+                        receviedMessage.append(QString::number((int)data, 16));
+                    }
+                    else {
+                        //std::cout << QString::number((int)data, 16).toStdString() << std::endl;
+                        receviedMessage.append(QString::number((int)data, 16));
+                    }
+
+
                    //if()
                     ++bytes_on_line;
                     done = ( data == MIDI_EOX );
