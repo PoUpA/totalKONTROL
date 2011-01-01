@@ -421,14 +421,14 @@ void virtualMidiKontrol::messageMapper(QString message)
         midiNote.message=Pm_Message(0x80, 36, 0);
     }
     //button knob1 value
-    else if(message.startsWith("f042406e08490")&&message.endsWith("f7")){
+    else if(message.startsWith("f042406e084900")&&message.endsWith("f7")){
         bool ok;
         message = message.remove(0,14);
         message = message.remove(message.length()-2,2);
         midiNote.message=Pm_Message(0xb0, 1, message.toUInt(&ok,16));
     }
     //button knob2 value
-    else if(message.startsWith("f042406e08491")&&message.endsWith("f7")){
+    else if(message.startsWith("f042406e084901")&&message.endsWith("f7")){
         bool ok;
         message = message.remove(0,14);
         message = message.remove(message.length()-2,2);
@@ -437,7 +437,6 @@ void virtualMidiKontrol::messageMapper(QString message)
     //button ypad value
     else if(message.startsWith("f042406e084b")&&message.endsWith("f7")){
         bool ok;
-
         QString message_x = message;
         message_x = message_x.remove(0,12);
         message_x = message_x.remove(message_x.length()-4,4);
