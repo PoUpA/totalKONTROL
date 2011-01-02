@@ -41,7 +41,7 @@ MainWindow::MainWindow(QWidget *parent) :
     }
 
     QGroupBox *midiInGroup = new QGroupBox(tr("Midi In"));
-    QLabel *midiInLabel = new QLabel(tr("MidiYoke 1"));
+    QLabel *midiInLabel = new QLabel(tr("In from Virtual midi  2"));
     QComboBox *midiInComboBox = new QComboBox;
     QMapIterator<int, QString> k(virtualMidi->getInputDevicesList());
     while (k.hasNext()) {
@@ -52,7 +52,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
 
     QGroupBox *midiOutGroup = new QGroupBox(tr("Midi Out"));
-    QLabel *midiOutLabel = new QLabel(tr("Midi Yoke2"));
+    QLabel *midiOutLabel = new QLabel(tr("Out to Virtual midi 1"));
     QComboBox *midiOutComboBox = new QComboBox;
     QMapIterator<int, QString> g(virtualMidi->getOutputDevicesList());
     while (g.hasNext()) {

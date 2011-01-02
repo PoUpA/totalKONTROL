@@ -45,6 +45,7 @@ QMap<int, QString> MidiKontrol::getInputDevicesList()
     for (int i = 0; i < iNumDevices; i++)
     {
         deviceInfo = Pm_GetDeviceInfo(i);
+        //std::cout << "#"<< i << deviceInfo->name <<std::endl;
         if (deviceInfo->input) {
             deviceInputList[i]=deviceInfo->name;
         }
@@ -103,7 +104,7 @@ void MidiKontrol::sendSysEx(QString *message, int timer)
         index++;
     }
     OutputError = Pm_WriteSysEx(this->midiout,timer,str);
-    if( OutputError != pmNoError ) std::cout << "PortMidi sendSysExMsg error:" << Pm_GetErrorText(OutputError);
+    if( OutputError != pmNoError ) std::cout << "PortMidi output #"<<this->outputPort<<" sendSysExMsg error:" << Pm_GetErrorText(OutputError);
     Pm_Close(this->midiout);
 }
 
