@@ -1,0 +1,108 @@
+Setting on/off
+Sysex done : f042406e0848027ff7
+Sysex done : f042406e08480200f7
+Encoder left/right
+Sysex done : f042406e0843007ff7
+Sysex done : f042406e08430001f7
+x on/off
+Sysex done : f042406e08480b7ff7
+Sysex done : f042406e08480b00f7
+y on/off
+Sysex done : f042406e08480c7ff7
+Sysex done : f042406e08480c00f7
+pedal on/off
+Sysex done : f042406e08480f7ff7
+Sysex done : f042406e08480f00f7
+note/cc on/off
+Sysex done : f042406e0848037ff7
+Sysex done : f042406e08480300f7
+midi ch on/off
+Sysex done : f042406e0848047ff7
+Sysex done : f042406e08480400f7
+sw type on/off
+Sysex done : f042406e0848057ff7
+Sysex done : f042406e08480500f7
+rel.val on/off
+Sysex done : f042406e0848067ff7
+Sysex done : f042406e08480600f7
+velocity on/off
+Sysex done : f042406e0848077ff7
+Sysex done : f042406e08480700f7
+port on/off
+Sysex done : f042406e0848087ff7
+Sysex done : f042406e08480800f7
+scene on/off
+Sysex done : f042406e0848007ff7
+Sysex done : f042406e08480000f7
+message on/off
+Sysex done : f042406e0848017ff7
+Sysex done : f042406e08480100f7
+fixed velocity on/off
+Sysex done : f042406e0848097ff7
+Sysex done : f042406e08480900f7
+prog change on/off
+Sysex done : f042406e08480a7ff7
+Sysex done : f042406e08480a00f7
+hold on/off
+Sysex done : f042406e0848127ff7
+Sysex done : f042406e08481200f7
+flam on/off
+Sysex done : f042406e0848117ff7
+Sysex done : f042406e08481100f7
+roll on/off
+Sysex done : f042406e0848107ff7
+Sysex done : f042406e08481000f7
+knob1 assign on/off
+Sysex done : f042406e08480d7ff7
+Sysex done : f042406e08480d00f7
+knob2 assign on/off
+Sysex done : f042406e08480e7ff7
+Sysex done : f042406e08480e00f7
+pad 1 on/off
+Sysex done : f042406e0845401df7
+Sysex done : f042406e08450040f7
+pad 2 on/off
+Sysex done : f042406e08454113f7
+Sysex done : f042406e08450140f7
+pad 3 on/off
+Sysex done : f042406e08454210f7
+Sysex done : f042406e08450240f7
+pad 4 on/off
+Sysex done : f042406e08454316f7
+Sysex done : f042406e08450340f7
+pad 5 on/off
+Sysex done : f042406e0845442bf7
+Sysex done : f042406e08450440f7
+pad 6 on/off
+Sysex done : f042406e08454520f7
+Sysex done : f042406e08450540f7
+pad 7 on/off
+Sysex done : f042406e0845461af7
+Sysex done : f042406e08450640f7
+pad 8 on/off
+Sysex done : f042406e08454719f7
+Sysex done : f042406e08450740f7
+pad 9 on/off
+Sysex done : f042406e0845483bf7
+Sysex done : f042406e08450840f7
+pad 10 on/off
+Sysex done : f042406e0845491df7
+Sysex done : f042406e08450940f7
+pad 11 on/off
+Sysex done : f042406e08454a1bf7
+Sysex done : f042406e08450a40f7
+pad 12 on/off
+Sysex done : f042406e08454b16f7
+Sysex done : f042406e08450b40f7
+pad 13 on/off
+Sysex done : f042406e08454c12f7
+Sysex done : f042406e08450c40f7
+pad 14 on/off
+Sysex done : f042406e08454d13f7
+Sysex done : f042406e08450d40f7
+pad 15 on/off
+Sysex done : f042406e08454e19f7
+Sysex done : f042406e08450e40f7
+pad 16 on/off
+Sysex done : f042406e08454f13f7
+Sysex done : f042406e08450f40f7
