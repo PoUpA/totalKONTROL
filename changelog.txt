@@ -1,0 +1,4 @@
+v 0.1
+- Add use of PortMidi instead of RtMidi
+- Add basic mapping from padKontrol -> virtual Midi (Awfull because hardcoded)
+- Add ultra-basic mapping from virtual Midi -> padKontrol (Awfully hardcoded too)
