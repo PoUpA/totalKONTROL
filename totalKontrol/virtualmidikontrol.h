@@ -2,6 +2,7 @@
 #define VIRTUALMIDIKONTROL_H
 
 #include <QObject>
+#include <QList>
 #include "midikontrol.h"
 
 class virtualMidiKontrol : public QObject
@@ -15,6 +16,7 @@ public:
     ~virtualMidiKontrol();
 
     class MidiKontrol *virtualMidi;
+    class QList<QStringList> mappings;
     bool isInit();
 public slots:
     void enterNativeMode();

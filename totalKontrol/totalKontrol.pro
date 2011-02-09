@@ -34,4 +34,5 @@ DEFINES -= UNICODE
 FORMS += mainwindow.ui
 
 OTHER_FILES += \
-    lib/porttime.dsp
+    lib/porttime.dsp \
+    mappings.xml
