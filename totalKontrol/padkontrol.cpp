@@ -130,11 +130,19 @@ bool PadKontrol::isInit()
 
 void PadKontrol::messageMapper(QString message)
 {
-    QString sysex ;
+    QString sysex,tempString ;
+
     for (int i = 0; i < this->mappings.size(); ++i) {
-        if (message.startsWith(this->mappings.at(i).at(0))) {
-            sysex = this->mappings.at(i).at(1);
-            this->padMidiKontrol->sendSysEx(&sysex);
+
+        if(message.startsWith(this->mappings.at(i).at(0))) {
+
+            tempString = this->mappings.at(i).at(0);
+            tempString.append(QString("00"));
+            if(!(message.startsWith(tempString)&&this->mappings.at(i).at(0).length()==4)){
+                sysex = this->mappings.at(i).at(1);
+                std::cout << this->mappings.at(i).at(0).toStdString() << std::endl;
+                this->padMidiKontrol->sendSysEx(&sysex);
+            }
         }
     }
 

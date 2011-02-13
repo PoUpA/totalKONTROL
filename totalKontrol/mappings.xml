@@ -386,75 +386,126 @@
         </mapping>
     </input>
     <output>
-        <mapping name="sceneLedOn" startWith="9031" sysEx="f042406e08011020f7"></mapping>
-        <mapping name="sceneLedOff" startWith="8031" sysEx="f042406e08011000f7"></mapping>
-        <mapping name="message led on" startWith="9031" sysEx="f042406e08011120f7"></mapping>
-        <mapping name="message led off" startWith="8031" sysEx="f042406e08011100f7"></mapping>
-        <mapping name="setting led on" startWith="9031" sysEx="f042406e08011220f7"></mapping>
-        <mapping name="setting led off" startWith="8031" sysEx="f042406e08011200f7"></mapping>
-        <mapping name="note/cc led on" startWith="9031" sysEx="f042406e08011320f7"></mapping>
-        <mapping name="note/cc led off" startWith="8031" sysEx="f042406e08011300f7"></mapping>
-        <mapping name="midi ch led on" startWith="9031" sysEx="f042406e08011420f7"></mapping>
-        <mapping name="midi ch led off" startWith="8031" sysEx="f042406e08011400f7"></mapping>
-        <mapping name="sw type led on" startWith="9031" sysEx="f042406e08011520f7"></mapping>
-        <mapping name="sw type led off" startWith="8031" sysEx="f042406e08011500f7"></mapping>
-        <mapping name="relval led on" startWith="9031" sysEx="f042406e08011620f7"></mapping>
-        <mapping name="relval led off" startWith="8031" sysEx="f042406e08011600f7"></mapping>
-        <mapping name="velocity led on" startWith="9031" sysEx="f042406e08011720f7"></mapping>
-        <mapping name="velocity led off" startWith="8031" sysEx="f042406e08011700f7"></mapping>
-        <mapping name="port led on" startWith="9031" sysEx="f042406e08011820f7"></mapping>
-        <mapping name="port led off" startWith="8031" sysEx="f042406e08011800f7"></mapping>
-        <mapping name="fixed_velocity led on" startWith="9031" sysEx="f042406e08011920f7"></mapping>
-        <mapping name="fixed_velocity led off" startWith="8031" sysEx="f042406e08011900f7"></mapping>
-        <mapping name="prog_change led on" startWith="9031" sysEx="f042406e08011a20f7"></mapping>
-        <mapping name="prog_change led off" startWith="8031" sysEx="f042406e08011a00f7"></mapping>
-        <mapping name="x led on" startWith="9031" sysEx="f042406e08011b20f7"></mapping>
-        <mapping name="x led off" startWith="8031" sysEx="f042406e08011b00f7"></mapping>
-        <mapping name="y led on" startWith="9031" sysEx="f042406e08011c20f7"></mapping>
-        <mapping name="y led off" startWith="8031" sysEx="f042406e08011c00f7"></mapping>
-        <mapping name="knob1_assign led on" startWith="9031" sysEx="f042406e08011d20f7"></mapping>
-        <mapping name="knob1_assign led off" startWith="8031" sysEx="f042406e08011d00f7"></mapping>
-        <mapping name="knob2_assign led on" startWith="9031" sysEx="f042406e08011e20f7"></mapping>
-        <mapping name="knob2_assign led off" startWith="8031" sysEx="f042406e08011e00f7"></mapping>
-        <mapping name="pedal led on" startWith="9031" sysEx="f042406e08011f20f7"></mapping>
-        <mapping name="pedal led off" startWith="8031" sysEx="f042406e08011f00f7"></mapping>
-        <mapping name="roll led on" startWith="9031" sysEx="f042406e08012020f7"></mapping>
-        <mapping name="roll led off" startWith="8031" sysEx="f042406e08012000f7"></mapping>
-        <mapping name="flam led on" startWith="9031" sysEx="f042406e08012120f7"></mapping>
-        <mapping name="flam led off" startWith="8031" sysEx="f042406e08012100f7"></mapping>
-        <mapping name="flam led on" startWith="9031" sysEx="f042406e08012220f7"></mapping>
-        <mapping name="flam led off" startWith="8031" sysEx="f042406e08012200f7"></mapping>
-        <mapping name="pad1 light on" startWith="9031" sysEx="f042406e08010020f7"></mapping>
-        <mapping name="pad1 light off" startWith="8031" sysEx="f042406e08010000f7"></mapping>
-        <mapping name="pad2 light on" startWith="9031" sysEx="f042406e08010120f7"></mapping>
-        <mapping name="pad2 light off" startWith="8031" sysEx="f042406e08010100f7"></mapping>
-        <mapping name="pad3 light on" startWith="9031" sysEx="f042406e08010220f7"></mapping>
-        <mapping name="pad3 light off" startWith="8031" sysEx="f042406e08010200f7"></mapping>
-        <mapping name="pad4 light on" startWith="9031" sysEx="f042406e08010320f7"></mapping>
-        <mapping name="pad4 light off" startWith="8031" sysEx="f042406e08010300f7"></mapping>
-        <mapping name="pad5 light on" startWith="9031" sysEx="f042406e08010420f7"></mapping>
-        <mapping name="pad5 light off" startWith="8031" sysEx="f042406e08010400f7"></mapping>
-        <mapping name="pad6 light on" startWith="9031" sysEx="f042406e08010520f7"></mapping>
-        <mapping name="pad6 light off" startWith="8031" sysEx="f042406e08010500f7"></mapping>
-        <mapping name="pad7 light on" startWith="9031" sysEx="f042406e08010620f7"></mapping>
-        <mapping name="pad7 light off" startWith="8031" sysEx="f042406e08010600f7"></mapping>
-        <mapping name="pad8 light on" startWith="9031" sysEx="f042406e08010720f7"></mapping>
-        <mapping name="pad8 light off" startWith="8031" sysEx="f042406e08010700f7"></mapping>
-        <mapping name="pad9 light on" startWith="9031" sysEx="f042406e08010820f7"></mapping>
-        <mapping name="pad9 light off" startWith="8031" sysEx="f042406e08010800f7"></mapping>
-        <mapping name="pad10 light on" startWith="9031" sysEx="f042406e08010920f7"></mapping>
-        <mapping name="pad10 light off" startWith="8031" sysEx="f042406e08010900f7"></mapping>
-        <mapping name="pad11 light on" startWith="9031" sysEx="f042406e08010a20f7"></mapping>
-        <mapping name="pad11 light off" startWith="8031" sysEx="f042406e08010a00f7"></mapping>
-        <mapping name="pad12 light on" startWith="9031" sysEx="f042406e08010b20f7"></mapping>
-        <mapping name="pad12 light off" startWith="8031" sysEx="f042406e08010b00f7"></mapping>
-        <mapping name="pad13 light on" startWith="9031" sysEx="f042406e08010c20f7"></mapping>
-        <mapping name="pad13 light off" startWith="8031" sysEx="f042406e08010c00f7"></mapping>
-        <mapping name="pad14 light on" startWith="9031" sysEx="f042406e08010d20f7"></mapping>
-        <mapping name="pad14 light off" startWith="8031" sysEx="f042406e08010d00f7"></mapping>
-        <mapping name="pad15 light on" startWith="9031" sysEx="f042406e08010e20f7"></mapping>
-        <mapping name="pad15 light off" startWith="8031" sysEx="f042406e08010e00f7"></mapping>
-        <mapping name="pad16 light on" startWith="9031" sysEx="f042406e08010f20f7"></mapping>
-        <mapping name="pad16 light off" startWith="8031" sysEx="f042406e08010f00f7"></mapping>
+		<mapping name="setting led on" startWith="9001" sysEx="f042406e08011220f7"></mapping>
+		<mapping name="setting led off" startWith="900100" sysEx="f042406e08011200f7"></mapping>
+        <mapping name="setting led off" startWith="8001" sysEx="f042406e08011200f7"></mapping>        
+		<mapping name="x led on" startWith="9004" sysEx="f042406e08011b20f7"></mapping>
+        <mapping name="x led off" startWith="900400" sysEx="f042406e08011b00f7"></mapping>
+		<mapping name="x led off" startWith="8004" sysEx="f042406e08011b00f7"></mapping>		
+        <mapping name="y led on" startWith="9005" sysEx="f042406e08011c20f7"></mapping>
+		<mapping name="y led off" startWith="900500" sysEx="f042406e08011c00f7"></mapping>
+        <mapping name="y led off" startWith="8005" sysEx="f042406e08011c00f7"></mapping>		
+		<mapping name="pedal led on" startWith="9006" sysEx="f042406e08011f20f7"></mapping>
+		<mapping name="pedal led off" startWith="900600" sysEx="f042406e08011f00f7"></mapping>
+        <mapping name="pedal led off" startWith="8006" sysEx="f042406e08011f00f7"></mapping>
+		<mapping name="note/cc led on" startWith="9007" sysEx="f042406e08011320f7"></mapping>
+        <mapping name="note/cc led off" startWith="900700" sysEx="f042406e08011300f7"></mapping>
+		<mapping name="note/cc led off" startWith="8007" sysEx="f042406e08011300f7"></mapping>
+		<mapping name="midi ch led on" startWith="9008" sysEx="f042406e08011420f7"></mapping>
+		<mapping name="midi ch led off" startWith="900800" sysEx="f042406e08011400f7"></mapping>
+        <mapping name="midi ch led off" startWith="8008" sysEx="f042406e08011400f7"></mapping>
+		<mapping name="sw type led on" startWith="9009" sysEx="f042406e08011520f7"></mapping>
+        <mapping name="sw type led off" startWith="900900" sysEx="f042406e08011500f7"></mapping>
+		<mapping name="sw type led off" startWith="8009" sysEx="f042406e08011500f7"></mapping>		
+		<mapping name="relval led on" startWith="900a" sysEx="f042406e08011620f7"></mapping>
+		<mapping name="relval led off" startWith="900a00" sysEx="f042406e08011600f7"></mapping>
+        <mapping name="relval led off" startWith="800a" sysEx="f042406e08011600f7"></mapping>        
+		<mapping name="velocity led on" startWith="900b" sysEx="f042406e08011720f7"></mapping>
+        <mapping name="velocity led off" startWith="900b00" sysEx="f042406e08011700f7"></mapping>
+		<mapping name="velocity led off" startWith="800b" sysEx="f042406e08011700f7"></mapping>        
+		<mapping name="port led on" startWith="900c" sysEx="f042406e08011820f7"></mapping>
+        <mapping name="port led off" startWith="900c00" sysEx="f042406e08011800f7"></mapping>
+		<mapping name="port led off" startWith="800c" sysEx="f042406e08011800f7"></mapping>		
+		<mapping name="sceneLedOn" startWith="900d" sysEx="f042406e08011020f7"></mapping>
+		<mapping name="sceneLedOff" startWith="900d00" sysEx="f042406e08011000f7"></mapping>
+        <mapping name="sceneLedOff" startWith="800d" sysEx="f042406e08011000f7"></mapping>
+        <mapping name="message led on" startWith="900e" sysEx="f042406e08011120f7"></mapping>
+		<mapping name="message led off" startWith="900e00" sysEx="f042406e08011100f7"></mapping>
+        <mapping name="message led off" startWith="800e" sysEx="f042406e08011100f7"></mapping>        
+        <mapping name="fixed_velocity led on" startWith="900f" sysEx="f042406e08011920f7"></mapping>
+        <mapping name="fixed_velocity led off" startWith="900f00" sysEx="f042406e08011900f7"></mapping>
+		<mapping name="fixed_velocity led off" startWith="800f" sysEx="f042406e08011900f7"></mapping>        
+		<mapping name="prog_change led on" startWith="9010" sysEx="f042406e08011a20f7"></mapping>
+        <mapping name="prog_change led off" startWith="901000" sysEx="f042406e08011a00f7"></mapping>
+		<mapping name="prog_change led off" startWith="8010" sysEx="f042406e08011a00f7"></mapping>		
+		<mapping name="hold led on" startWith="9011" sysEx="f042406e08012220f7"></mapping>
+        <mapping name="hold led off" startWith="901100" sysEx="f042406e08012200f7"></mapping>
+		<mapping name="hold led off" startWith="8011" sysEx="f042406e08012200f7"></mapping>	
+		<mapping name="flam led on" startWith="9012" sysEx="f042406e08012120f7"></mapping>
+        <mapping name="flam led off" startWith="901200" sysEx="f042406e08012100f7"></mapping>
+		<mapping name="flam led off" startWith="8012" sysEx="f042406e08012100f7"></mapping>			
+		<mapping name="roll led on" startWith="9013" sysEx="f042406e08012020f7"></mapping>
+        <mapping name="roll led off" startWith="901300" sysEx="f042406e08012000f7"></mapping>
+		<mapping name="roll led off" startWith="8013" sysEx="f042406e08012000f7"></mapping>        
+        <mapping name="knob1_assign led on" startWith="9014" sysEx="f042406e08011d20f7"></mapping>
+		<mapping name="knob1_assign led off" startWith="901400" sysEx="f042406e08011d00f7"></mapping>
+        <mapping name="knob1_assign led off" startWith="8014" sysEx="f042406e08011d00f7"></mapping>		
+        <mapping name="knob2_assign led on" startWith="9015" sysEx="f042406e08011e20f7"></mapping>
+        <mapping name="knob2_assign led off" startWith="901500" sysEx="f042406e08011e00f7"></mapping>
+		<mapping name="knob2_assign led off" startWith="8015" sysEx="f042406e08011e00f7"></mapping>    
+		
+        <mapping name="pad1 light on" startWith="9016" sysEx="f042406e08010020f7"></mapping>
+        <mapping name="pad1 light off" startWith="901600" sysEx="f042406e08010000f7"></mapping>
+		<mapping name="pad1 light off" startWith="8016" sysEx="f042406e08010000f7"></mapping>
+		
+        <mapping name="pad2 light on" startWith="9017" sysEx="f042406e08010120f7"></mapping>
+        <mapping name="pad2 light off" startWith="901700" sysEx="f042406e08010100f7"></mapping>
+		<mapping name="pad2 light off" startWith="8017" sysEx="f042406e08010100f7"></mapping>
+		
+        <mapping name="pad3 light on" startWith="9018" sysEx="f042406e08010220f7"></mapping>
+        <mapping name="pad3 light off" startWith="901800" sysEx="f042406e08010200f7"></mapping>
+		<mapping name="pad3 light off" startWith="8018" sysEx="f042406e08010200f7"></mapping>
+		
+        <mapping name="pad4 light on" startWith="9019" sysEx="f042406e08010320f7"></mapping>
+        <mapping name="pad4 light off" startWith="901900" sysEx="f042406e08010300f7"></mapping>
+		<mapping name="pad4 light off" startWith="8019" sysEx="f042406e08010300f7"></mapping>
+		
+        <mapping name="pad5 light on" startWith="901a" sysEx="f042406e08010420f7"></mapping>
+        <mapping name="pad5 light off" startWith="901a00" sysEx="f042406e08010400f7"></mapping>
+		<mapping name="pad5 light off" startWith="801a" sysEx="f042406e08010400f7"></mapping>
+		
+        <mapping name="pad6 light on" startWith="901b" sysEx="f042406e08010520f7"></mapping>
+        <mapping name="pad6 light off" startWith="901b00" sysEx="f042406e08010500f7"></mapping>
+		<mapping name="pad6 light off" startWith="801b" sysEx="f042406e08010500f7"></mapping>
+		
+        <mapping name="pad7 light on" startWith="901c" sysEx="f042406e08010620f7"></mapping>
+        <mapping name="pad7 light off" startWith="901c00" sysEx="f042406e08010600f7"></mapping>
+		<mapping name="pad7 light off" startWith="801c" sysEx="f042406e08010600f7"></mapping>
+		
+        <mapping name="pad8 light on" startWith="901d" sysEx="f042406e08010720f7"></mapping>
+        <mapping name="pad8 light off" startWith="901d00" sysEx="f042406e08010700f7"></mapping>
+		<mapping name="pad8 light off" startWith="801d" sysEx="f042406e08010700f7"></mapping>
+		
+        <mapping name="pad9 light on" startWith="901e" sysEx="f042406e08010820f7"></mapping>
+        <mapping name="pad9 light off" startWith="901e00" sysEx="f042406e08010800f7"></mapping>
+		<mapping name="pad9 light off" startWith="801e" sysEx="f042406e08010800f7"></mapping>
+		
+        <mapping name="pad10 light on" startWith="901f" sysEx="f042406e08010920f7"></mapping>
+        <mapping name="pad10 light off" startWith="901f00" sysEx="f042406e08010900f7"></mapping>
+		<mapping name="pad10 light off" startWith="801f" sysEx="f042406e08010900f7"></mapping>
+		
+        <mapping name="pad11 light on" startWith="9020" sysEx="f042406e08010a20f7"></mapping>
+        <mapping name="pad11 light off" startWith="902000" sysEx="f042406e08010a00f7"></mapping>
+		<mapping name="pad11 light off" startWith="8020" sysEx="f042406e08010a00f7"></mapping>
+		
+        <mapping name="pad12 light on" startWith="9021" sysEx="f042406e08010b20f7"></mapping>
+        <mapping name="pad12 light off" startWith="902100" sysEx="f042406e08010b00f7"></mapping>
+		<mapping name="pad12 light off" startWith="8021" sysEx="f042406e08010b00f7"></mapping>
+		
+        <mapping name="pad13 light on" startWith="9022" sysEx="f042406e08010c20f7"></mapping>
+        <mapping name="pad13 light off" startWith="902200" sysEx="f042406e08010c00f7"></mapping>
+		<mapping name="pad13 light off" startWith="8022" sysEx="f042406e08010c00f7"></mapping>
+		
+        <mapping name="pad14 light on" startWith="9023" sysEx="f042406e08010d20f7"></mapping>
+        <mapping name="pad14 light off" startWith="902300" sysEx="f042406e08010d00f7"></mapping>
+		<mapping name="pad14 light off" startWith="8023" sysEx="f042406e08010d00f7"></mapping>
+		
+        <mapping name="pad15 light on" startWith="9024" sysEx="f042406e08010e20f7"></mapping>
+        <mapping name="pad15 light off" startWith="902400" sysEx="f042406e08010e00f7"></mapping>
+		<mapping name="pad15 light off" startWith="8024" sysEx="f042406e08010e00f7"></mapping>
+		
+        <mapping name="pad16 light on" startWith="9025" sysEx="f042406e08010f20f7"></mapping>
+        <mapping name="pad16 light off" startWith="902500" sysEx="f042406e08010f00f7"></mapping>
+		<mapping name="pad16 light off" startWith="8025" sysEx="f042406e08010f00f7"></mapping>
     </ouput>
 </root>

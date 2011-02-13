@@ -47,7 +47,8 @@ QMap<int, QString> MidiKontrol::getInputDevicesList()
         deviceInfo = Pm_GetDeviceInfo(i);
         //std::cout << "#"<< i << deviceInfo->name <<std::endl;
         if (deviceInfo->input) {
-            deviceInputList[i]=deviceInfo->name;
+            //deviceInputList[i]=deviceInfo->name;
+            deviceInputList.insert(i,deviceInfo->name);
         }
     }
     return deviceInputList;
@@ -62,7 +63,7 @@ QMap<int, QString> MidiKontrol::getOutputDevicesList()
     {
         deviceInfo = Pm_GetDeviceInfo(i);
         if (deviceInfo->output) {
-            deviceOutputList[i]=deviceInfo->name;
+            deviceOutputList.insert(i,deviceInfo->name);
         }
     }
     return deviceOutputList;

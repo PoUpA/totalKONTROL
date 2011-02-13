@@ -124,6 +124,7 @@ void virtualMidiKontrol::messageMapper(QString message)
     PmEvent midiNote;
     midiNote.timestamp=0;
     QList<int> mappedMessage;
+    mappedMessage.clear();
     //std::cout<< "mapping size :" << this->mappings.size() << std::endl;
     for (int i = 0; i < this->mappings.size(); ++i) {
         if (message.startsWith(this->mappings.at(i).at(1))&&message.endsWith(this->mappings.at(i).at(2))) {
@@ -133,10 +134,12 @@ void virtualMidiKontrol::messageMapper(QString message)
     for (int i = 0; i < mappedMessage.size();++i){
         if(this->mappings.at(mappedMessage.at(i)).at(0)=="button") {
             bool ok;
-            midiNote.message=Pm_Message(this->mappings.at(mappedMessage.at(i)).at(3).toUInt(&ok,16), this->mappings.at(i).at(4).toUInt(&ok,10), this->mappings.at(i).at(5).toUInt(&ok,10));
+            midiNote.message=Pm_Message(this->mappings.at(mappedMessage.at(i)).at(3).toUInt(&ok,16), this->mappings.at(mappedMessage.at(i)).at(4).toUInt(&ok,10), this->mappings.at(mappedMessage.at(i)).at(5).toUInt(&ok,10));
+            this->virtualMidi->sendMessage(&midiNote);
             for(int j = 6;j < this->mappings.at(mappedMessage.at(i)).count();j=j+3){
-                       this->virtualMidi->sendMessage(&midiNote);
+
                        midiNote.message=Pm_Message(this->mappings.at(mappedMessage.at(i)).at(j).toUInt(&ok,16), this->mappings.at(mappedMessage.at(i)).at(j+1).toUInt(&ok,10), this->mappings.at(mappedMessage.at(i)).at(j+2).toUInt(&ok,10));
+                       this->virtualMidi->sendMessage(&midiNote);
             }
         }
         if(this->mappings.at(mappedMessage.at(i)).at(0)=="pad") {
@@ -144,6 +147,7 @@ void virtualMidiKontrol::messageMapper(QString message)
             QString messageTemp = message.remove(0,14);
             messageTemp = messageTemp.remove(messageTemp.length()-2,2);
             midiNote.message=Pm_Message(this->mappings.at(mappedMessage.at(i)).at(3).toUInt(&ok,16), this->mappings.at(mappedMessage.at(i)).at(4).toUInt(&ok,10), messageTemp.toUInt(&ok,16));
+            this->virtualMidi->sendMessage(&midiNote);
         }
         if(this->mappings.at(mappedMessage.at(i)).at(0)=="xy") {
             bool ok;
@@ -155,9 +159,11 @@ void virtualMidiKontrol::messageMapper(QString message)
             midiNote.message=Pm_Message(this->mappings.at(mappedMessage.at(i)).at(3).toUInt(&ok,16), this->mappings.at(mappedMessage.at(i)).at(4).toUInt(&ok,10), message_x.toUInt(&ok,16));
             this->virtualMidi->sendMessage(&midiNote);
             midiNote.message=Pm_Message(this->mappings.at(mappedMessage.at(i)).at(6).toUInt(&ok,16), this->mappings.at(mappedMessage.at(i)).at(7).toUInt(&ok,10), message_y.toUInt(&ok,16));
+            this->virtualMidi->sendMessage(&midiNote);
         }
 
-        this->virtualMidi->sendMessage(&midiNote);
+
+
     }
     mappedMessage.clear();
 

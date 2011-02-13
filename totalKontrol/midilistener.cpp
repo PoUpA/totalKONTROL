@@ -62,14 +62,14 @@ void MidiListener::run()
             }
             //Filter sysex
             if(receviedMessage.startsWith("f0")&&done){
-                std::cout<< "Sysex done : " << receviedMessage.toStdString() << std::endl;
+                //std::cout<< "Sysex done : " << receviedMessage.toStdString() << std::endl;
                 emit midiMessage(receviedMessage);
                 receviedMessage.clear();
             }
             //Filter non sysex
             if((!receviedMessage.startsWith("f0"))&&(receviedMessage.size()>0))
             {
-                std::cout<< "Note done : " << receviedMessage.toStdString() << std::endl;
+                //std::cout<< "Note done : " << receviedMessage.toStdString() << std::endl;
                 emit midiMessage(receviedMessage);
                 receviedMessage.clear();
             }
