@@ -17,6 +17,7 @@ public:
 
     class MidiKontrol *virtualMidi;
     class QList<QStringList> mappings;
+    class QString bank;
     bool isInit();
 public slots:
     void enterNativeMode();

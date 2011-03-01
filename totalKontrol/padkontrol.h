@@ -16,6 +16,7 @@ public:
 
     class MidiKontrol *padMidiKontrol;
     class QList<QStringList> mappings;
+
     bool isInit();
 public slots:
     void enterNativeMode();

@@ -1,16 +1,16 @@
 <root>
     <input>
-        <mapping name="settingsButtonOn" inputType="button" startWith="f042406e0848027f" endWith="f7">
+        <mapping bankNumber="1" name="settingsButtonOn" inputType="switchBank" startWith="f042406e0848027f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>1</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="settingsButtonOff" inputType="button" startWith="f042406e08480200" endWith="f7">
+        <mapping bankNumber="0" name="settingsButtonOff" inputType="button" startWith="f042406e08480200" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>1</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="encoderLeft" inputType="button" startWith="f042406e0843007f" endWith="f7">
+        <mapping bankNumber="0" name="encoderLeft" inputType="button" startWith="f042406e0843007f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>2</noteData1>
             <noteData2>100</noteData2>
@@ -18,7 +18,7 @@
             <noteData1>2</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="encoderRight" inputType="button" startWith="f042406e08430001" endWith="f7">
+        <mapping bankNumber="0" name="encoderRight" inputType="button" startWith="f042406e08430001" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>3</noteData1>
             <noteData2>100</noteData2>
@@ -26,357 +26,741 @@
             <noteData1>3</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="xButtonOn" inputType="button" startWith="f042406e08480b7f" endWith="f7">
+        <mapping bankNumber="0" name="xButtonOn" inputType="button" startWith="f042406e08480b7f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>4</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="xButtonOff" inputType="button" startWith="f042406e08480b00" endWith="f7">
+        <mapping bankNumber="0" name="xButtonOff" inputType="button" startWith="f042406e08480b00" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>4</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="yButtonOn" inputType="button" startWith="f042406e08480c7f" endWith="f7">
+        <mapping bankNumber="0" name="yButtonOn" inputType="button" startWith="f042406e08480c7f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>5</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="yButtonOff" inputType="button" startWith="f042406e08480c00" endWith="f7">
+        <mapping bankNumber="0" name="yButtonOff" inputType="button" startWith="f042406e08480c00" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>5</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pedalButtonOn" inputType="button" startWith="f042406e08480f7f" endWith="f7">
+        <mapping bankNumber="0" name="pedalButtonOn" inputType="button" startWith="f042406e08480f7f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>6</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="pedalButtonOff" inputType="button" startWith="f042406e08480f00" endWith="f7">
+        <mapping bankNumber="0" name="pedalButtonOff" inputType="button" startWith="f042406e08480f00" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>6</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="noteButtonOn" inputType="button" startWith="f042406e0848037f" endWith="f7">
+        <mapping bankNumber="0" name="noteButtonOn" inputType="button" startWith="f042406e0848037f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>7</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="noteButtonOff" inputType="button" startWith="f042406e08480300" endWith="f7">
+        <mapping bankNumber="0" name="noteButtonOff" inputType="button" startWith="f042406e08480300" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>7</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="midiChButtonOn" inputType="button" startWith="f042406e0848047f" endWith="f7">
+        <mapping bankNumber="0" name="midiChButtonOn" inputType="button" startWith="f042406e0848047f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>8</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="midiChButtonOff" inputType="button" startWith="f042406e08480400" endWith="f7">
+        <mapping bankNumber="0" name="midiChButtonOff" inputType="button" startWith="f042406e08480400" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>8</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="swTypeButtonOn" inputType="button" startWith="f042406e0848057f" endWith="f7">
+        <mapping bankNumber="0" name="swTypeButtonOn" inputType="button" startWith="f042406e0848057f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>9</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="swTypeButtonOff" inputType="button" startWith="f042406e08480500" endWith="f7">
+        <mapping bankNumber="0" name="swTypeButtonOff" inputType="button" startWith="f042406e08480500" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>9</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="relValButtonOn" inputType="button" startWith="f042406e0848067f" endWith="f7">
+        <mapping bankNumber="0" name="relValButtonOn" inputType="button" startWith="f042406e0848067f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>10</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="relValButtonOff" inputType="button" startWith="f042406e08480600" endWith="f7">
+        <mapping bankNumber="0" name="relValButtonOff" inputType="button" startWith="f042406e08480600" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>10</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="velocityButtonOn" inputType="button" startWith="f042406e0848077f" endWith="f7">
+        <mapping bankNumber="0" name="velocityButtonOn" inputType="button" startWith="f042406e0848077f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>11</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="velocityButtonOff" inputType="button" startWith="f042406e08480700" endWith="f7">
+        <mapping bankNumber="0" name="velocityButtonOff" inputType="button" startWith="f042406e08480700" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>11</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="portButtonOn" inputType="button" startWith="f042406e0848087f" endWith="f7">
+        <mapping bankNumber="0" name="portButtonOn" inputType="button" startWith="f042406e0848087f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>12</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="portButtonOff" inputType="button" startWith="f042406e08480800" endWith="f7">
+        <mapping bankNumber="0" name="portButtonOff" inputType="button" startWith="f042406e08480800" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>12</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="sceneButtonOn" inputType="button" startWith="f042406e0848007f" endWith="f7">
+        <mapping bankNumber="0" name="sceneButtonOn" inputType="button" startWith="f042406e0848007f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>13</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="sceneButtonOff" inputType="button" startWith="f042406e08480000" endWith="f7">
+        <mapping bankNumber="0" name="sceneButtonOff" inputType="button" startWith="f042406e08480000" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>13</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="messageButtonOn" inputType="button" startWith="f042406e0848017f" endWith="f7">
+        <mapping bankNumber="0" name="messageButtonOn" inputType="button" startWith="f042406e0848017f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>14</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="messageButtonOff" inputType="button" startWith="f042406e08480100" endWith="f7">
+        <mapping bankNumber="0" name="messageButtonOff" inputType="button" startWith="f042406e08480100" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>14</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="fixedVelocityButtonOn" inputType="button" startWith="f042406e0848097f" endWith="f7">
+        <mapping bankNumber="0" name="fixedVelocityButtonOn" inputType="button" startWith="f042406e0848097f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>15</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="fixedVelocityButtonOff" inputType="button" startWith="f042406e08480900" endWith="f7">
+        <mapping bankNumber="0" name="fixedVelocityButtonOff" inputType="button" startWith="f042406e08480900" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>15</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="progChangeButtonOn" inputType="button" startWith="f042406e08480a7f" endWith="f7">
+        <mapping bankNumber="0" name="progChangeButtonOn" inputType="button" startWith="f042406e08480a7f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>16</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="progChangeButtonOff" inputType="button" startWith="f042406e08480a00" endWith="f7">
+        <mapping bankNumber="0" name="progChangeButtonOff" inputType="button" startWith="f042406e08480a00" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>16</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="holdButtonOn" inputType="button" startWith="f042406e0848127f" endWith="f7">
+        <mapping bankNumber="0" name="holdButtonOn" inputType="button" startWith="f042406e0848127f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>17</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="holdButtonOff" inputType="button" startWith="f042406e08481200" endWith="f7">
+        <mapping bankNumber="0" name="holdButtonOff" inputType="button" startWith="f042406e08481200" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>17</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="flamButtonOn" inputType="button" startWith="f042406e0848117f" endWith="f7">
+        <mapping bankNumber="0" name="flamButtonOn" inputType="button" startWith="f042406e0848117f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>18</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="flamButtonOff" inputType="button" startWith="f042406e08481100" endWith="f7">
+        <mapping bankNumber="0" name="flamButtonOff" inputType="button" startWith="f042406e08481100" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>18</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="rollButtonOn" inputType="button" startWith="f042406e0848107f" endWith="f7">
+        <mapping bankNumber="0" name="rollButtonOn" inputType="button" startWith="f042406e0848107f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>19</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="rollButtonOff" inputType="button" startWith="f042406e08481000" endWith="f7">
+        <mapping bankNumber="0" name="rollButtonOff" inputType="button" startWith="f042406e08481000" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>19</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="knob1AssignButtonOn" inputType="button" startWith="f042406e08480d7f" endWith="f7">
+        <mapping bankNumber="0" name="knob1AssignButtonOn" inputType="button" startWith="f042406e08480d7f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>20</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="knob1AssignButtonOff" inputType="button" startWith="f042406e08480d00" endWith="f7">
+        <mapping bankNumber="0" name="knob1AssignButtonOff" inputType="button" startWith="f042406e08480d00" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>20</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="knob2AssignButtonOn" inputType="button" startWith="f042406e08480e7f" endWith="f7">
+        <mapping bankNumber="0" name="knob2AssignButtonOn" inputType="button" startWith="f042406e08480e7f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>21</noteData1>
             <noteData2>100</noteData2>
         </mapping>
-        <mapping name="knob2AssignButtonOff" inputType="button" startWith="f042406e08480e00" endWith="f7">
+        <mapping bankNumber="0" name="knob2AssignButtonOff" inputType="button" startWith="f042406e08480e00" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>21</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad01On" inputType="pad" startWith="f042406e084540" endWith="f7">
+        <mapping bankNumber="0" name="pad01On" inputType="pad" startWith="f042406e084540" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>22</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad01Off" inputType="button" startWith="f042406e08450040" endWith="f7">
+        <mapping bankNumber="0" name="pad01Off" inputType="button" startWith="f042406e08450040" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>22</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad02On" inputType="pad" startWith="f042406e084541" endWith="f7">
+        <mapping bankNumber="0" name="pad02On" inputType="pad" startWith="f042406e084541" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>23</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad02Off" inputType="button" startWith="f042406e08450140" endWith="f7">
+        <mapping bankNumber="0" name="pad02Off" inputType="button" startWith="f042406e08450140" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>23</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad03On" inputType="pad" startWith="f042406e084542" endWith="f7">
+        <mapping bankNumber="0" name="pad03On" inputType="pad" startWith="f042406e084542" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>24</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad03Off" inputType="button" startWith="f042406e08450240" endWith="f7">
+        <mapping bankNumber="0" name="pad03Off" inputType="button" startWith="f042406e08450240" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>24</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad04On" inputType="pad" startWith="f042406e084543" endWith="f7">
+        <mapping bankNumber="0" name="pad04On" inputType="pad" startWith="f042406e084543" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>25</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad04Off" inputType="button" startWith="f042406e08450340" endWith="f7">
+        <mapping bankNumber="0" name="pad04Off" inputType="button" startWith="f042406e08450340" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>25</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad05On" inputType="pad" startWith="f042406e084544" endWith="f7">
+        <mapping bankNumber="0" name="pad05On" inputType="pad" startWith="f042406e084544" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>26</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad05Off" inputType="button" startWith="f042406e08450440" endWith="f7">
+        <mapping bankNumber="0" name="pad05Off" inputType="button" startWith="f042406e08450440" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>26</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad06On" inputType="pad" startWith="f042406e084545" endWith="f7">
+        <mapping bankNumber="0" name="pad06On" inputType="pad" startWith="f042406e084545" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>27</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad06Off" inputType="button" startWith="f042406e08450540" endWith="f7">
+        <mapping bankNumber="0" name="pad06Off" inputType="button" startWith="f042406e08450540" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>27</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad07On" inputType="pad" startWith="f042406e084546" endWith="f7">
+        <mapping bankNumber="0" name="pad07On" inputType="pad" startWith="f042406e084546" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>28</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad07Off" inputType="button" startWith="f042406e08450640" endWith="f7">
+        <mapping bankNumber="0" name="pad07Off" inputType="button" startWith="f042406e08450640" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>28</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad08On" inputType="pad" startWith="f042406e084547" endWith="f7">
+        <mapping bankNumber="0" name="pad08On" inputType="pad" startWith="f042406e084547" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>29</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad08Off" inputType="button" startWith="f042406e08450740" endWith="f7">
+        <mapping bankNumber="0" name="pad08Off" inputType="button" startWith="f042406e08450740" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>29</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad09On" inputType="pad" startWith="f042406e084548" endWith="f7">
+        <mapping bankNumber="0" name="pad09On" inputType="pad" startWith="f042406e084548" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>30</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad09Off" inputType="button" startWith="f042406e08450840" endWith="f7">
+        <mapping bankNumber="0" name="pad09Off" inputType="button" startWith="f042406e08450840" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>30</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad10On" inputType="pad" startWith="f042406e084549" endWith="f7">
+        <mapping bankNumber="0" name="pad10On" inputType="pad" startWith="f042406e084549" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>31</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad10Off" inputType="button" startWith="f042406e08450940" endWith="f7">
+        <mapping bankNumber="0" name="pad10Off" inputType="button" startWith="f042406e08450940" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>31</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad11On" inputType="pad" startWith="f042406e08454a" endWith="f7">
+        <mapping bankNumber="0" name="pad11On" inputType="pad" startWith="f042406e08454a" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>32</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad11Off" inputType="button" startWith="f042406e08450a40" endWith="f7">
+        <mapping bankNumber="0" name="pad11Off" inputType="button" startWith="f042406e08450a40" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>32</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad12On" inputType="pad" startWith="f042406e08454b" endWith="f7">
+        <mapping bankNumber="0" name="pad12On" inputType="pad" startWith="f042406e08454b" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>33</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad12Off" inputType="button" startWith="f042406e08450b40" endWith="f7">
+        <mapping bankNumber="0" name="pad12Off" inputType="button" startWith="f042406e08450b40" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>33</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad13On" inputType="pad" startWith="f042406e08454c" endWith="f7">
+        <mapping bankNumber="0" name="pad13On" inputType="pad" startWith="f042406e08454c" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>34</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad13Off" inputType="button" startWith="f042406e08450c40" endWith="f7">
+        <mapping bankNumber="0" name="pad13Off" inputType="button" startWith="f042406e08450c40" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>34</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad14On" inputType="pad" startWith="f042406e08454d" endWith="f7">
+        <mapping bankNumber="0" name="pad14On" inputType="pad" startWith="f042406e08454d" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>35</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad14Off" inputType="button" startWith="f042406e08450d40" endWith="f7">
+        <mapping bankNumber="0" name="pad14Off" inputType="button" startWith="f042406e08450d40" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>35</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad15On" inputType="pad" startWith="f042406e08454e" endWith="f7">
+        <mapping bankNumber="0" name="pad15On" inputType="pad" startWith="f042406e08454e" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>36</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad15Off" inputType="button" startWith="f042406e08450e40" endWith="f7">
+        <mapping bankNumber="0" name="pad15Off" inputType="button" startWith="f042406e08450e40" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>36</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad16On" inputType="pad" startWith="f042406e08454f" endWith="f7">
+        <mapping bankNumber="0" name="pad16On" inputType="pad" startWith="f042406e08454f" endWith="f7">
             <noteStatus>0x90</noteStatus>
             <noteData1>37</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="pad16Off" inputType="button" startWith="f042406e08450f40" endWith="f7">
+        <mapping bankNumber="0" name="pad16Off" inputType="button" startWith="f042406e08450f40" endWith="f7">
             <noteStatus>0x80</noteStatus>
             <noteData1>37</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="knob1" inputType="pad" startWith="f042406e084900" endWith="f7">
+        <mapping bankNumber="0" name="knob1" inputType="pad" startWith="f042406e084900" endWith="f7">
             <noteStatus>0xb0</noteStatus>
             <noteData1>1</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="knob2" inputType="pad" startWith="f042406e084901" endWith="f7">
+        <mapping bankNumber="0" name="knob2" inputType="pad" startWith="f042406e084901" endWith="f7">
             <noteStatus>0xb0</noteStatus>
             <noteData1>2</noteData1>
             <noteData2>0</noteData2>
         </mapping>
-        <mapping name="xyPad" inputType="xy" startWith="f042406e084b" endWith="f7">
+        <mapping bankNumber="0" name="xyPad" inputType="xy" startWith="f042406e084b" endWith="f7">
+            <noteStatus>0xb0</noteStatus>
+            <noteData1>3</noteData1>
+            <noteData2>0</noteData2>
+            <noteStatus>0xb0</noteStatus>
+            <noteData1>4</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+		<mapping bankNumber="1" name="settingsButtonOn" inputType="button" startWith="f042406e0848027f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>1</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="settingsButtonOff" inputType="button" startWith="f042406e08480200" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>1</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="encoderLeft" inputType="button" startWith="f042406e0843007f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>2</noteData1>
+            <noteData2>100</noteData2>
+            <noteStatus>0x81</noteStatus>
+            <noteData1>2</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="encoderRight" inputType="button" startWith="f042406e08430001" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>3</noteData1>
+            <noteData2>100</noteData2>
+            <noteStatus>0x81</noteStatus>
+            <noteData1>3</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="xButtonOn" inputType="button" startWith="f042406e08480b7f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>4</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="xButtonOff" inputType="button" startWith="f042406e08480b00" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>4</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="yButtonOn" inputType="button" startWith="f042406e08480c7f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>5</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="yButtonOff" inputType="button" startWith="f042406e08480c00" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>5</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="2" name="pedalButtonOn" inputType="switchBank" startWith="f042406e08480f7f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>6</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pedalButtonOff" inputType="button" startWith="f042406e08480f00" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>6</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="noteButtonOn" inputType="button" startWith="f042406e0848037f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>7</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="noteButtonOff" inputType="button" startWith="f042406e08480300" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>7</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="midiChButtonOn" inputType="button" startWith="f042406e0848047f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>8</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="midiChButtonOff" inputType="button" startWith="f042406e08480400" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>8</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="swTypeButtonOn" inputType="button" startWith="f042406e0848057f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>9</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="swTypeButtonOff" inputType="button" startWith="f042406e08480500" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>9</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="relValButtonOn" inputType="button" startWith="f042406e0848067f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>10</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="relValButtonOff" inputType="button" startWith="f042406e08480600" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>10</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="velocityButtonOn" inputType="button" startWith="f042406e0848077f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>11</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="velocityButtonOff" inputType="button" startWith="f042406e08480700" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>11</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="portButtonOn" inputType="button" startWith="f042406e0848087f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>12</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="portButtonOff" inputType="button" startWith="f042406e08480800" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>12</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="sceneButtonOn" inputType="button" startWith="f042406e0848007f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>13</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="sceneButtonOff" inputType="button" startWith="f042406e08480000" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>13</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="messageButtonOn" inputType="button" startWith="f042406e0848017f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>14</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="messageButtonOff" inputType="button" startWith="f042406e08480100" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>14</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="fixedVelocityButtonOn" inputType="button" startWith="f042406e0848097f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>15</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="fixedVelocityButtonOff" inputType="button" startWith="f042406e08480900" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>15</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="progChangeButtonOn" inputType="button" startWith="f042406e08480a7f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>16</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="progChangeButtonOff" inputType="button" startWith="f042406e08480a00" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>16</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="holdButtonOn" inputType="button" startWith="f042406e0848127f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>17</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="holdButtonOff" inputType="button" startWith="f042406e08481200" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>17</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="flamButtonOn" inputType="button" startWith="f042406e0848117f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>18</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="flamButtonOff" inputType="button" startWith="f042406e08481100" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>18</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="rollButtonOn" inputType="button" startWith="f042406e0848107f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>19</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="rollButtonOff" inputType="button" startWith="f042406e08481000" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>19</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="knob1AssignButtonOn" inputType="button" startWith="f042406e08480d7f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>20</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="knob1AssignButtonOff" inputType="button" startWith="f042406e08480d00" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>20</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="knob2AssignButtonOn" inputType="button" startWith="f042406e08480e7f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>21</noteData1>
+            <noteData2>100</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="knob2AssignButtonOff" inputType="button" startWith="f042406e08480e00" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>21</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad01On" inputType="pad" startWith="f042406e084540" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>22</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad01Off" inputType="button" startWith="f042406e08450040" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>22</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad02On" inputType="pad" startWith="f042406e084541" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>23</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad02Off" inputType="button" startWith="f042406e08450140" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>23</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad03On" inputType="pad" startWith="f042406e084542" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>24</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad03Off" inputType="button" startWith="f042406e08450240" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>24</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad04On" inputType="pad" startWith="f042406e084543" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>25</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad04Off" inputType="button" startWith="f042406e08450340" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>25</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad05On" inputType="pad" startWith="f042406e084544" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>26</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad05Off" inputType="button" startWith="f042406e08450440" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>26</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad06On" inputType="pad" startWith="f042406e084545" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>27</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad06Off" inputType="button" startWith="f042406e08450540" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>27</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad07On" inputType="pad" startWith="f042406e084546" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>28</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad07Off" inputType="button" startWith="f042406e08450640" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>28</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad08On" inputType="pad" startWith="f042406e084547" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>29</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad08Off" inputType="button" startWith="f042406e08450740" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>29</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad09On" inputType="pad" startWith="f042406e084548" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>30</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad09Off" inputType="button" startWith="f042406e08450840" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>30</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad10On" inputType="pad" startWith="f042406e084549" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>31</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad10Off" inputType="button" startWith="f042406e08450940" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>31</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad11On" inputType="pad" startWith="f042406e08454a" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>32</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad11Off" inputType="button" startWith="f042406e08450a40" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>32</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad12On" inputType="pad" startWith="f042406e08454b" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>33</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad12Off" inputType="button" startWith="f042406e08450b40" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>33</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad13On" inputType="pad" startWith="f042406e08454c" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>34</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad13Off" inputType="button" startWith="f042406e08450c40" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>34</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad14On" inputType="pad" startWith="f042406e08454d" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>35</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad14Off" inputType="button" startWith="f042406e08450d40" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>35</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad15On" inputType="pad" startWith="f042406e08454e" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>36</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad15Off" inputType="button" startWith="f042406e08450e40" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>36</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad16On" inputType="pad" startWith="f042406e08454f" endWith="f7">
+            <noteStatus>0x91</noteStatus>
+            <noteData1>37</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="pad16Off" inputType="button" startWith="f042406e08450f40" endWith="f7">
+            <noteStatus>0x81</noteStatus>
+            <noteData1>37</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="knob1" inputType="pad" startWith="f042406e084900" endWith="f7">
+            <noteStatus>0xb0</noteStatus>
+            <noteData1>1</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="knob2" inputType="pad" startWith="f042406e084901" endWith="f7">
+            <noteStatus>0xb0</noteStatus>
+            <noteData1>2</noteData1>
+            <noteData2>0</noteData2>
+        </mapping>
+        <mapping bankNumber="1" name="xyPad" inputType="xy" startWith="f042406e084b" endWith="f7">
             <noteStatus>0xb0</noteStatus>
             <noteData1>3</noteData1>
             <noteData2>0</noteData2>
@@ -386,126 +770,126 @@
         </mapping>
     </input>
     <output>
-		<mapping name="setting led on" startWith="9001" sysEx="f042406e08011220f7"></mapping>
-		<mapping name="setting led off" startWith="900100" sysEx="f042406e08011200f7"></mapping>
-        <mapping name="setting led off" startWith="8001" sysEx="f042406e08011200f7"></mapping>        
-		<mapping name="x led on" startWith="9004" sysEx="f042406e08011b20f7"></mapping>
-        <mapping name="x led off" startWith="900400" sysEx="f042406e08011b00f7"></mapping>
-		<mapping name="x led off" startWith="8004" sysEx="f042406e08011b00f7"></mapping>		
-        <mapping name="y led on" startWith="9005" sysEx="f042406e08011c20f7"></mapping>
-		<mapping name="y led off" startWith="900500" sysEx="f042406e08011c00f7"></mapping>
-        <mapping name="y led off" startWith="8005" sysEx="f042406e08011c00f7"></mapping>		
-		<mapping name="pedal led on" startWith="9006" sysEx="f042406e08011f20f7"></mapping>
-		<mapping name="pedal led off" startWith="900600" sysEx="f042406e08011f00f7"></mapping>
-        <mapping name="pedal led off" startWith="8006" sysEx="f042406e08011f00f7"></mapping>
-		<mapping name="note/cc led on" startWith="9007" sysEx="f042406e08011320f7"></mapping>
-        <mapping name="note/cc led off" startWith="900700" sysEx="f042406e08011300f7"></mapping>
-		<mapping name="note/cc led off" startWith="8007" sysEx="f042406e08011300f7"></mapping>
-		<mapping name="midi ch led on" startWith="9008" sysEx="f042406e08011420f7"></mapping>
-		<mapping name="midi ch led off" startWith="900800" sysEx="f042406e08011400f7"></mapping>
-        <mapping name="midi ch led off" startWith="8008" sysEx="f042406e08011400f7"></mapping>
-		<mapping name="sw type led on" startWith="9009" sysEx="f042406e08011520f7"></mapping>
-        <mapping name="sw type led off" startWith="900900" sysEx="f042406e08011500f7"></mapping>
-		<mapping name="sw type led off" startWith="8009" sysEx="f042406e08011500f7"></mapping>		
-		<mapping name="relval led on" startWith="900a" sysEx="f042406e08011620f7"></mapping>
-		<mapping name="relval led off" startWith="900a00" sysEx="f042406e08011600f7"></mapping>
-        <mapping name="relval led off" startWith="800a" sysEx="f042406e08011600f7"></mapping>        
-		<mapping name="velocity led on" startWith="900b" sysEx="f042406e08011720f7"></mapping>
-        <mapping name="velocity led off" startWith="900b00" sysEx="f042406e08011700f7"></mapping>
-		<mapping name="velocity led off" startWith="800b" sysEx="f042406e08011700f7"></mapping>        
-		<mapping name="port led on" startWith="900c" sysEx="f042406e08011820f7"></mapping>
-        <mapping name="port led off" startWith="900c00" sysEx="f042406e08011800f7"></mapping>
-		<mapping name="port led off" startWith="800c" sysEx="f042406e08011800f7"></mapping>		
-		<mapping name="sceneLedOn" startWith="900d" sysEx="f042406e08011020f7"></mapping>
-		<mapping name="sceneLedOff" startWith="900d00" sysEx="f042406e08011000f7"></mapping>
-        <mapping name="sceneLedOff" startWith="800d" sysEx="f042406e08011000f7"></mapping>
-        <mapping name="message led on" startWith="900e" sysEx="f042406e08011120f7"></mapping>
-		<mapping name="message led off" startWith="900e00" sysEx="f042406e08011100f7"></mapping>
-        <mapping name="message led off" startWith="800e" sysEx="f042406e08011100f7"></mapping>        
-        <mapping name="fixed_velocity led on" startWith="900f" sysEx="f042406e08011920f7"></mapping>
-        <mapping name="fixed_velocity led off" startWith="900f00" sysEx="f042406e08011900f7"></mapping>
-		<mapping name="fixed_velocity led off" startWith="800f" sysEx="f042406e08011900f7"></mapping>        
-		<mapping name="prog_change led on" startWith="9010" sysEx="f042406e08011a20f7"></mapping>
-        <mapping name="prog_change led off" startWith="901000" sysEx="f042406e08011a00f7"></mapping>
-		<mapping name="prog_change led off" startWith="8010" sysEx="f042406e08011a00f7"></mapping>		
-		<mapping name="hold led on" startWith="9011" sysEx="f042406e08012220f7"></mapping>
-        <mapping name="hold led off" startWith="901100" sysEx="f042406e08012200f7"></mapping>
-		<mapping name="hold led off" startWith="8011" sysEx="f042406e08012200f7"></mapping>	
-		<mapping name="flam led on" startWith="9012" sysEx="f042406e08012120f7"></mapping>
-        <mapping name="flam led off" startWith="901200" sysEx="f042406e08012100f7"></mapping>
-		<mapping name="flam led off" startWith="8012" sysEx="f042406e08012100f7"></mapping>			
-		<mapping name="roll led on" startWith="9013" sysEx="f042406e08012020f7"></mapping>
-        <mapping name="roll led off" startWith="901300" sysEx="f042406e08012000f7"></mapping>
-		<mapping name="roll led off" startWith="8013" sysEx="f042406e08012000f7"></mapping>        
-        <mapping name="knob1_assign led on" startWith="9014" sysEx="f042406e08011d20f7"></mapping>
-		<mapping name="knob1_assign led off" startWith="901400" sysEx="f042406e08011d00f7"></mapping>
-        <mapping name="knob1_assign led off" startWith="8014" sysEx="f042406e08011d00f7"></mapping>		
-        <mapping name="knob2_assign led on" startWith="9015" sysEx="f042406e08011e20f7"></mapping>
-        <mapping name="knob2_assign led off" startWith="901500" sysEx="f042406e08011e00f7"></mapping>
-		<mapping name="knob2_assign led off" startWith="8015" sysEx="f042406e08011e00f7"></mapping>    
+		<mapping bankNumber="0" name="setting led on" startWith="9001" sysEx="f042406e08011220f7"></mapping>
+		<mapping bankNumber="0" name="setting led off" startWith="900100" sysEx="f042406e08011200f7"></mapping>
+        <mapping bankNumber="0" name="setting led off" startWith="8001" sysEx="f042406e08011200f7"></mapping>        
+		<mapping bankNumber="0" name="x led on" startWith="9004" sysEx="f042406e08011b20f7"></mapping>
+        <mapping bankNumber="0" name="x led off" startWith="900400" sysEx="f042406e08011b00f7"></mapping>
+		<mapping bankNumber="0" name="x led off" startWith="8004" sysEx="f042406e08011b00f7"></mapping>		
+        <mapping bankNumber="0" name="y led on" startWith="9005" sysEx="f042406e08011c20f7"></mapping>
+		<mapping bankNumber="0" name="y led off" startWith="900500" sysEx="f042406e08011c00f7"></mapping>
+        <mapping bankNumber="0" name="y led off" startWith="8005" sysEx="f042406e08011c00f7"></mapping>		
+		<mapping bankNumber="0" name="pedal led on" startWith="9006" sysEx="f042406e08011f20f7"></mapping>
+		<mapping bankNumber="0" name="pedal led off" startWith="900600" sysEx="f042406e08011f00f7"></mapping>
+        <mapping bankNumber="0" name="pedal led off" startWith="8006" sysEx="f042406e08011f00f7"></mapping>
+		<mapping bankNumber="0" name="note/cc led on" startWith="9007" sysEx="f042406e08011320f7"></mapping>
+        <mapping bankNumber="0" name="note/cc led off" startWith="900700" sysEx="f042406e08011300f7"></mapping>
+		<mapping bankNumber="0" name="note/cc led off" startWith="8007" sysEx="f042406e08011300f7"></mapping>
+		<mapping bankNumber="0" name="midi ch led on" startWith="9008" sysEx="f042406e08011420f7"></mapping>
+		<mapping bankNumber="0" name="midi ch led off" startWith="900800" sysEx="f042406e08011400f7"></mapping>
+        <mapping bankNumber="0" name="midi ch led off" startWith="8008" sysEx="f042406e08011400f7"></mapping>
+		<mapping bankNumber="0" name="sw type led on" startWith="9009" sysEx="f042406e08011520f7"></mapping>
+        <mapping bankNumber="0" name="sw type led off" startWith="900900" sysEx="f042406e08011500f7"></mapping>
+		<mapping bankNumber="0" name="sw type led off" startWith="8009" sysEx="f042406e08011500f7"></mapping>		
+		<mapping bankNumber="0" name="relval led on" startWith="900a" sysEx="f042406e08011620f7"></mapping>
+		<mapping bankNumber="0" name="relval led off" startWith="900a00" sysEx="f042406e08011600f7"></mapping>
+        <mapping bankNumber="0" name="relval led off" startWith="800a" sysEx="f042406e08011600f7"></mapping>        
+		<mapping bankNumber="0" name="velocity led on" startWith="900b" sysEx="f042406e08011720f7"></mapping>
+        <mapping bankNumber="0" name="velocity led off" startWith="900b00" sysEx="f042406e08011700f7"></mapping>
+		<mapping bankNumber="0" name="velocity led off" startWith="800b" sysEx="f042406e08011700f7"></mapping>        
+		<mapping bankNumber="0" name="port led on" startWith="900c" sysEx="f042406e08011820f7"></mapping>
+        <mapping bankNumber="0" name="port led off" startWith="900c00" sysEx="f042406e08011800f7"></mapping>
+		<mapping bankNumber="0" name="port led off" startWith="800c" sysEx="f042406e08011800f7"></mapping>		
+		<mapping bankNumber="0" name="sceneLedOn" startWith="900d" sysEx="f042406e08011020f7"></mapping>
+		<mapping bankNumber="0" name="sceneLedOff" startWith="900d00" sysEx="f042406e08011000f7"></mapping>
+        <mapping bankNumber="0" name="sceneLedOff" startWith="800d" sysEx="f042406e08011000f7"></mapping>
+        <mapping bankNumber="0" name="message led on" startWith="900e" sysEx="f042406e08011120f7"></mapping>
+		<mapping bankNumber="0" name="message led off" startWith="900e00" sysEx="f042406e08011100f7"></mapping>
+        <mapping bankNumber="0" name="message led off" startWith="800e" sysEx="f042406e08011100f7"></mapping>        
+        <mapping bankNumber="0" name="fixed_velocity led on" startWith="900f" sysEx="f042406e08011920f7"></mapping>
+        <mapping bankNumber="0" name="fixed_velocity led off" startWith="900f00" sysEx="f042406e08011900f7"></mapping>
+		<mapping bankNumber="0" name="fixed_velocity led off" startWith="800f" sysEx="f042406e08011900f7"></mapping>        
+		<mapping bankNumber="0" name="prog_change led on" startWith="9010" sysEx="f042406e08011a20f7"></mapping>
+        <mapping bankNumber="0" name="prog_change led off" startWith="901000" sysEx="f042406e08011a00f7"></mapping>
+		<mapping bankNumber="0" name="prog_change led off" startWith="8010" sysEx="f042406e08011a00f7"></mapping>		
+		<mapping bankNumber="0" name="hold led on" startWith="9011" sysEx="f042406e08012220f7"></mapping>
+        <mapping bankNumber="0" name="hold led off" startWith="901100" sysEx="f042406e08012200f7"></mapping>
+		<mapping bankNumber="0" name="hold led off" startWith="8011" sysEx="f042406e08012200f7"></mapping>	
+		<mapping bankNumber="0" name="flam led on" startWith="9012" sysEx="f042406e08012120f7"></mapping>
+        <mapping bankNumber="0" name="flam led off" startWith="901200" sysEx="f042406e08012100f7"></mapping>
+		<mapping bankNumber="0" name="flam led off" startWith="8012" sysEx="f042406e08012100f7"></mapping>			
+		<mapping bankNumber="0" name="roll led on" startWith="9013" sysEx="f042406e08012020f7"></mapping>
+        <mapping bankNumber="0" name="roll led off" startWith="901300" sysEx="f042406e08012000f7"></mapping>
+		<mapping bankNumber="0" name="roll led off" startWith="8013" sysEx="f042406e08012000f7"></mapping>        
+        <mapping bankNumber="0" name="knob1_assign led on" startWith="9014" sysEx="f042406e08011d20f7"></mapping>
+		<mapping bankNumber="0" name="knob1_assign led off" startWith="901400" sysEx="f042406e08011d00f7"></mapping>
+        <mapping bankNumber="0" name="knob1_assign led off" startWith="8014" sysEx="f042406e08011d00f7"></mapping>		
+        <mapping bankNumber="0" name="knob2_assign led on" startWith="9015" sysEx="f042406e08011e20f7"></mapping>
+        <mapping bankNumber="0" name="knob2_assign led off" startWith="901500" sysEx="f042406e08011e00f7"></mapping>
+		<mapping bankNumber="0" name="knob2_assign led off" startWith="8015" sysEx="f042406e08011e00f7"></mapping>    
 		
-        <mapping name="pad1 light on" startWith="9016" sysEx="f042406e08010020f7"></mapping>
-        <mapping name="pad1 light off" startWith="901600" sysEx="f042406e08010000f7"></mapping>
-		<mapping name="pad1 light off" startWith="8016" sysEx="f042406e08010000f7"></mapping>
+        <mapping bankNumber="0" name="pad1 light on" startWith="9016" sysEx="f042406e08010020f7"></mapping>
+        <mapping bankNumber="0" name="pad1 light off" startWith="901600" sysEx="f042406e08010000f7"></mapping>
+		<mapping bankNumber="0" name="pad1 light off" startWith="8016" sysEx="f042406e08010000f7"></mapping>
 		
-        <mapping name="pad2 light on" startWith="9017" sysEx="f042406e08010120f7"></mapping>
-        <mapping name="pad2 light off" startWith="901700" sysEx="f042406e08010100f7"></mapping>
-		<mapping name="pad2 light off" startWith="8017" sysEx="f042406e08010100f7"></mapping>
+        <mapping bankNumber="0" name="pad2 light on" startWith="9017" sysEx="f042406e08010120f7"></mapping>
+        <mapping bankNumber="0" name="pad2 light off" startWith="901700" sysEx="f042406e08010100f7"></mapping>
+		<mapping bankNumber="0" name="pad2 light off" startWith="8017" sysEx="f042406e08010100f7"></mapping>
 		
-        <mapping name="pad3 light on" startWith="9018" sysEx="f042406e08010220f7"></mapping>
-        <mapping name="pad3 light off" startWith="901800" sysEx="f042406e08010200f7"></mapping>
-		<mapping name="pad3 light off" startWith="8018" sysEx="f042406e08010200f7"></mapping>
+        <mapping bankNumber="0" name="pad3 light on" startWith="9018" sysEx="f042406e08010220f7"></mapping>
+        <mapping bankNumber="0" name="pad3 light off" startWith="901800" sysEx="f042406e08010200f7"></mapping>
+		<mapping bankNumber="0" name="pad3 light off" startWith="8018" sysEx="f042406e08010200f7"></mapping>
 		
-        <mapping name="pad4 light on" startWith="9019" sysEx="f042406e08010320f7"></mapping>
-        <mapping name="pad4 light off" startWith="901900" sysEx="f042406e08010300f7"></mapping>
-		<mapping name="pad4 light off" startWith="8019" sysEx="f042406e08010300f7"></mapping>
+        <mapping bankNumber="0" name="pad4 light on" startWith="9019" sysEx="f042406e08010320f7"></mapping>
+        <mapping bankNumber="0" name="pad4 light off" startWith="901900" sysEx="f042406e08010300f7"></mapping>
+		<mapping bankNumber="0" name="pad4 light off" startWith="8019" sysEx="f042406e08010300f7"></mapping>
 		
-        <mapping name="pad5 light on" startWith="901a" sysEx="f042406e08010420f7"></mapping>
-        <mapping name="pad5 light off" startWith="901a00" sysEx="f042406e08010400f7"></mapping>
-		<mapping name="pad5 light off" startWith="801a" sysEx="f042406e08010400f7"></mapping>
+        <mapping bankNumber="0" name="pad5 light on" startWith="901a" sysEx="f042406e08010420f7"></mapping>
+        <mapping bankNumber="0" name="pad5 light off" startWith="901a00" sysEx="f042406e08010400f7"></mapping>
+		<mapping bankNumber="0" name="pad5 light off" startWith="801a" sysEx="f042406e08010400f7"></mapping>
 		
-        <mapping name="pad6 light on" startWith="901b" sysEx="f042406e08010520f7"></mapping>
-        <mapping name="pad6 light off" startWith="901b00" sysEx="f042406e08010500f7"></mapping>
-		<mapping name="pad6 light off" startWith="801b" sysEx="f042406e08010500f7"></mapping>
+        <mapping bankNumber="0" name="pad6 light on" startWith="901b" sysEx="f042406e08010520f7"></mapping>
+        <mapping bankNumber="0" name="pad6 light off" startWith="901b00" sysEx="f042406e08010500f7"></mapping>
+		<mapping bankNumber="0" name="pad6 light off" startWith="801b" sysEx="f042406e08010500f7"></mapping>
 		
-        <mapping name="pad7 light on" startWith="901c" sysEx="f042406e08010620f7"></mapping>
-        <mapping name="pad7 light off" startWith="901c00" sysEx="f042406e08010600f7"></mapping>
-		<mapping name="pad7 light off" startWith="801c" sysEx="f042406e08010600f7"></mapping>
+        <mapping bankNumber="0" name="pad7 light on" startWith="901c" sysEx="f042406e08010620f7"></mapping>
+        <mapping bankNumber="0" name="pad7 light off" startWith="901c00" sysEx="f042406e08010600f7"></mapping>
+		<mapping bankNumber="0" name="pad7 light off" startWith="801c" sysEx="f042406e08010600f7"></mapping>
 		
-        <mapping name="pad8 light on" startWith="901d" sysEx="f042406e08010720f7"></mapping>
-        <mapping name="pad8 light off" startWith="901d00" sysEx="f042406e08010700f7"></mapping>
-		<mapping name="pad8 light off" startWith="801d" sysEx="f042406e08010700f7"></mapping>
+        <mapping bankNumber="0" name="pad8 light on" startWith="901d" sysEx="f042406e08010720f7"></mapping>
+        <mapping bankNumber="0" name="pad8 light off" startWith="901d00" sysEx="f042406e08010700f7"></mapping>
+		<mapping bankNumber="0" name="pad8 light off" startWith="801d" sysEx="f042406e08010700f7"></mapping>
 		
-        <mapping name="pad9 light on" startWith="901e" sysEx="f042406e08010820f7"></mapping>
-        <mapping name="pad9 light off" startWith="901e00" sysEx="f042406e08010800f7"></mapping>
-		<mapping name="pad9 light off" startWith="801e" sysEx="f042406e08010800f7"></mapping>
+        <mapping bankNumber="0" name="pad9 light on" startWith="901e" sysEx="f042406e08010820f7"></mapping>
+        <mapping bankNumber="0" name="pad9 light off" startWith="901e00" sysEx="f042406e08010800f7"></mapping>
+		<mapping bankNumber="0" name="pad9 light off" startWith="801e" sysEx="f042406e08010800f7"></mapping>
 		
-        <mapping name="pad10 light on" startWith="901f" sysEx="f042406e08010920f7"></mapping>
-        <mapping name="pad10 light off" startWith="901f00" sysEx="f042406e08010900f7"></mapping>
-		<mapping name="pad10 light off" startWith="801f" sysEx="f042406e08010900f7"></mapping>
+        <mapping bankNumber="0" name="pad10 light on" startWith="901f" sysEx="f042406e08010920f7"></mapping>
+        <mapping bankNumber="0" name="pad10 light off" startWith="901f00" sysEx="f042406e08010900f7"></mapping>
+		<mapping bankNumber="0" name="pad10 light off" startWith="801f" sysEx="f042406e08010900f7"></mapping>
 		
-        <mapping name="pad11 light on" startWith="9020" sysEx="f042406e08010a20f7"></mapping>
-        <mapping name="pad11 light off" startWith="902000" sysEx="f042406e08010a00f7"></mapping>
-		<mapping name="pad11 light off" startWith="8020" sysEx="f042406e08010a00f7"></mapping>
+        <mapping bankNumber="0" name="pad11 light on" startWith="9020" sysEx="f042406e08010a20f7"></mapping>
+        <mapping bankNumber="0" name="pad11 light off" startWith="902000" sysEx="f042406e08010a00f7"></mapping>
+		<mapping bankNumber="0" name="pad11 light off" startWith="8020" sysEx="f042406e08010a00f7"></mapping>
 		
-        <mapping name="pad12 light on" startWith="9021" sysEx="f042406e08010b20f7"></mapping>
-        <mapping name="pad12 light off" startWith="902100" sysEx="f042406e08010b00f7"></mapping>
-		<mapping name="pad12 light off" startWith="8021" sysEx="f042406e08010b00f7"></mapping>
+        <mapping bankNumber="0" name="pad12 light on" startWith="9021" sysEx="f042406e08010b20f7"></mapping>
+        <mapping bankNumber="0" name="pad12 light off" startWith="902100" sysEx="f042406e08010b00f7"></mapping>
+		<mapping bankNumber="0" name="pad12 light off" startWith="8021" sysEx="f042406e08010b00f7"></mapping>
 		
-        <mapping name="pad13 light on" startWith="9022" sysEx="f042406e08010c20f7"></mapping>
-        <mapping name="pad13 light off" startWith="902200" sysEx="f042406e08010c00f7"></mapping>
-		<mapping name="pad13 light off" startWith="8022" sysEx="f042406e08010c00f7"></mapping>
+        <mapping bankNumber="0" name="pad13 light on" startWith="9022" sysEx="f042406e08010c20f7"></mapping>
+        <mapping bankNumber="0" name="pad13 light off" startWith="902200" sysEx="f042406e08010c00f7"></mapping>
+		<mapping bankNumber="0" name="pad13 light off" startWith="8022" sysEx="f042406e08010c00f7"></mapping>
 		
-        <mapping name="pad14 light on" startWith="9023" sysEx="f042406e08010d20f7"></mapping>
-        <mapping name="pad14 light off" startWith="902300" sysEx="f042406e08010d00f7"></mapping>
-		<mapping name="pad14 light off" startWith="8023" sysEx="f042406e08010d00f7"></mapping>
+        <mapping bankNumber="0" name="pad14 light on" startWith="9023" sysEx="f042406e08010d20f7"></mapping>
+        <mapping bankNumber="0" name="pad14 light off" startWith="902300" sysEx="f042406e08010d00f7"></mapping>
+		<mapping bankNumber="0" name="pad14 light off" startWith="8023" sysEx="f042406e08010d00f7"></mapping>
 		
-        <mapping name="pad15 light on" startWith="9024" sysEx="f042406e08010e20f7"></mapping>
-        <mapping name="pad15 light off" startWith="902400" sysEx="f042406e08010e00f7"></mapping>
-		<mapping name="pad15 light off" startWith="8024" sysEx="f042406e08010e00f7"></mapping>
+        <mapping bankNumber="0" name="pad15 light on" startWith="9024" sysEx="f042406e08010e20f7"></mapping>
+        <mapping bankNumber="0" name="pad15 light off" startWith="902400" sysEx="f042406e08010e00f7"></mapping>
+		<mapping bankNumber="0" name="pad15 light off" startWith="8024" sysEx="f042406e08010e00f7"></mapping>
 		
-        <mapping name="pad16 light on" startWith="9025" sysEx="f042406e08010f20f7"></mapping>
-        <mapping name="pad16 light off" startWith="902500" sysEx="f042406e08010f00f7"></mapping>
-		<mapping name="pad16 light off" startWith="8025" sysEx="f042406e08010f00f7"></mapping>
+        <mapping bankNumber="0" name="pad16 light on" startWith="9025" sysEx="f042406e08010f20f7"></mapping>
+        <mapping bankNumber="0" name="pad16 light off" startWith="902500" sysEx="f042406e08010f00f7"></mapping>
+		<mapping bankNumber="0" name="pad16 light off" startWith="8025" sysEx="f042406e08010f00f7"></mapping>
     </ouput>
 </root>
