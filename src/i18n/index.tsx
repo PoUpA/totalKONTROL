@@ -1,8 +1,22 @@
-// UI translations. The language is remembered per viewer, starts from the
-// system language, and is sent to the Rust core so its messages match.
+// UI translations. The texts live in locales/<lang>.json, shared with the
+// Rust core; English is the reference. The language is remembered per
+// viewer, starts from the system language, and is sent to the Rust core so
+// its messages match.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import en from "../../locales/en.json";
+import esJson from "../../locales/es.json";
+import frJson from "../../locales/fr.json";
+
+export type MessageKey = keyof typeof en;
+type Messages = Record<MessageKey, string>;
+
+// Typed against the English keys: a missing translation fails the build.
+const fr: Messages = frJson;
+const es: Messages = esJson;
+
+export type Lang = "en" | "fr" | "es";
 
 /** Tells the Rust core which language its messages should use. */
 export async function sendLangToCore(lang: Lang): Promise<void> {
@@ -12,12 +26,6 @@ export async function sendLangToCore(lang: Lang): Promise<void> {
     // Outside Tauri (plain browser preview): nothing to tell.
   }
 }
-import { en, type MessageKey, type Messages } from "./en";
-import { es } from "./es";
-import { fr } from "./fr";
-
-export type Lang = "en" | "fr" | "es";
-export type { MessageKey };
 
 /** Language names, each written in its own language. */
 export const LANGUAGES: { code: Lang; label: string }[] = [

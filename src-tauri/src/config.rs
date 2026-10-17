@@ -344,11 +344,7 @@ fn is_default<T: Default + PartialEq>(value: &T) -> bool {
 pub fn parse_profile(json: &str) -> Result<Profile, Vec<String>> {
     let profile: Profile = serde_json::from_str(json).map_err(|e| {
         let (line, column) = (e.line(), e.column());
-        vec![t!(
-            "invalid JSON (line {line}, column {column}): {e}",
-            "JSON invalide (ligne {line}, colonne {column}) : {e}",
-            "JSON no válido (línea {line}, columna {column}): {e}"
-        )]
+        vec![t!("core.validation.invalidJson", line, column, error = e)]
     })?;
     checked(profile)
 }
@@ -356,7 +352,7 @@ pub fn parse_profile(json: &str) -> Result<Profile, Vec<String>> {
 /// Same as [`parse_profile`], from a JSON value sent by the editor.
 pub fn parse_value(value: serde_json::Value) -> Result<Profile, Vec<String>> {
     let profile: Profile = serde_json::from_value(value)
-        .map_err(|e| vec![t!("invalid profile: {e}", "profil invalide : {e}", "perfil no válido: {e}")])?;
+        .map_err(|e| vec![t!("core.validation.invalidProfile", error = e)])?;
     checked(profile)
 }
 
@@ -396,11 +392,7 @@ pub fn validate(profile: &Profile) -> Vec<String> {
         let version = profile.version;
         v.error(
             "version",
-            t!(
-                "version {version} is not supported (expected: {FORMAT_VERSION})",
-                "version {version} non prise en charge (attendu : {FORMAT_VERSION})",
-                "versión {version} no compatible (se esperaba: {FORMAT_VERSION})"
-            ),
+            t!("core.validation.unsupportedVersion", version, expected = FORMAT_VERSION),
         );
     }
     if profile.name.trim().is_empty() {
@@ -408,7 +400,7 @@ pub fn validate(profile: &Profile) -> Vec<String> {
     }
     let bank_count = profile.banks.len();
     if bank_count == 0 {
-        v.error("banks", t!("at least one bank is required", "il faut au moins une banque", "se necesita al menos un banco"));
+        v.error("banks", t!("core.validation.noBank"));
     } else if profile.start_bank >= bank_count {
         v.error("startBank", missing_bank(profile.start_bank));
     }
@@ -416,11 +408,7 @@ pub fn validate(profile: &Profile) -> Vec<String> {
         let (duration, min, max) = (profile.display.duration, DISPLAY_DURATION_MS.start(), DISPLAY_DURATION_MS.end());
         v.error(
             "display.duration",
-            t!(
-                "duration {duration} ms is invalid ({min} to {max} ms)",
-                "durée {duration} ms invalide ({min} à {max} ms)",
-                "duración {duration} ms no válida ({min} a {max} ms)"
-            ),
+            t!("core.validation.invalidDuration", duration, min, max),
         );
     }
 
@@ -434,17 +422,13 @@ pub fn validate(profile: &Profile) -> Vec<String> {
         {
             v.error(
                 format!("{path}.display"),
-                t!(
-                    "“{text}”: {DISPLAY_LENGTH} characters at most, no accents",
-                    "« {text} » : {DISPLAY_LENGTH} caractères au plus, sans accents",
-                    "«{text}»: {DISPLAY_LENGTH} caracteres como máximo, sin acentos"
-                ),
+                t!("core.validation.invalidDisplayText", length = DISPLAY_LENGTH, text),
             );
         }
         for (pad, action) in &bank.pads {
             let p = format!("{path}.pads.{pad}");
             if !(1..=PAD_COUNT).contains(pad) {
-                v.error(&p, t!("unknown pad (1 to {PAD_COUNT})", "pad inconnu (1 à {PAD_COUNT})", "pad desconocido (1 a {PAD_COUNT})"));
+                v.error(&p, t!("core.validation.unknownPad", count = PAD_COUNT));
             }
             v.button_action(&p, action, true, bank_count);
         }
@@ -460,11 +444,7 @@ pub fn validate(profile: &Profile) -> Vec<String> {
             if !(1..=KNOB_COUNT).contains(knob) {
                 v.error(
                     &p,
-                    t!(
-                        "unknown knob (1 to {KNOB_COUNT})",
-                        "potentiomètre inconnu (1 à {KNOB_COUNT})",
-                        "potenciómetro desconocido (1 a {KNOB_COUNT})"
-                    ),
+                    t!("core.validation.unknownKnob", count = KNOB_COUNT),
                 );
             }
             match action {
@@ -476,11 +456,7 @@ pub fn validate(profile: &Profile) -> Vec<String> {
                     if min > max {
                         v.error(
                             &p,
-                            t!(
-                                "min must be less than or equal to max",
-                                "min doit être inférieur ou égal à max",
-                                "min debe ser menor o igual que max"
-                            ),
+                            t!("core.validation.minAboveMax"),
                         );
                     }
                 }
@@ -488,7 +464,7 @@ pub fn validate(profile: &Profile) -> Vec<String> {
                 KnobAction::Osc { address, min, max, .. } => {
                     v.osc_address(&p, address);
                     if !min.is_finite() || !max.is_finite() {
-                        v.error(&p, t!("invalid range", "plage invalide", "rango no válido"));
+                        v.error(&p, t!("core.validation.invalidRange"));
                     }
                 }
             }
@@ -518,11 +494,11 @@ pub fn validate(profile: &Profile) -> Vec<String> {
 }
 
 fn empty_name() -> String {
-    t!("the name cannot be empty", "le nom ne peut pas être vide", "el nombre no puede estar vacío")
+    t!("core.validation.emptyName")
 }
 
 fn missing_bank(bank: usize) -> String {
-    t!("bank {bank} does not exist", "la banque {bank} n'existe pas", "el banco {bank} no existe")
+    t!("core.validation.missingBank", bank)
 }
 
 #[derive(Default)]
@@ -539,11 +515,7 @@ impl Validator {
         if !(1..=16).contains(&channel) {
             self.error(
                 format!("{path}.channel"),
-                t!(
-                    "channel {channel} is invalid (1 to 16)",
-                    "canal {channel} invalide (1 à 16)",
-                    "canal {channel} no válido (1 a 16)"
-                ),
+                t!("core.validation.invalidChannel", channel),
             );
         }
     }
@@ -552,11 +524,7 @@ impl Validator {
         if value > 127 {
             self.error(
                 format!("{path}.{field}"),
-                t!(
-                    "value {value} is invalid (0 to 127)",
-                    "valeur {value} invalide (0 à 127)",
-                    "valor {value} no válido (0 a 127)"
-                ),
+                t!("core.validation.invalidValue", value),
             );
         }
     }
@@ -570,21 +538,13 @@ impl Validator {
                     Some(Velocity::Fixed(value)) if !(1..=127).contains(value) => {
                         self.error(
                             format!("{path}.velocity"),
-                            t!(
-                                "velocity {value} is invalid (1 to 127)",
-                                "vélocité {value} invalide (1 à 127)",
-                                "velocidad {value} no válida (1 a 127)"
-                            ),
+                            t!("core.validation.invalidVelocity", value),
                         );
                     }
                     Some(Velocity::Pad(_)) if !is_pad => {
                         self.error(
                             format!("{path}.velocity"),
-                            t!(
-                                "\"pad\" is only possible on a pad",
-                                "\"pad\" n'est possible que sur un pad",
-                                "\"pad\" solo es posible en un pad"
-                            ),
+                            t!("core.validation.padVelocityOnPadOnly"),
                         );
                     }
                     _ => {}
@@ -614,11 +574,7 @@ impl Validator {
         if !address.starts_with('/') || address.chars().any(char::is_whitespace) {
             self.error(
                 format!("{path}.address"),
-                t!(
-                    "« {address} »: an OSC address starts with / and has no spaces",
-                    "« {address} » : une adresse OSC commence par / et ne contient pas d'espace",
-                    "« {address} »: una dirección OSC empieza por / y no contiene espacios"
-                ),
+                t!("core.validation.invalidOscAddress", address),
             );
         }
     }
@@ -729,7 +685,7 @@ impl ProfileStore {
             start_bank: 0,
             display: DisplaySettings::default(),
             banks: vec![Bank {
-                name: t!("Bank 1", "Banque 1", "Banco 1"),
+                name: t!("core.profiles.firstBank"),
                 display: None,
                 pads: BTreeMap::new(),
                 buttons: BTreeMap::new(),
@@ -746,7 +702,7 @@ impl ProfileStore {
     pub fn duplicate(&self, file: &str) -> Result<String, String> {
         let mut profile = self.load(file).map_err(|errors| errors.join("\n"))?;
         let name = profile.name;
-        profile.name = t!("{name} (copy)", "{name} (copie)", "{name} (copia)");
+        profile.name = t!("core.profiles.copyName", name);
         self.add(profile)
     }
 
@@ -780,7 +736,7 @@ impl ProfileStore {
         if valid {
             Ok(self.dir.join(file))
         } else {
-            Err(t!("invalid profile name: {file}", "nom de profil invalide : {file}", "nombre de perfil no válido: {file}"))
+            Err(t!("core.profiles.invalidFileName", file))
         }
     }
 }
@@ -796,10 +752,10 @@ fn to_saved_json(mut profile: Profile) -> serde_json::Result<String> {
 /// The bundled default profile, with its names in the current language.
 fn default_profile() -> Profile {
     let mut profile: Profile = serde_json::from_str(DEFAULT_PROFILE_JSON).expect("bundled default profile is valid");
-    profile.name = t!("Default", "Défaut", "Predeterminado");
+    profile.name = t!("core.profiles.defaultName");
     // The second bank, "Clips", reads the same in every language.
     if let Some(drums) = profile.banks.first_mut() {
-        drums.name = t!("Drums", "Batterie", "Batería");
+        drums.name = t!("core.profiles.drumsBank");
     }
     profile
 }

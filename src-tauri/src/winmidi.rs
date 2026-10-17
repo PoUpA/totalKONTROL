@@ -38,17 +38,7 @@ use crate::midi::Handler;
 pub const DEVICE_NAME: &str = "totalKONTROL";
 const CREATION_TIMEOUT: Duration = Duration::from_secs(8);
 fn service_blocked() -> String {
-    t!(
-        "the Windows MIDI service is not responding (Windows bug microsoft/MIDI#1047, fixed in late \
-         November 2026): close the app, run scripts/restart-midisrv.ps1 as administrator, then restart the app, or \
-         use loopMIDI",
-        "le service MIDI de Windows ne répond pas (bug Windows microsoft/MIDI#1047, corrigé fin \
-         novembre 2026) : ferme l'appli, lance scripts/restart-midisrv.ps1 en administrateur puis relance l'appli, ou \
-         utilise loopMIDI",
-        "el servicio MIDI de Windows no responde (error de Windows microsoft/MIDI#1047, corregido a finales de \
-         noviembre de 2026): cierra la aplicación, ejecuta scripts/restart-midisrv.ps1 como administrador y vuelve a \
-         abrir la aplicación, o usa loopMIDI"
-    )
+    t!("core.winmidi.serviceBlocked")
 }
 
 type Receiver = Arc<Mutex<Option<Handler>>>;
@@ -123,17 +113,7 @@ pub enum Availability {
 }
 
 pub fn needs_windows_update() -> String {
-    t!(
-        "Virtual port disabled: on this version of Windows, recreating the virtual device freezes all MIDI on \
-         the PC (Windows bug microsoft/MIDI#1047). It will be offered after the late November 2026 Windows update. \
-         Meanwhile, use loopMIDI.",
-        "Port virtuel désactivé : sur cette version de Windows, recréer l'appareil \
-         virtuel fige tout le MIDI du PC (bug Windows microsoft/MIDI#1047). Il sera proposé après la mise à jour Windows \
-         de fin novembre 2026. En attendant, utilise loopMIDI.",
-        "Puerto virtual desactivado: en esta versión de Windows, volver a crear el dispositivo virtual bloquea todo \
-         el MIDI del PC (error de Windows microsoft/MIDI#1047). Se ofrecerá tras la actualización de Windows de \
-         finales de noviembre de 2026. Mientras tanto, usa loopMIDI."
-    )
+    t!("core.winmidi.needsWindowsUpdate")
 }
 
 /// Last virtual transport version with bug microsoft/MIDI#1047.
@@ -206,23 +186,15 @@ pub fn device() -> Result<Arc<VirtualDevice>, String> {
 
 /// Prefixes a WinRT error with the step that failed.
 fn error(what: String) -> impl Fn(windows_core::Error) -> String {
-    move |e| t!("{what}: {e}", "{what} : {e}", "{what}: {e}")
+    move |e| t!("core.winmidi.stepFailed", error = e, what)
 }
 
 fn create() -> Result<VirtualDevice, String> {
     let session = MidiSession::Create(&HSTRING::from(DEVICE_NAME)).ok_or_else(|| {
-        t!(
-            "could not create the MIDI session",
-            "création de la session MIDI impossible",
-            "no se pudo crear la sesión MIDI"
-        )
+        t!("core.winmidi.sessionFailed")
     })?;
 
-    let info = MidiDeclaredEndpointInfo::new().map_err(error(t!(
-        "device description",
-        "description de l'appareil",
-        "descripción del dispositivo"
-    )))?;
+    let info = MidiDeclaredEndpointInfo::new().map_err(error(t!("core.winmidi.stepDeviceDescription")))?;
     info.SetName(&HSTRING::from(DEVICE_NAME));
     info.SetProductInstanceId(&HSTRING::from("totalKONTROL-1"));
     info.SetSupportsMidi10Protocol(true);
@@ -234,48 +206,36 @@ fn create() -> Result<VirtualDevice, String> {
 
     let config = MidiVirtualDeviceCreationConfig::CreateInstance(
         &HSTRING::from(DEVICE_NAME),
-        &HSTRING::from(t!(
-            "Korg padKONTROL driven by totalKONTROL",
-            "Korg padKONTROL piloté par totalKONTROL",
-            "Korg padKONTROL controlado por totalKONTROL"
-        )),
+        &HSTRING::from(t!("core.winmidi.productDescription")),
         &HSTRING::from("totalKONTROL"),
         &info,
     )
-    .map_err(error(t!("device configuration", "configuration de l'appareil", "configuración del dispositivo")))?;
+    .map_err(error(t!("core.winmidi.stepDeviceConfiguration")))?;
 
     // One bidirectional block on group 1: one MIDI 1.0 input and one output
     // on the DAW side.
-    let block = MidiFunctionBlock::new().map_err(error(t!("function block", "bloc de fonction", "bloque de función")))?;
+    let block = MidiFunctionBlock::new().map_err(error(t!("core.winmidi.stepFunctionBlock")))?;
     block.SetNumber(0);
     block.SetIsActive(true);
     block.SetName(&HSTRING::from(DEVICE_NAME));
-    block.SetFirstGroup(&MidiGroup::CreateInstance(0).map_err(error(t!("MIDI group", "groupe MIDI", "grupo MIDI")))?);
+    block.SetFirstGroup(&MidiGroup::CreateInstance(0).map_err(error(t!("core.winmidi.stepMidiGroup")))?);
     block.SetGroupCount(1);
     block.SetDirection(MidiFunctionBlockDirection::Bidirectional);
     block.SetRepresentsMidi10Connection(MidiFunctionBlockRepresentsMidi10Connection::YesBandwidthUnrestricted);
     config
         .FunctionBlocks()
-        .ok_or_else(|| t!("block list missing", "liste des blocs absente", "falta la lista de bloques"))?
+        .ok_or_else(|| t!("core.winmidi.blockListMissing"))?
         .Append(&block)
-        .map_err(error(t!("adding the block", "ajout du bloc", "añadir el bloque")))?;
+        .map_err(error(t!("core.winmidi.stepAddBlock")))?;
 
     let device = MidiVirtualDeviceManager::CreateVirtualDevice(&config).ok_or_else(|| {
-        t!(
-            "virtual device creation refused",
-            "création de l'appareil virtuel refusée",
-            "creación del dispositivo virtual rechazada"
-        )
+        t!("core.winmidi.deviceRefused")
     })?;
     // MIDI 2.0 discovery messages are handled by the device itself.
     device.SetSuppressHandledMessages(true);
 
     let connection = session.CreateEndpointConnection(&device.DeviceEndpointDeviceId()).ok_or_else(|| {
-        t!(
-            "could not connect to the virtual device",
-            "connexion à l'appareil virtuel impossible",
-            "no se pudo conectar con el dispositivo virtual"
-        )
+        t!("core.winmidi.connectFailed")
     })?;
 
     let receiver: Receiver = Arc::default();
@@ -291,22 +251,14 @@ fn create() -> Result<VirtualDevice, String> {
                 Ok(())
             },
         ))
-        .map_err(error(t!("message subscription", "abonnement aux messages", "suscripción a los mensajes")))?;
+        .map_err(error(t!("core.winmidi.stepMessageSubscription")))?;
 
     // Without this plugin, the device sends but never receives anything.
     if connection.AddMessageProcessingPlugin(&device) != MidiMessageProcessingPluginAddResult::Succeeded {
-        return Err(t!(
-            "virtual device hookup refused",
-            "branchement de l'appareil virtuel refusé",
-            "conexión del dispositivo virtual rechazada"
-        ));
+        return Err(t!("core.winmidi.hookupRefused"));
     }
     if !connection.Open() {
-        return Err(t!(
-            "could not open the virtual device",
-            "ouverture de l'appareil virtuel impossible",
-            "no se pudo abrir el dispositivo virtual"
-        ));
+        return Err(t!("core.winmidi.openFailed"));
     }
 
     Ok(VirtualDevice { connection, receiver, _session: session, _device: device })

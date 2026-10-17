@@ -153,52 +153,28 @@ pub fn decode(message: &[u8]) -> Option<ControlEvent> {
 /// Human-readable description of any MIDI message, for the monitor.
 pub fn describe(message: &[u8]) -> String {
     let Some(&status) = message.first() else {
-        return t!("empty message", "message vide", "mensaje vacío");
+        return t!("core.monitor.emptyMessage");
     };
     let channel = (status & 0x0F) + 1;
     let data = |i: usize| message.get(i).copied().unwrap_or(0);
     let (d1, d2) = (data(1), data(2));
     match status & 0xF0 {
-        0x80 => t!(
-            "Note Off  ch. {channel}  note {d1}  vel. {d2}",
-            "Note Off  canal {channel}  note {d1}  vél. {d2}",
-            "Note Off  canal {channel}  nota {d1}  vel. {d2}"
-        ),
-        0x90 if d2 == 0 => t!(
-            "Note Off  ch. {channel}  note {d1}",
-            "Note Off  canal {channel}  note {d1}",
-            "Note Off  canal {channel}  nota {d1}"
-        ),
-        0x90 => t!(
-            "Note On  ch. {channel}  note {d1}  vel. {d2}",
-            "Note On  canal {channel}  note {d1}  vél. {d2}",
-            "Note On  canal {channel}  nota {d1}  vel. {d2}"
-        ),
-        0xA0 => t!(
-            "Aftertouch  ch. {channel}  note {d1}  {d2}",
-            "Aftertouch  canal {channel}  note {d1}  {d2}",
-            "Aftertouch  canal {channel}  nota {d1}  {d2}"
-        ),
-        0xB0 => t!(
-            "CC  ch. {channel}  #{d1}  value {d2}",
-            "CC  canal {channel}  n° {d1}  valeur {d2}",
-            "CC  canal {channel}  n.º {d1}  valor {d2}"
-        ),
-        0xC0 => t!(
-            "Program Change  ch. {channel}  {d1}",
-            "Program Change  canal {channel}  {d1}",
-            "Program Change  canal {channel}  {d1}"
-        ),
-        0xD0 => t!("Pressure  ch. {channel}  {d1}", "Pression  canal {channel}  {d1}", "Presión  canal {channel}  {d1}"),
+        0x80 => t!("core.monitor.noteOff", channel, d1, d2),
+        0x90 if d2 == 0 => t!("core.monitor.noteOffNoVelocity", channel, d1),
+        0x90 => t!("core.monitor.noteOn", channel, d1, d2),
+        0xA0 => t!("core.monitor.aftertouch", channel, d1, d2),
+        0xB0 => t!("core.monitor.controlChange", channel, d1, d2),
+        0xC0 => t!("core.monitor.programChange", channel, d1),
+        0xD0 => t!("core.monitor.pressure", channel, d1),
         0xE0 => {
             let bend = (d2 as u16) << 7 | d1 as u16;
-            t!("Pitch Bend  ch. {channel}  {bend}", "Pitch Bend  canal {channel}  {bend}", "Pitch Bend  canal {channel}  {bend}")
+            t!("core.monitor.pitchBend", channel, bend)
         }
         _ if status == 0xF0 => {
             let len = message.len();
-            t!("SysEx ({len} bytes)", "SysEx ({len} octets)", "SysEx ({len} bytes)")
+            t!("core.monitor.sysEx", len)
         }
-        _ => t!("System message 0x{status:02X}", "Message système 0x{status:02X}", "Mensaje de sistema 0x{status:02X}"),
+        _ => t!("core.monitor.system", status = format!("{status:02X}")),
     }
 }
 

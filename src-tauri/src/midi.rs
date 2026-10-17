@@ -51,14 +51,7 @@ pub struct MidiPorts {
 /// makes WinMM calls hang forever.
 const ENUMERATION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(6);
 pub fn midi_service_frozen() -> String {
-    t!(
-        "the Windows MIDI service stopped responding: close the MIDI apps and the DAW, \
-         run scripts/restart-midisrv.ps1 as administrator, then click Refresh",
-        "le service MIDI de Windows ne répond plus : ferme les applis MIDI et le DAW, \
-         lance scripts/restart-midisrv.ps1 en administrateur, puis clique sur Rafraîchir",
-        "el servicio MIDI de Windows ya no responde: cierra las aplicaciones MIDI y el DAW, \
-         ejecuta scripts/restart-midisrv.ps1 como administrador y luego haz clic en Actualizar"
-    )
+    t!("core.midi.serviceFrozen")
 }
 
 fn to_port(name: String) -> MidiPort {
@@ -337,11 +330,7 @@ impl PadConnection {
         profile: Option<(String, Profile)>,
     ) -> Result<ConnectionInfo, String> {
         if options.native_mode && options.output.is_none() {
-            return Err(t!(
-                "native mode needs an output port to the padKONTROL",
-                "le mode natif a besoin d'un port de sortie vers le padKONTROL",
-                "el modo nativo necesita un puerto de salida hacia el padKONTROL"
-            ));
+            return Err(t!("core.connection.nativeModeNeedsOutput"));
         }
         check_no_loop(&options)?;
         self.disconnect();
@@ -388,13 +377,7 @@ impl PadConnection {
                 init.extend(engine.refresh());
             }
             for message in init {
-                out.send(&message).map_err(|e| {
-                    t!(
-                        "could not send native mode: {e}",
-                        "envoi du mode natif impossible : {e}",
-                        "no se pudo enviar el modo nativo: {e}"
-                    )
-                })?;
+                out.send(&message).map_err(|e| t!("core.connection.nativeModeSendFailed", error = e))?;
             }
         }
 
@@ -456,7 +439,7 @@ impl PadConnection {
             let engine = shared
                 .engine
                 .as_mut()
-                .ok_or_else(|| t!("no active profile", "aucun profil actif", "ningún perfil activo"))?;
+                .ok_or_else(|| t!("core.connection.noActiveProfile"))?;
             let out = engine.select_bank(bank);
             let state = engine.state();
             shared.send_pad(&out.pad);
@@ -470,13 +453,9 @@ impl PadConnection {
     fn with_engine<T>(&self, f: impl FnOnce(&mut Shared) -> Result<T, String>) -> Result<T, String> {
         let current = self.current.lock().unwrap();
         let connection =
-            current.as_ref().ok_or_else(|| t!("not connected", "pas de connexion", "sin conexión"))?;
+            current.as_ref().ok_or_else(|| t!("core.connection.notConnected"))?;
         if !connection.info.native_mode {
-            return Err(t!(
-                "the engine needs native mode",
-                "le moteur a besoin du mode natif",
-                "el motor necesita el modo nativo"
-            ));
+            return Err(t!("core.connection.engineNeedsNativeMode"));
         }
         let mut shared = connection.shared.lock().unwrap();
         f(&mut shared)
@@ -493,11 +472,7 @@ fn check_no_loop(options: &ConnectOptions) -> Result<(), String> {
         _ => false,
     };
     if looping {
-        return Err(t!(
-            "the feedback port must differ from the port to the DAW, otherwise messages loop",
-            "le port de retour doit être différent du port vers le DAW, sinon les messages bouclent",
-            "el puerto de retorno debe ser distinto del puerto hacia el DAW; si no, los mensajes entran en bucle"
-        ));
+        return Err(t!("core.connection.feedbackLoop"));
     }
     Ok(())
 }
@@ -539,11 +514,7 @@ fn bind_osc_listener(port: u16) -> Result<std::net::UdpSocket, String> {
                 std::thread::sleep(OSC_LISTEN_POLL);
             }
             Err(e) => {
-                return Err(t!(
-                    "cannot listen for OSC on port {port}: {e}",
-                    "écoute OSC impossible sur le port {port} : {e}",
-                    "no se puede escuchar OSC en el puerto {port}: {e}"
-                ));
+                return Err(t!("core.osc.listenFailed", port, error = e));
             }
         }
     };
@@ -651,37 +622,24 @@ fn open_input(name: &str, mut handler: Handler) -> Result<MidiInputConnection<()
         .ports()
         .into_iter()
         .find(|p| midi_in.port_name(p).is_ok_and(|n| n == name))
-        .ok_or_else(|| {
-            t!("input port not found: {name}", "port d'entrée introuvable : {name}", "puerto de entrada no encontrado: {name}")
-        })?;
+        .ok_or_else(|| t!("core.midi.inputNotFound", name))?;
     midi_in
         .connect(&port, "totalKONTROL-in", move |_, bytes, _| handler(bytes), ())
         .map_err(|e| open_failed(name, e))
 }
 
 fn open_failed(name: &str, e: impl std::fmt::Display) -> String {
-    t!("could not open {name}: {e}", "ouverture de {name} impossible : {e}", "no se pudo abrir {name}: {e}")
+    t!("core.midi.openFailed", error = e, name)
 }
 
 #[cfg(unix)]
 fn virtual_port_failed(e: impl std::fmt::Display) -> String {
-    t!(
-        "could not create the virtual port: {e}",
-        "création du port virtuel impossible : {e}",
-        "no se pudo crear el puerto virtual: {e}"
-    )
+    t!("core.midi.virtualPortFailed", error = e)
 }
 
 fn open_osc(options: &OscOptions) -> Result<OscOutput, String> {
     let host = options.host.trim();
-    let sender = OscSender::open(host, options.port).map_err(|e| {
-        let port = options.port;
-        t!(
-            "OSC destination {host}:{port} unreachable: {e}",
-            "destination OSC {host}:{port} injoignable : {e}",
-            "destino OSC {host}:{port} inalcanzable: {e}"
-        )
-    })?;
+    let sender = OscSender::open(host, options.port).map_err(|e| t!("core.osc.unreachable", port = options.port, error = e, host))?;
     let prefix = osc::normalize_prefix(&options.prefix);
     Ok(OscOutput { sender, prefix, mirror: options.mirror })
 }
@@ -692,9 +650,7 @@ fn open_output(name: &str) -> Result<MidiOutputConnection, String> {
         .ports()
         .into_iter()
         .find(|p| midi_out.port_name(p).is_ok_and(|n| n == name))
-        .ok_or_else(|| {
-            t!("output port not found: {name}", "port de sortie introuvable : {name}", "puerto de salida no encontrado: {name}")
-        })?;
+        .ok_or_else(|| t!("core.midi.outputNotFound", name))?;
     midi_out.connect(&port, "totalKONTROL-out").map_err(|e| open_failed(name, e))
 }
 
@@ -736,11 +692,7 @@ fn windows_device() -> Result<Arc<winmidi::VirtualDevice>, String> {
     match winmidi::availability() {
         winmidi::Availability::Ready => winmidi::device(),
         winmidi::Availability::NeedsWindowsUpdate => Err(winmidi::needs_windows_update()),
-        winmidi::Availability::Unavailable => Err(t!(
-            "Windows MIDI Services are not available on this PC",
-            "les Windows MIDI Services ne sont pas disponibles sur ce PC",
-            "Windows MIDI Services no está disponible en este PC"
-        )),
+        winmidi::Availability::Unavailable => Err(t!("core.midi.windowsMidiUnavailable")),
     }
 }
 
@@ -766,11 +718,7 @@ fn virtual_input(_handler: Handler) -> Result<FeedbackInput, String> {
 
 #[cfg(all(windows, not(feature = "windows-midi-services")))]
 fn virtual_unsupported() -> String {
-    t!(
-        "this version cannot create virtual ports on Windows: create a port with loopMIDI, then pick it",
-        "cette version ne sait pas créer de port virtuel sous Windows : crée un port avec loopMIDI puis choisis-le",
-        "esta versión no puede crear puertos virtuales en Windows: crea un puerto con loopMIDI y luego elígelo"
-    )
+    t!("core.midi.virtualUnsupported")
 }
 
 fn now_ms() -> u64 {

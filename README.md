@@ -150,8 +150,9 @@ git push origin v0.1.0
 
 ## Project layout
 
-- `src-tauri/src`: the Rust core — padKONTROL protocol (`padkontrol.rs`), mapping engine (`engine.rs`), profiles (`config.rs`), MIDI and OSC connections (`midi.rs`, `osc.rs`), Windows virtual device (`winmidi.rs`), translations of its messages (`i18n.rs`)
-- `src`: the React UI; translations in `src/i18n` (English is the reference)
+- `src-tauri/src`: the Rust core — padKONTROL protocol (`padkontrol.rs`), mapping engine (`engine.rs`), profiles (`config.rs`), MIDI and OSC connections (`midi.rs`, `osc.rs`), Windows virtual device (`winmidi.rs`), message lookup (`i18n.rs`)
+- `src`: the React UI
+- `locales`: the translations, one JSON file per language, shared by the UI and the Rust core (`core.*` keys). English is the reference; to add a language, copy `en.json`, translate it and register the language in `src/i18n/index.tsx` and `src-tauri/src/i18n.rs`. Tests check that every language has the same keys and placeholders.
 - `src-tauri/profiles`: the profile JSON Schema and the default profile
 - `docs`: [SysEx messages captured from the padKONTROL](docs/padkontrol-sysex.txt) and [notes on Windows MIDI Services](docs/windows-midi-services.md)
 - `tools`: the OSC LED demo

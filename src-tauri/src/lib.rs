@@ -20,7 +20,7 @@ const LEGACY_IDENTIFIER: &str = "pro.totalkontrol.app";
 fn load(store: &ProfileStore, file: &str) -> Result<Profile, String> {
     store.load(file).map_err(|errors| {
         let errors = errors.join("\n");
-        t!("invalid profile {file}:\n{errors}", "profil {file} invalide :\n{errors}", "perfil {file} no válido:\n{errors}")
+        t!("core.app.invalidProfile", file, errors)
     })
 }
 
@@ -144,11 +144,7 @@ fn duplicate_profile(store: State<ProfileStore>, file: String) -> Result<String,
 #[tauri::command]
 fn delete_profile(connection: State<PadConnection>, store: State<ProfileStore>, file: String) -> Result<(), String> {
     if connection.active_file().as_deref() == Some(file.as_str()) {
-        return Err(t!(
-            "this profile is in use: switch to another profile or disconnect first",
-            "ce profil est en cours d'utilisation : change de profil ou déconnecte-toi d'abord",
-            "este perfil está en uso: cambia de perfil o desconéctate primero"
-        ));
+        return Err(t!("core.app.profileInUse"));
     }
     store.delete(&file)
 }
