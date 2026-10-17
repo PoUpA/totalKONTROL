@@ -127,6 +127,12 @@ export function summarize(action: AnyAction | undefined, banks: Bank[], t: Trans
       return `CC ${action.ccX}/${action.ccY} · ${channel}`;
     case "osc":
       return `OSC ${action.address}`;
+    case "key":
+      return "right" in action ? `⌨ ${action.left} / ${action.right}` : `⌨ ${action.keys}`;
+    case "roll":
+      return t("action.roll");
+    case "flam":
+      return t("action.flam");
   }
 }
 

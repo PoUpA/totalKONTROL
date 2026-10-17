@@ -726,3 +726,39 @@ button.danger {
 .osc-listen input[type="number"] {
   width: 100px;
 }
+
+.status.waiting {
+  background: var(--accent);
+  color: #fff;
+}
+
+.profile-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.profile-settings > fieldset {
+  flex: 1 1 320px;
+}
+
+.velocity-curve {
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--control);
+}
+
+.velocity-curve-linear {
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.velocity-curve-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 4;
+  stroke-linejoin: round;
+}

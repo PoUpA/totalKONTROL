@@ -43,7 +43,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy
+          components: clippy, rustfmt
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -51,6 +51,11 @@ jobs:
 
       - name: npm ci
         run: npm ci
+
+      # Formatting does not depend on the OS: checked once.
+      - name: Formatting (Prettier, rustfmt)
+        if: runner.os == 'Linux'
+        run: npm run format:check
 
       # Must run before cargo: generate_context! needs dist/.
       - name: Build the frontend (tsc + vite)

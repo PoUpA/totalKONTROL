@@ -24,7 +24,10 @@ pub struct OscMessage {
 
 impl OscMessage {
     pub fn new(address: impl Into<String>, args: Vec<OscArg>) -> Self {
-        Self { address: address.into(), args }
+        Self {
+            address: address.into(),
+            args,
+        }
     }
 
     /// Readable form for the monitor, e.g. `/live/clip 0 3`.
@@ -53,8 +56,11 @@ impl OscMessage {
                 OscArg::Str(v) => OscType::String(v.clone()),
             })
             .collect();
-        rosc::encoder::encode(&OscPacket::Message(rosc::OscMessage { addr: self.address.clone(), args }))
-            .map_err(|e| e.to_string())
+        rosc::encoder::encode(&OscPacket::Message(rosc::OscMessage {
+            addr: self.address.clone(),
+            args,
+        }))
+        .map_err(|e| e.to_string())
     }
 }
 
@@ -154,9 +160,10 @@ pub fn mirror(prefix: &str, event: &ControlEvent, encoder_position: Option<i16>)
         ControlEvent::Knob { knob, value } => {
             OscMessage::new(format!("{prefix}/knob/{knob}"), vec![OscArg::Int(value.into())])
         }
-        ControlEvent::Xy { x, y } => {
-            OscMessage::new(format!("{prefix}/xy"), vec![OscArg::Int(x.into()), OscArg::Int(y.into())])
-        }
+        ControlEvent::Xy { x, y } => OscMessage::new(
+            format!("{prefix}/xy"),
+            vec![OscArg::Int(x.into()), OscArg::Int(y.into())],
+        ),
         ControlEvent::XyTouch { pressed } => {
             OscMessage::new(format!("{prefix}/xy/touch"), vec![OscArg::Int(pressed.into())])
         }
@@ -173,7 +180,10 @@ pub fn mirror_bank(prefix: &str, bank: usize) -> OscMessage {
 }
 
 fn button_name(button: ButtonId) -> String {
-    serde_json::to_string(&button).unwrap_or_default().trim_matches('"').to_string()
+    serde_json::to_string(&button)
+        .unwrap_or_default()
+        .trim_matches('"')
+        .to_string()
 }
 
 /// UDP socket bound to an OSC destination.
@@ -195,7 +205,9 @@ impl OscSender {
     }
 
     pub fn send(&self, message: &OscMessage) -> bool {
-        message.encode().is_ok_and(|bytes| self.socket.send_to(&bytes, self.target).is_ok())
+        message
+            .encode()
+            .is_ok_and(|bytes| self.socket.send_to(&bytes, self.target).is_ok())
     }
 
     pub fn target(&self) -> SocketAddr {
@@ -209,8 +221,15 @@ mod tests {
 
     #[test]
     fn replaces_velocity_in_arguments() {
-        let values = vec![OscValue::Int(3), OscValue::Str("$velocity".into()), OscValue::Str("go".into())];
-        assert_eq!(resolve(&values, 90), vec![OscArg::Int(3), OscArg::Int(90), OscArg::Str("go".into())]);
+        let values = vec![
+            OscValue::Int(3),
+            OscValue::Str("$velocity".into()),
+            OscValue::Str("go".into()),
+        ];
+        assert_eq!(
+            resolve(&values, 90),
+            vec![OscArg::Int(3), OscArg::Int(90), OscArg::Str("go".into())]
+        );
     }
 
     #[test]
@@ -224,16 +243,45 @@ mod tests {
     fn mirrors_every_control() {
         let p = "/tk";
         let m = |e| mirror(p, &e, None).describe();
-        assert_eq!(m(ControlEvent::Pad { pad: 3, pressed: true, velocity: 100 }), "/tk/pad/3 100");
-        assert_eq!(m(ControlEvent::Pad { pad: 3, pressed: false, velocity: 64 }), "/tk/pad/3 0");
-        assert_eq!(m(ControlEvent::Button { button: ButtonId::Hold, pressed: true }), "/tk/button/hold 1");
-        assert_eq!(m(ControlEvent::Button { button: ButtonId::Knob1Assign, pressed: false }), "/tk/button/knob1Assign 0");
+        assert_eq!(
+            m(ControlEvent::Pad {
+                pad: 3,
+                pressed: true,
+                velocity: 100
+            }),
+            "/tk/pad/3 100"
+        );
+        assert_eq!(
+            m(ControlEvent::Pad {
+                pad: 3,
+                pressed: false,
+                velocity: 64
+            }),
+            "/tk/pad/3 0"
+        );
+        assert_eq!(
+            m(ControlEvent::Button {
+                button: ButtonId::Hold,
+                pressed: true
+            }),
+            "/tk/button/hold 1"
+        );
+        assert_eq!(
+            m(ControlEvent::Button {
+                button: ButtonId::Knob1Assign,
+                pressed: false
+            }),
+            "/tk/button/knob1Assign 0"
+        );
         assert_eq!(m(ControlEvent::Knob { knob: 2, value: 64 }), "/tk/knob/2 64");
         assert_eq!(m(ControlEvent::Xy { x: 10, y: 20 }), "/tk/xy 10 20");
         assert_eq!(m(ControlEvent::XyTouch { pressed: true }), "/tk/xy/touch 1");
         assert_eq!(m(ControlEvent::XyTouch { pressed: false }), "/tk/xy/touch 0");
         assert_eq!(m(ControlEvent::Encoder { delta: -1 }), "/tk/encoder -1");
-        assert_eq!(mirror(p, &ControlEvent::Encoder { delta: 1 }, Some(12)).describe(), "/tk/encoder 1 12");
+        assert_eq!(
+            mirror(p, &ControlEvent::Encoder { delta: 1 }, Some(12)).describe(),
+            "/tk/encoder 1 12"
+        );
         assert_eq!(mirror_bank(p, 1).describe(), "/tk/bank 1");
     }
 
@@ -243,10 +291,19 @@ mod tests {
         assert_eq!(decode(&message.encode().unwrap()), vec![message.clone()]);
 
         let bundle = OscPacket::Bundle(rosc::OscBundle {
-            timetag: rosc::OscTime { seconds: 0, fractional: 1 },
+            timetag: rosc::OscTime {
+                seconds: 0,
+                fractional: 1,
+            },
             content: vec![
-                OscPacket::Message(rosc::OscMessage { addr: "/b".into(), args: vec![OscType::Double(0.5)] }),
-                OscPacket::Message(rosc::OscMessage { addr: "/c".into(), args: vec![OscType::Nil, OscType::Long(3)] }),
+                OscPacket::Message(rosc::OscMessage {
+                    addr: "/b".into(),
+                    args: vec![OscType::Double(0.5)],
+                }),
+                OscPacket::Message(rosc::OscMessage {
+                    addr: "/c".into(),
+                    args: vec![OscType::Nil, OscType::Long(3)],
+                }),
             ],
         });
         let bytes = rosc::encoder::encode(&bundle).unwrap();
@@ -273,17 +330,27 @@ mod tests {
     #[test]
     fn encodes_and_sends_over_udp() {
         let receiver = UdpSocket::bind("127.0.0.1:0").unwrap();
-        receiver.set_read_timeout(Some(std::time::Duration::from_secs(2))).unwrap();
+        receiver
+            .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+            .unwrap();
         let sender = OscSender::open("127.0.0.1", receiver.local_addr().unwrap().port()).unwrap();
 
-        let message = OscMessage::new("/live/clip", vec![OscArg::Int(0), OscArg::Float(0.5), OscArg::Str("x".into())]);
+        let message = OscMessage::new(
+            "/live/clip",
+            vec![OscArg::Int(0), OscArg::Float(0.5), OscArg::Str("x".into())],
+        );
         assert!(sender.send(&message));
 
         let mut buffer = [0u8; 256];
         let (size, _) = receiver.recv_from(&mut buffer).unwrap();
         let (_, packet) = rosc::decoder::decode_udp(&buffer[..size]).unwrap();
-        let OscPacket::Message(received) = packet else { panic!("message expected") };
+        let OscPacket::Message(received) = packet else {
+            panic!("message expected")
+        };
         assert_eq!(received.addr, "/live/clip");
-        assert_eq!(received.args, vec![OscType::Int(0), OscType::Float(0.5), OscType::String("x".into())]);
+        assert_eq!(
+            received.args,
+            vec![OscType::Int(0), OscType::Float(0.5), OscType::String("x".into())]
+        );
     }
 }

@@ -77,7 +77,9 @@ thread_local! {
 }
 
 pub fn current() -> Lang {
-    OVERRIDE.with(Cell::get).unwrap_or_else(|| Lang::from_u8(CURRENT.load(Ordering::Relaxed)))
+    OVERRIDE
+        .with(Cell::get)
+        .unwrap_or_else(|| Lang::from_u8(CURRENT.load(Ordering::Relaxed)))
 }
 
 pub fn set(lang: Lang) {
@@ -168,7 +170,10 @@ mod tests {
 
     /// `{name}` placeholders of a text.
     fn placeholders(text: &str) -> BTreeSet<&str> {
-        text.split('{').skip(1).filter_map(|part| part.split_once('}').map(|(name, _)| name)).collect()
+        text.split('{')
+            .skip(1)
+            .filter_map(|part| part.split_once('}').map(|(name, _)| name))
+            .collect()
     }
 
     #[test]
@@ -178,7 +183,10 @@ mod tests {
             let messages = lang.messages();
             let missing: Vec<_> = reference.keys().filter(|k| !messages.contains_key(*k)).collect();
             let extra: Vec<_> = messages.keys().filter(|k| !reference.contains_key(*k)).collect();
-            assert!(missing.is_empty() && extra.is_empty(), "{lang:?}: missing {missing:?}, extra {extra:?}");
+            assert!(
+                missing.is_empty() && extra.is_empty(),
+                "{lang:?}: missing {missing:?}, extra {extra:?}"
+            );
             for (key, text) in reference {
                 assert_eq!(
                     placeholders(text),

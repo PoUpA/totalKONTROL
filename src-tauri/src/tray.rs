@@ -1,0 +1,89 @@
+//! Icon in the system tray: the app keeps running (MIDI, OSC, LEDs) when its
+//! window is closed, and quits from the tray menu.
+
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Manager, Runtime, Window, WindowEvent};
+
+const SHOW: &str = "show";
+const QUIT: &str = "quit";
+
+/// Tray menu items, kept to relabel them when the language changes.
+pub struct Tray<R: Runtime> {
+    show: MenuItem<R>,
+    quit: MenuItem<R>,
+}
+
+/// Whether the tray icon exists. Without one (no tray on some Linux
+/// desktops), closing the window quits as usual.
+static ACTIVE: AtomicBool = AtomicBool::new(false);
+
+/// Creates the tray icon. Failure is not fatal: the app then works without it.
+pub fn setup<R: Runtime>(app: &AppHandle<R>) {
+    match build(app) {
+        Ok(tray) => {
+            app.manage(tray);
+            ACTIVE.store(true, Ordering::Relaxed);
+        }
+        Err(e) => eprintln!("tray icon unavailable: {e}"),
+    }
+}
+
+fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Tray<R>> {
+    let show = MenuItem::with_id(app, SHOW, t!("core.tray.show"), true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, QUIT, t!("core.tray.quit"), true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show, &quit])?;
+    let mut builder = TrayIconBuilder::with_id("main")
+        .tooltip("totalKONTROL")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            SHOW => show_window(app),
+            // Exits through RunEvent::Exit, which returns the padKONTROL to normal mode.
+            QUIT => app.exit(0),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                show_window(tray.app_handle());
+            }
+        });
+    if let Some(icon) = app.default_window_icon() {
+        builder = builder.icon(icon.clone());
+    }
+    builder.build(app)?;
+    Ok(Tray { show, quit })
+}
+
+/// Menu texts in the current language.
+pub fn relabel<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(tray) = app.try_state::<Tray<R>>() {
+        let _ = tray.show.set_text(t!("core.tray.show"));
+        let _ = tray.quit.set_text(t!("core.tray.quit"));
+    }
+}
+
+fn show_window<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+/// Closing the window hides it in the tray instead of quitting.
+pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
+    if let WindowEvent::CloseRequested { api, .. } = event
+        && ACTIVE.load(Ordering::Relaxed)
+    {
+        api.prevent_close();
+        let _ = window.hide();
+    }
+}

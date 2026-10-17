@@ -67,8 +67,25 @@ const col = (pad) => (pad - 1) % 4;
 const padAt = (r, c) => r * 4 + c + 1;
 // Buttons in a rough left-to-right order, for the scanner.
 const BUTTONS = [
-  "setting", "x", "y", "pedal", "noteCc", "midiCh", "swType", "relVal", "velocity", "port",
-  "hold", "flam", "roll", "scene", "message", "fixedVelocity", "progChange", "knob1Assign", "knob2Assign",
+  "setting",
+  "x",
+  "y",
+  "pedal",
+  "noteCc",
+  "midiCh",
+  "swType",
+  "relVal",
+  "velocity",
+  "port",
+  "hold",
+  "flam",
+  "roll",
+  "scene",
+  "message",
+  "fixedVelocity",
+  "progChange",
+  "knob1Assign",
+  "knob2Assign",
 ];
 // Pads walked as a spiral from the top left corner inwards.
 const SPIRAL = [1, 2, 3, 4, 8, 12, 16, 15, 14, 13, 9, 5, 6, 7, 11, 10];
@@ -217,7 +234,11 @@ function parseArgs(argv, defaults) {
   for (let i = 0; i < argv.length; i += 2) {
     const key = argv[i].replace(/^--/, "");
     if (!(key in defaults) || argv[i + 1] === undefined) {
-      console.error(`Unknown option ${argv[i]}. Options: ${Object.keys(defaults).map((k) => "--" + k).join(" ")}`);
+      console.error(
+        `Unknown option ${argv[i]}. Options: ${Object.keys(defaults)
+          .map((k) => "--" + k)
+          .join(" ")}`,
+      );
       process.exit(1);
     }
     result[key] = typeof defaults[key] === "number" ? Number(argv[i + 1]) : argv[i + 1];

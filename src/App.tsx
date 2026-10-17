@@ -9,6 +9,7 @@ import { LANGUAGES, sendLangToCore, useI18n, type Lang } from "./i18n";
 import { Monitor } from "./components/Monitor";
 import type {
   ConnectionInfo,
+  ConnectionState,
   ConnectOptions,
   ControlEvent,
   EngineState,
@@ -44,7 +45,11 @@ function applyEvent(state: ControlState, event: ControlEvent, encoderPosition: n
         seen: state.seen.add(event.button),
       };
     case "knob":
-      return { ...state, knobs: { ...state.knobs, [event.knob]: event.value }, seen: state.seen.add(`knob${event.knob}`) };
+      return {
+        ...state,
+        knobs: { ...state.knobs, [event.knob]: event.value },
+        seen: state.seen.add(`knob${event.knob}`),
+      };
     case "xy":
       return { ...state, xy: { x: event.x, y: event.y }, seen: state.seen.add("xy") };
     case "xyTouch":
@@ -61,6 +66,8 @@ function applyEvent(state: ControlState, event: ControlEvent, encoderPosition: n
 function App() {
   const [ports, setPorts] = useState<MidiPorts | null>(null);
   const [connection, setConnection] = useState<ConnectionInfo | null>(null);
+  // The padKONTROL was unplugged: the app reconnects when it comes back.
+  const [waiting, setWaiting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState<MonitorEntry[]>([]);
   const [paused, setPaused] = useState(false);
@@ -83,7 +90,9 @@ function App() {
     try {
       setProfiles(await invoke<ProfileSummary[]>("list_profiles"));
       setProfilesDir(await invoke<string>("profiles_dir"));
-      setConnection(await invoke<ConnectionInfo | null>("connection_status"));
+      const status = await invoke<ConnectionState>("connection_status");
+      setConnection(status.connection);
+      setWaiting(status.waiting);
       setEngine(await invoke<EngineState | null>("engine_state"));
       setPorts(await invoke<MidiPorts>("list_midi_ports"));
       setError(null);
@@ -108,6 +117,19 @@ function App() {
       // Each bank has its own encoder position: show the new bank's.
       const state = e.payload;
       if (state) setControls((c) => ({ ...c, encoder: state.encoder }));
+    });
+    return () => {
+      unlisten.then((stop) => stop());
+    };
+  }, []);
+
+  // The padKONTROL was unplugged, or came back and the app reconnected.
+  useEffect(() => {
+    const unlisten = listen<ConnectionState>("connection-state", (e) => {
+      setConnection(e.payload.connection);
+      setWaiting(e.payload.waiting);
+      setEngine(e.payload.engine);
+      if (e.payload.connection) setControls(initialControlState());
     });
     return () => {
       unlisten.then((stop) => stop());
@@ -169,6 +191,7 @@ function App() {
     (options: ConnectOptions, profile: string | null) =>
       run(async () => {
         setConnection(await invoke<ConnectionInfo>("connect_pad", { options, profile }));
+        setWaiting(false);
         setEngine(await invoke<EngineState | null>("engine_state"));
         setControls(initialControlState());
       }),
@@ -180,6 +203,7 @@ function App() {
       run(async () => {
         await invoke("disconnect_pad");
         setConnection(null);
+        setWaiting(false);
         setEngine(null);
       }),
     [run],
@@ -238,6 +262,7 @@ function App() {
         ports={ports}
         profiles={profiles}
         connection={connection}
+        waiting={waiting}
         busy={busy}
         onRefresh={refresh}
         onConnect={connect}
@@ -258,20 +283,20 @@ function App() {
       </div>
 
       <div className="tab-panel" hidden={tab !== "control"}>
-      {engine && (
-        <BankPanel
-          state={engine}
-          profiles={profiles}
-          busy={busy}
-          onSelectBank={selectBank}
-          onSelectProfile={selectProfile}
+        {engine && (
+          <BankPanel
+            state={engine}
+            profiles={profiles}
+            busy={busy}
+            onSelectBank={selectBank}
+            onSelectProfile={selectProfile}
+          />
+        )}
+        <ControlView
+          state={controls}
+          display={engine ? engine.display.toUpperCase() : connection?.nativeMode ? "TK" : "---"}
         />
-      )}
-      <ControlView
-        state={controls}
-        display={engine ? engine.display.toUpperCase() : connection?.nativeMode ? "TK" : "---"}
-      />
-      <Monitor messages={messages} paused={paused} onTogglePause={togglePause} onClear={clearMonitor} />
+        <Monitor messages={messages} paused={paused} onTogglePause={togglePause} onClear={clearMonitor} />
       </div>
     </main>
   );

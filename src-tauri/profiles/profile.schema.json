@@ -37,8 +37,16 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "knobs": { "description": "Montre la valeur envoyée quand un potentiomètre tourne.", "type": "boolean", "default": true },
-        "encoder": { "description": "Montre la valeur envoyée quand l'encodeur tourne.", "type": "boolean", "default": true },
+        "knobs": {
+          "description": "Montre la valeur envoyée quand un potentiomètre tourne.",
+          "type": "boolean",
+          "default": true
+        },
+        "encoder": {
+          "description": "Montre la valeur envoyée quand l'encodeur tourne.",
+          "type": "boolean",
+          "default": true
+        },
         "pads": {
           "description": "Ce que montre une frappe sur un pad. none : rien. note : la note jouée. velocity : la vélocité.",
           "enum": ["none", "note", "velocity"],
@@ -50,6 +58,63 @@
           "minimum": 200,
           "maximum": 10000,
           "default": 1000
+        }
+      }
+    },
+    "velocity": {
+      "description": "Mise en forme de la vélocité des frappes sur les pads (notes, $velocity des actions OSC, afficheur). Les vélocités fixes ne changent pas.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "curve": {
+          "description": "soft : les frappes légères sortent plus fort. linear : telle quelle. hard : il faut frapper fort pour monter.",
+          "enum": ["soft", "linear", "hard"],
+          "default": "linear"
+        },
+        "min": {
+          "description": "Vélocité envoyée pour la frappe la plus légère.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127,
+          "default": 1
+        },
+        "max": {
+          "description": "Vélocité envoyée pour la frappe la plus forte.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127,
+          "default": 127
+        }
+      }
+    },
+    "repeat": {
+      "description": "Réglages du roll (note répétée tant que le pad est tenu) et du flam (note fantôme juste avant la frappe), activés par les actions roll et flam.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bpm": {
+          "description": "Tempo du roll quand le DAW n'envoie pas d'horloge MIDI sur l'entrée de retour.",
+          "type": "number",
+          "minimum": 20,
+          "maximum": 300,
+          "default": 120
+        },
+        "roll": {
+          "description": "Division de la ronde : 16 pour des doubles croches, 12 pour des triolets de croches.",
+          "enum": [4, 6, 8, 12, 16, 24, 32],
+          "default": 16
+        },
+        "flam": {
+          "description": "Écart en millisecondes entre la note fantôme et la frappe.",
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 200,
+          "default": 30
+        },
+        "xySpeed": {
+          "description": "true : quand roll ou flam est actif, l'axe X du pad XY règle la division ou l'écart au lieu de son action.",
+          "type": "boolean",
+          "default": true
         }
       }
     },
@@ -110,9 +175,25 @@
     },
     "buttonId": {
       "enum": [
-        "scene", "message", "setting", "noteCc", "midiCh", "swType", "relVal",
-        "velocity", "port", "fixedVelocity", "progChange", "x", "y",
-        "knob1Assign", "knob2Assign", "pedal", "roll", "flam", "hold"
+        "scene",
+        "message",
+        "setting",
+        "noteCc",
+        "midiCh",
+        "swType",
+        "relVal",
+        "velocity",
+        "port",
+        "fixedVelocity",
+        "progChange",
+        "x",
+        "y",
+        "knob1Assign",
+        "knob2Assign",
+        "pedal",
+        "roll",
+        "flam",
+        "hold"
       ]
     },
     "noteAction": {
@@ -184,13 +265,51 @@
         }
       }
     },
+    "keys": {
+      "description": "Raccourci clavier : noms séparés par +, par exemple ctrl+shift+s. Modificateurs : ctrl, shift, alt (option), meta (win, cmd). Touches : un caractère, plus, minus, space, enter, tab, esc, backspace, delete, insert, home, end, pageup, pagedown, up, down, left, right, f1 à f20, num0 à num9, capslock, printscreen, pause, volumeup, volumedown, mute, playpause, next, previous.",
+      "type": "string",
+      "minLength": 1
+    },
+    "keyAction": {
+      "description": "Tape un raccourci clavier dans le logiciel au premier plan.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "keys"],
+      "properties": {
+        "type": { "const": "key" },
+        "keys": { "$ref": "#/$defs/keys" },
+        "hold": {
+          "description": "true : les touches restent enfoncées tant que le contrôle est tenu. false : un appui bref à chaque pression.",
+          "type": "boolean",
+          "default": false
+        },
+        "led": { "$ref": "#/$defs/led" }
+      }
+    },
+    "rollAction": {
+      "description": "Active ou coupe le roll : les pads en mode momentary répètent leur note tant qu'ils sont tenus.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": { "type": { "const": "roll" } }
+    },
+    "flamAction": {
+      "description": "Active ou coupe le flam : les pads en mode momentary jouent une note fantôme plus douce juste avant la frappe.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": { "type": { "const": "flam" } }
+    },
     "padAction": {
       "oneOf": [
         { "$ref": "#/$defs/padNoteAction" },
         { "$ref": "#/$defs/ccButtonAction" },
         { "$ref": "#/$defs/programChangeAction" },
         { "$ref": "#/$defs/switchBankAction" },
-        { "$ref": "#/$defs/oscButtonAction" }
+        { "$ref": "#/$defs/oscButtonAction" },
+        { "$ref": "#/$defs/keyAction" },
+        { "$ref": "#/$defs/rollAction" },
+        { "$ref": "#/$defs/flamAction" }
       ]
     },
     "buttonAction": {
@@ -199,7 +318,10 @@
         { "$ref": "#/$defs/ccButtonAction" },
         { "$ref": "#/$defs/programChangeAction" },
         { "$ref": "#/$defs/switchBankAction" },
-        { "$ref": "#/$defs/oscButtonAction" }
+        { "$ref": "#/$defs/oscButtonAction" },
+        { "$ref": "#/$defs/keyAction" },
+        { "$ref": "#/$defs/rollAction" },
+        { "$ref": "#/$defs/flamAction" }
       ]
     },
     "oscAddress": {
@@ -255,7 +377,11 @@
             "address": { "$ref": "#/$defs/oscAddress" },
             "min": { "description": "Valeur envoyée potentiomètre à fond à gauche.", "type": "number", "default": 0 },
             "max": { "description": "Valeur envoyée potentiomètre à fond à droite.", "type": "number", "default": 127 },
-            "float": { "description": "true : envoie un décimal. Sinon, un entier arrondi.", "type": "boolean", "default": false }
+            "float": {
+              "description": "true : envoie un décimal. Sinon, un entier arrondi.",
+              "type": "boolean",
+              "default": false
+            }
           }
         }
       ]
@@ -311,6 +437,17 @@
             "type": { "const": "osc" },
             "address": { "$ref": "#/$defs/oscAddress" },
             "encoding": { "$ref": "#/$defs/encoding" }
+          }
+        },
+        {
+          "description": "Tape un raccourci clavier à chaque cran.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "left", "right"],
+          "properties": {
+            "type": { "const": "key" },
+            "left": { "$ref": "#/$defs/keys", "description": "Raccourci tapé à chaque cran vers la gauche." },
+            "right": { "$ref": "#/$defs/keys", "description": "Raccourci tapé à chaque cran vers la droite." }
           }
         }
       ]

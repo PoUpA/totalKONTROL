@@ -49,6 +49,13 @@ export type ConnectionInfo = {
   oscListen: number | null;
 };
 
+/** Connection, plus whether the app waits for an unplugged padKONTROL to come back. */
+export type ConnectionState = {
+  connection: ConnectionInfo | null;
+  waiting: boolean;
+  engine: EngineState | null;
+};
+
 export type EngineState = {
   file: string;
   profile: string;
@@ -70,7 +77,12 @@ export type ButtonAction =
   | { type: "cc"; channel: number; cc: number; onValue?: number; offValue?: number; mode?: Mode; led?: Led }
   | { type: "programChange"; channel: number; program: number; led?: Led }
   | { type: "switchBank"; bank: number; momentary?: boolean }
-  | { type: "osc"; address: string; args?: OscValue[]; releaseArgs?: OscValue[]; mode?: Mode; led?: Led };
+  | { type: "osc"; address: string; args?: OscValue[]; releaseArgs?: OscValue[]; mode?: Mode; led?: Led }
+  /** Types a keyboard shortcut such as "ctrl+s"; with `hold`, keeps it down while held. */
+  | { type: "key"; keys: string; hold?: boolean; led?: Led }
+  /** Turns roll (held pads repeat) or flam (softer grace note first) on or off. */
+  | { type: "roll" }
+  | { type: "flam" };
 
 /** OSC argument; the string "$velocity" stands for the velocity of the hit. */
 export type OscValue = number | boolean | string;
@@ -83,7 +95,9 @@ export type KnobAction =
 export type XyAction = { type: "xy"; channel: number; ccX: number; ccY: number } | { type: "osc"; address: string };
 export type EncoderAction =
   | { type: "cc"; channel: number; cc: number; encoding?: Encoding }
-  | { type: "osc"; address: string; encoding?: Encoding };
+  | { type: "osc"; address: string; encoding?: Encoding }
+  /** Types a shortcut for each step to the left or to the right. */
+  | { type: "key"; left: string; right: string };
 
 export type Bank = {
   name: string;
@@ -105,7 +119,30 @@ export type Profile = {
   ports?: { input?: string; output?: string };
   startBank?: number;
   display?: DisplaySettings;
+  velocity?: VelocitySettings;
+  repeat?: RepeatSettings;
   banks: Bank[];
+};
+
+/** Roll and flam settings. */
+export type RepeatSettings = {
+  /** Roll tempo when the DAW sends no MIDI clock, 120 by default. */
+  bpm?: number;
+  /** Division of a whole note: 16 for sixteenth notes (default). */
+  roll?: number;
+  /** Milliseconds between the grace note and the hit, 30 by default. */
+  flam?: number;
+  /** While roll or flam is on, X of the XY pad sets the speed (default true). */
+  xySpeed?: boolean;
+};
+
+/** Shaping of the pads' hit velocity. */
+export type VelocitySettings = {
+  curve?: "soft" | "linear" | "hard";
+  /** Velocity sent for the softest hit, 1 by default. */
+  min?: number;
+  /** Velocity sent for the hardest hit, 127 by default. */
+  max?: number;
 };
 
 export type DisplaySettings = {
@@ -173,7 +210,7 @@ export type ControlEvent =
 
 export type MidiMessage = {
   receivedAt: number;
-  direction: "in" | "out" | "feedback" | "osc" | "oscIn";
+  direction: "in" | "out" | "feedback" | "osc" | "oscIn" | "key";
   hex: string;
   description: string;
   event: ControlEvent | null;

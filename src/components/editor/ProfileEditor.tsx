@@ -1,10 +1,19 @@
 import { memo, useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { controlOfEvent, type ControlRef, type EngineState, type MidiMessage, type Profile, type ProfileSummary } from "../../types";
+import {
+  controlOfEvent,
+  type ControlRef,
+  type EngineState,
+  type MidiMessage,
+  type Profile,
+  type ProfileSummary,
+} from "../../types";
 import { useI18n } from "../../i18n";
 import { ActionForm } from "./ActionForm";
 import { DisplaySettingsForm, withDisplay } from "./DisplaySettingsForm";
+import { RepeatSettingsForm, withRepeat } from "./RepeatSettingsForm";
+import { VelocitySettingsForm, withVelocity } from "./VelocitySettingsForm";
 import { FrontPanel } from "./FrontPanel";
 import { addBank, controlPath, getAction, removeBank, setAction, swapBanks } from "./profile";
 
@@ -120,7 +129,9 @@ function ProfileEditorView({ profiles, dir, engine, canLearn, onProfilesChanged,
 
   const create = () =>
     run(async () => {
-      const created = await invoke<string>("create_profile", { name: newName.trim() || t("editor.defaultProfileName") });
+      const created = await invoke<string>("create_profile", {
+        name: newName.trim() || t("editor.defaultProfileName"),
+      });
       setNewName("");
       await onProfilesChanged();
       await open(created);
@@ -327,10 +338,20 @@ function ProfileEditorView({ profiles, dir, engine, canLearn, onProfilesChanged,
               </div>
             </div>
 
-            <DisplaySettingsForm
-              settings={draft.display ?? {}}
-              onChange={(display) => update((p) => withDisplay(p, display))}
-            />
+            <div className="profile-settings">
+              <DisplaySettingsForm
+                settings={draft.display ?? {}}
+                onChange={(display) => update((p) => withDisplay(p, display))}
+              />
+              <VelocitySettingsForm
+                settings={draft.velocity ?? {}}
+                onChange={(velocity) => update((p) => withVelocity(p, velocity))}
+              />
+              <RepeatSettingsForm
+                settings={draft.repeat ?? {}}
+                onChange={(repeat) => update((p) => withRepeat(p, repeat))}
+              />
+            </div>
 
             <div className="editor-body">
               <div>

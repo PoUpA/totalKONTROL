@@ -52,13 +52,25 @@ pub fn enter_native_mode(display: &str) -> Vec<Vec<u8>> {
 
     vec![
         sysex(&[0x00, 0x00, 0x01]),
-        sysex(&[
-            0x3F, 0x2A, 0x00, 0x00, 0x05, 0x05, 0x05, 0x7F, 0x7E, 0x7F, 0x7F, 0x03, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A,
-            0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
-            0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
-        ]),
+        report_all_controls(),
         sysex(&leds_and_display),
     ]
+}
+
+/// Asks the padKONTROL to report every control. It must follow native mode
+/// on, which resets it. The padKONTROL acknowledges it every time without
+/// touching the LEDs or the display, so it doubles as a heartbeat.
+pub fn report_all_controls() -> Vec<u8> {
+    sysex(&[
+        0x3F, 0x2A, 0x00, 0x00, 0x05, 0x05, 0x05, 0x7F, 0x7E, 0x7F, 0x7F, 0x03, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A,
+        0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
+    ])
+}
+
+/// The padKONTROL's acknowledgement of `report_all_controls`.
+pub fn is_report_ack(message: &[u8]) -> bool {
+    message.strip_prefix(&HEADER) == Some(&[0x5F, 0x00, 0x00, SYSEX_END])
 }
 
 /// Message to send to leave native mode and hand control back to the
@@ -83,7 +95,9 @@ pub enum Control {
 impl Control {
     /// Every control with an LED.
     pub fn all() -> impl Iterator<Item = Control> {
-        (1..=16).map(Control::Pad).chain(BUTTONS.iter().copied().map(Control::Button))
+        (1..=16)
+            .map(Control::Pad)
+            .chain(BUTTONS.iter().copied().map(Control::Button))
     }
 
     pub fn has_led(self) -> bool {
@@ -111,7 +125,11 @@ pub fn led(control: Control, on: bool) -> Vec<u8> {
 pub fn display(text: &str) -> Vec<u8> {
     let mut chars = [b' '; 3];
     for (slot, c) in chars.iter_mut().zip(text.chars()) {
-        *slot = if c.is_ascii() { c.to_ascii_uppercase() as u8 } else { b'-' };
+        *slot = if c.is_ascii() {
+            c.to_ascii_uppercase() as u8
+        } else {
+            b'-'
+        };
     }
     sysex(&[0x22, 0x04, 0x00, chars[0], chars[1], chars[2]])
 }
@@ -121,13 +139,30 @@ pub fn display(text: &str) -> Vec<u8> {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum ControlEvent {
-    Pad { pad: u8, pressed: bool, velocity: u8 },
-    Button { button: ButtonId, pressed: bool },
-    Knob { knob: u8, value: u8 },
-    Xy { x: u8, y: u8 },
+    Pad {
+        pad: u8,
+        pressed: bool,
+        velocity: u8,
+    },
+    Button {
+        button: ButtonId,
+        pressed: bool,
+    },
+    Knob {
+        knob: u8,
+        value: u8,
+    },
+    Xy {
+        x: u8,
+        y: u8,
+    },
     /// A finger lands on (`pressed`) or leaves the XY pad.
-    XyTouch { pressed: bool },
-    Encoder { delta: i8 },
+    XyTouch {
+        pressed: bool,
+    },
+    Encoder {
+        delta: i8,
+    },
 }
 
 pub fn decode(message: &[u8]) -> Option<ControlEvent> {
@@ -139,13 +174,16 @@ pub fn decode(message: &[u8]) -> Option<ControlEvent> {
             velocity,
         }),
         [0x48, XY_TOUCH_CODE, state] => Some(ControlEvent::XyTouch { pressed: state != 0 }),
-        [0x48, code, state] => BUTTONS
-            .get(code as usize)
-            .map(|&button| ControlEvent::Button { button, pressed: state != 0 }),
+        [0x48, code, state] => BUTTONS.get(code as usize).map(|&button| ControlEvent::Button {
+            button,
+            pressed: state != 0,
+        }),
         [0x49, knob @ (0 | 1), value] => Some(ControlEvent::Knob { knob: knob + 1, value }),
         [0x4B, x, y] => Some(ControlEvent::Xy { x, y }),
         // Signed 7-bit step: 0x01 = one click right, 0x7F = one click left.
-        [0x43, 0x00, step] => Some(ControlEvent::Encoder { delta: ((step << 1) as i8) >> 1 }),
+        [0x43, 0x00, step] => Some(ControlEvent::Encoder {
+            delta: ((step << 1) as i8) >> 1,
+        }),
         _ => None,
     }
 }
@@ -187,8 +225,21 @@ mod tests {
     use super::*;
     use crate::i18n::{Lang, with_lang};
 
+    #[test]
+    fn heartbeat_messages() {
+        // Captured from the device: the reporting setup is acknowledged with
+        // 5F 00 00, the LEDs and display with 5F 01 00, native mode on with 40 00 03.
+        assert_eq!(enter_native_mode("ABC")[1], report_all_controls());
+        assert!(is_report_ack(&hex("f042406e085f0000f7")));
+        assert!(!is_report_ack(&hex("f042406e085f0100f7")));
+        assert!(!is_report_ack(&hex("f042406e08400003f7")));
+    }
+
     fn hex(s: &str) -> Vec<u8> {
-        (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap()).collect()
+        (0..s.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+            .collect()
     }
 
     fn decoded(s: &str) -> ControlEvent {
@@ -198,28 +249,98 @@ mod tests {
     // Frames captured in docs/padkontrol-sysex.txt.
     #[test]
     fn decodes_buttons() {
-        assert_eq!(decoded("f042406e0848027ff7"), ControlEvent::Button { button: ButtonId::Setting, pressed: true });
-        assert_eq!(decoded("f042406e08480200f7"), ControlEvent::Button { button: ButtonId::Setting, pressed: false });
-        assert_eq!(decoded("f042406e08480b7ff7"), ControlEvent::Button { button: ButtonId::X, pressed: true });
-        assert_eq!(decoded("f042406e08480f7ff7"), ControlEvent::Button { button: ButtonId::Pedal, pressed: true });
-        assert_eq!(decoded("f042406e0848127ff7"), ControlEvent::Button { button: ButtonId::Hold, pressed: true });
-        assert_eq!(decoded("f042406e08480d00f7"), ControlEvent::Button { button: ButtonId::Knob1Assign, pressed: false });
+        assert_eq!(
+            decoded("f042406e0848027ff7"),
+            ControlEvent::Button {
+                button: ButtonId::Setting,
+                pressed: true
+            }
+        );
+        assert_eq!(
+            decoded("f042406e08480200f7"),
+            ControlEvent::Button {
+                button: ButtonId::Setting,
+                pressed: false
+            }
+        );
+        assert_eq!(
+            decoded("f042406e08480b7ff7"),
+            ControlEvent::Button {
+                button: ButtonId::X,
+                pressed: true
+            }
+        );
+        assert_eq!(
+            decoded("f042406e08480f7ff7"),
+            ControlEvent::Button {
+                button: ButtonId::Pedal,
+                pressed: true
+            }
+        );
+        assert_eq!(
+            decoded("f042406e0848127ff7"),
+            ControlEvent::Button {
+                button: ButtonId::Hold,
+                pressed: true
+            }
+        );
+        assert_eq!(
+            decoded("f042406e08480d00f7"),
+            ControlEvent::Button {
+                button: ButtonId::Knob1Assign,
+                pressed: false
+            }
+        );
     }
 
     #[test]
     fn decodes_pads() {
-        assert_eq!(decoded("f042406e0845401df7"), ControlEvent::Pad { pad: 1, pressed: true, velocity: 0x1D });
-        assert_eq!(decoded("f042406e08450040f7"), ControlEvent::Pad { pad: 1, pressed: false, velocity: 0x40 });
-        assert_eq!(decoded("f042406e08454f13f7"), ControlEvent::Pad { pad: 16, pressed: true, velocity: 0x13 });
-        assert_eq!(decoded("f042406e08450f40f7"), ControlEvent::Pad { pad: 16, pressed: false, velocity: 0x40 });
+        assert_eq!(
+            decoded("f042406e0845401df7"),
+            ControlEvent::Pad {
+                pad: 1,
+                pressed: true,
+                velocity: 0x1D
+            }
+        );
+        assert_eq!(
+            decoded("f042406e08450040f7"),
+            ControlEvent::Pad {
+                pad: 1,
+                pressed: false,
+                velocity: 0x40
+            }
+        );
+        assert_eq!(
+            decoded("f042406e08454f13f7"),
+            ControlEvent::Pad {
+                pad: 16,
+                pressed: true,
+                velocity: 0x13
+            }
+        );
+        assert_eq!(
+            decoded("f042406e08450f40f7"),
+            ControlEvent::Pad {
+                pad: 16,
+                pressed: false,
+                velocity: 0x40
+            }
+        );
     }
 
     #[test]
     fn decodes_encoder_knobs_and_xy() {
         assert_eq!(decoded("f042406e08430001f7"), ControlEvent::Encoder { delta: 1 });
         assert_eq!(decoded("f042406e0843007ff7"), ControlEvent::Encoder { delta: -1 });
-        assert_eq!(decoded("f042406e0849002af7"), ControlEvent::Knob { knob: 1, value: 0x2A });
-        assert_eq!(decoded("f042406e0849017ff7"), ControlEvent::Knob { knob: 2, value: 0x7F });
+        assert_eq!(
+            decoded("f042406e0849002af7"),
+            ControlEvent::Knob { knob: 1, value: 0x2A }
+        );
+        assert_eq!(
+            decoded("f042406e0849017ff7"),
+            ControlEvent::Knob { knob: 2, value: 0x7F }
+        );
         assert_eq!(decoded("f042406e084b1040f7"), ControlEvent::Xy { x: 0x10, y: 0x40 });
     }
 
@@ -246,7 +367,10 @@ mod tests {
         assert_eq!(init[0], hex("f042406e08000001f7"));
         assert_eq!(to_hex(&init[1][..8]), "F0 42 40 6E 08 3F 2A 00");
         assert_eq!(init[2], hex("f042406e083f0a01000000000000544b20f7"));
-        assert!(init.iter().all(|m| m.len() >= 6 && m[..5] == HEADER && m.last() == Some(&SYSEX_END)));
+        assert!(
+            init.iter()
+                .all(|m| m.len() >= 6 && m[..5] == HEADER && m.last() == Some(&SYSEX_END))
+        );
         assert_eq!(exit_native_mode(), hex("f042406e08000000f7"));
     }
 

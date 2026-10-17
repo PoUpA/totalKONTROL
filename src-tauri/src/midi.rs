@@ -3,10 +3,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use midir::{Ignore, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
-use crate::config::Profile;
+use crate::config::{Profile, ProfileStore};
 use crate::engine::{Engine, EngineState};
+use crate::keys::{self, KeyEvent};
 use crate::osc::{self, OscMessage, OscSender};
 use crate::padkontrol::{self, ControlEvent};
 #[cfg(all(windows, feature = "windows-midi-services"))]
@@ -77,7 +78,78 @@ pub fn list_ports() -> Result<MidiPorts, String> {
     std::thread::spawn(move || {
         let _ = tx.send(enumerate_ports());
     });
-    rx.recv_timeout(ENUMERATION_TIMEOUT).unwrap_or_else(|_| Err(midi_service_frozen()))
+    rx.recv_timeout(ENUMERATION_TIMEOUT)
+        .unwrap_or_else(|_| Err(midi_service_frozen()))
+}
+
+/// Names of the MIDI inputs, or `None` if the system MIDI service hangs.
+fn input_port_names() -> Option<Vec<String>> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let names = MidiInput::new(CLIENT_NAME).map(|midi_in| {
+            midi_in
+                .ports()
+                .iter()
+                .filter_map(|p| midi_in.port_name(p).ok())
+                .collect()
+        });
+        let _ = tx.send(names);
+    });
+    rx.recv_timeout(ENUMERATION_TIMEOUT).ok()?.ok()
+}
+
+const WATCH_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
+/// When the MIDI service hangs, look again much later rather than piling up
+/// stuck threads.
+const FROZEN_BACKOFF: std::time::Duration = std::time::Duration::from_secs(30);
+/// Time for a padKONTROL just plugged back in to finish starting up.
+const SETTLE_TIME: std::time::Duration = std::time::Duration::from_secs(1);
+/// How long the padKONTROL has to acknowledge a heartbeat.
+const HEARTBEAT_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(500);
+
+/// Watches the padKONTROL: when its input port disappears or, in native
+/// mode, it stops answering the heartbeat (unplugged), the connection is
+/// dropped and its settings kept; when it comes back, the app reconnects with
+/// them and reloads the profile.
+pub fn spawn_watchdog(app: AppHandle) {
+    std::thread::spawn(move || {
+        let mut delay = WATCH_INTERVAL;
+        loop {
+            std::thread::sleep(delay);
+            delay = WATCH_INTERVAL;
+            let connection = app.state::<PadConnection>();
+            let Some(input) = connection.watched_input() else {
+                continue;
+            };
+            let Some(names) = input_port_names() else {
+                delay = FROZEN_BACKOFF;
+                continue;
+            };
+            let present = names.contains(&input);
+            let connected = connection.info().is_some();
+            if connected && (!present || connection.responds() == Some(false)) {
+                connection.lose();
+                let _ = app.emit(CONNECTION_EVENT, connection.state());
+            } else if !connected && present && connection.waiting() {
+                std::thread::sleep(SETTLE_TIME);
+                let Some(remembered) = connection.remembered.lock().unwrap().clone() else {
+                    continue;
+                };
+                let profile = remembered
+                    .profile
+                    .and_then(|file| app.state::<ProfileStore>().load(&file).ok().map(|p| (file, p)));
+                // A failed attempt keeps waiting: the next round tries again.
+                if connection.connect(app.clone(), remembered.options, profile).is_ok() {
+                    // Ports still listed but nobody behind them.
+                    if connection.responds() == Some(false) {
+                        connection.lose();
+                    } else {
+                        let _ = app.emit(CONNECTION_EVENT, connection.state());
+                    }
+                }
+            }
+        }
+    });
 }
 
 fn enumerate_ports() -> Result<MidiPorts, String> {
@@ -122,6 +194,8 @@ pub enum Direction {
     Osc,
     /// Received on the OSC listening port.
     OscIn,
+    /// Keyboard shortcut typed by a `key` action.
+    Key,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -145,7 +219,22 @@ impl MidiMessage {
             direction,
             hex: padkontrol::to_hex(bytes),
             description: padkontrol::describe(bytes),
-            event: if matches!(direction, Direction::In) { padkontrol::decode(bytes) } else { None },
+            event: if matches!(direction, Direction::In) {
+                padkontrol::decode(bytes)
+            } else {
+                None
+            },
+            encoder_position: None,
+        }
+    }
+
+    fn key(event: &KeyEvent) -> Self {
+        Self {
+            received_at: now_ms(),
+            direction: Direction::Key,
+            hex: String::new(),
+            description: event.describe(),
+            event: None,
             encoder_position: None,
         }
     }
@@ -163,7 +252,7 @@ impl MidiMessage {
 }
 
 /// OSC destination picked in the UI.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OscOptions {
     pub host: String,
@@ -192,7 +281,7 @@ pub enum PortChoice {
     Virtual,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectOptions {
     pub input: String,
@@ -249,6 +338,8 @@ struct Shared {
     pad_out: Option<MidiOutputConnection>,
     daw_out: Option<DawOutput>,
     osc: Option<OscOutput>,
+    /// Reporting setup acknowledgements received, for the heartbeat.
+    acks: u32,
 }
 
 impl Shared {
@@ -267,7 +358,10 @@ impl Shared {
             all.extend(event.map(|e| osc::mirror(&out.prefix, e, encoder_position)));
             all.extend(bank.map(|b| osc::mirror_bank(&out.prefix, b)));
         }
-        all.iter().filter(|m| out.sender.send(m)).map(|m| MidiMessage::osc(Direction::Osc, m)).collect()
+        all.iter()
+            .filter(|m| out.sender.send(m))
+            .map(|m| MidiMessage::osc(Direction::Osc, m))
+            .collect()
     }
 
     fn send_pad(&mut self, messages: &[Vec<u8>]) {
@@ -280,7 +374,9 @@ impl Shared {
 
     /// Sends to the DAW and returns the messages for the monitor.
     fn send_daw(&mut self, messages: &[Vec<u8>]) -> Vec<MidiMessage> {
-        let Some(out) = self.daw_out.as_mut() else { return vec![] };
+        let Some(out) = self.daw_out.as_mut() else {
+            return vec![];
+        };
         messages
             .iter()
             .filter(|m| out.send(m))
@@ -298,6 +394,7 @@ struct Connection {
 
 impl Connection {
     fn close(self) {
+        keys::release_all();
         let mut shared = self.shared.lock().unwrap();
         if self.info.native_mode {
             // Without this message the padKONTROL stays silent until it is power-cycled.
@@ -306,13 +403,98 @@ impl Connection {
     }
 }
 
+/// What a lost connection reconnects with.
+#[derive(Clone)]
+struct Remembered {
+    options: ConnectOptions,
+    profile: Option<String>,
+}
+
 /// Connection to the padKONTROL and the DAW, shared by the Tauri commands.
 #[derive(Default)]
 pub struct PadConnection {
     current: Mutex<Option<Connection>>,
+    /// Settings of the last connection, until the user disconnects.
+    remembered: Mutex<Option<Remembered>>,
+    /// The padKONTROL went away: reconnect as soon as it is back.
+    waiting: std::sync::atomic::AtomicBool,
 }
 
+/// Sent to the UI whenever the connection is lost or comes back by itself.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionState {
+    pub connection: Option<ConnectionInfo>,
+    pub waiting: bool,
+    pub engine: Option<EngineState>,
+}
+
+pub const CONNECTION_EVENT: &str = "connection-state";
+
 impl PadConnection {
+    pub fn waiting(&self) -> bool {
+        self.waiting.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub fn state(&self) -> ConnectionState {
+        ConnectionState {
+            connection: self.info(),
+            waiting: self.waiting(),
+            engine: self.engine_state(),
+        }
+    }
+
+    /// Input port to watch: the connected one, or the one being waited for.
+    fn watched_input(&self) -> Option<String> {
+        self.info().map(|info| info.input).or_else(|| {
+            self.waiting()
+                .then(|| {
+                    self.remembered
+                        .lock()
+                        .unwrap()
+                        .as_ref()
+                        .map(|r| r.options.input.clone())
+                })
+                .flatten()
+        })
+    }
+
+    /// Whether the padKONTROL answers a heartbeat, in native mode. With the
+    /// Korg driver on Windows, an unplugged padKONTROL stays in the port list
+    /// and the open ports go silent, so the list alone does not tell.
+    fn responds(&self) -> Option<bool> {
+        let shared = {
+            let current = self.current.lock().unwrap();
+            let connection = current.as_ref()?;
+            if !connection.info.native_mode {
+                return None;
+            }
+            connection.shared.clone()
+        };
+        // Two tries, so that one lost message does not drop the connection.
+        for _ in 0..2 {
+            let before = {
+                let mut shared = shared.lock().unwrap();
+                shared.send_pad(&[padkontrol::report_all_controls()]);
+                shared.acks
+            };
+            let deadline = std::time::Instant::now() + HEARTBEAT_TIMEOUT;
+            while std::time::Instant::now() < deadline {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+                if shared.lock().unwrap().acks != before {
+                    return Some(true);
+                }
+            }
+        }
+        Some(false)
+    }
+
+    /// The padKONTROL went away: drop the connection, keep its settings.
+    fn lose(&self) {
+        self.close_current();
+        self.waiting.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
     pub fn info(&self) -> Option<ConnectionInfo> {
         self.current.lock().unwrap().as_ref().map(|c| c.info.clone())
     }
@@ -333,7 +515,11 @@ impl PadConnection {
             return Err(t!("core.connection.nativeModeNeedsOutput"));
         }
         check_no_loop(&options)?;
-        self.disconnect();
+        self.close_current();
+        let remembered = Remembered {
+            options: options.clone(),
+            profile: profile.as_ref().map(|(file, _)| file.clone()),
+        };
 
         let shared = Arc::new(Mutex::new(Shared::default()));
         let mut pad_out = options.output.as_deref().map(open_output).transpose()?;
@@ -348,12 +534,17 @@ impl PadConnection {
         let osc_out = options.osc.as_ref().map(open_osc).transpose()?;
         let osc_name = osc_out.as_ref().map(|o| o.sender.target().to_string());
         let osc_listener = match &options.osc {
-            Some(OscOptions { listen_port: Some(port), prefix, .. }) => {
-                Some((bind_osc_listener(*port)?, osc::normalize_prefix(prefix)))
-            }
+            Some(OscOptions {
+                listen_port: Some(port),
+                prefix,
+                ..
+            }) => Some((bind_osc_listener(*port)?, osc::normalize_prefix(prefix))),
             _ => None,
         };
-        let osc_listen = osc_listener.as_ref().and_then(|(socket, _)| socket.local_addr().ok()).map(|a| a.port());
+        let osc_listen = osc_listener
+            .as_ref()
+            .and_then(|(socket, _)| socket.local_addr().ok())
+            .map(|a| a.port());
 
         let pad_in = open_input(&options.input, pad_input_handler(app.clone(), shared.clone()))?;
         let (feedback_in, feedback_name) = match &options.feedback_input {
@@ -377,17 +568,24 @@ impl PadConnection {
                 init.extend(engine.refresh());
             }
             for message in init {
-                out.send(&message).map_err(|e| t!("core.connection.nativeModeSendFailed", error = e))?;
+                out.send(&message)
+                    .map_err(|e| t!("core.connection.nativeModeSendFailed", error = e))?;
             }
         }
 
         if let Some(engine) = &engine {
             let _ = app.emit(ENGINE_EVENT, Some(engine.state()));
         }
-        *shared.lock().unwrap() = Shared { engine, pad_out, daw_out, osc: osc_out };
+        *shared.lock().unwrap() = Shared {
+            engine,
+            pad_out,
+            daw_out,
+            osc: osc_out,
+            acks: 0,
+        };
         // A profile can also be picked later, while connected.
         if options.native_mode {
-            spawn_display_ticker(Arc::downgrade(&shared));
+            spawn_engine_ticker(app.clone(), Arc::downgrade(&shared));
         }
         if let Some((socket, prefix)) = osc_listener {
             spawn_osc_listener(app.clone(), Arc::downgrade(&shared), socket, prefix);
@@ -402,12 +600,25 @@ impl PadConnection {
             osc: osc_name,
             osc_listen,
         };
-        *self.current.lock().unwrap() =
-            Some(Connection { _pad_in: pad_in, _feedback_in: feedback_in, shared, info: info.clone() });
+        *self.current.lock().unwrap() = Some(Connection {
+            _pad_in: pad_in,
+            _feedback_in: feedback_in,
+            shared,
+            info: info.clone(),
+        });
+        *self.remembered.lock().unwrap() = Some(remembered);
+        self.waiting.store(false, std::sync::atomic::Ordering::Relaxed);
         Ok(info)
     }
 
+    /// Disconnects on the user's request: nothing reconnects by itself.
     pub fn disconnect(&self) {
+        self.close_current();
+        *self.remembered.lock().unwrap() = None;
+        self.waiting.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    fn close_current(&self) {
         if let Some(connection) = self.current.lock().unwrap().take() {
             connection.close();
         }
@@ -416,6 +627,11 @@ impl PadConnection {
     /// Replaces the active profile without dropping the connection. The same
     /// file, edited, keeps its current bank.
     pub fn set_profile(&self, file: &str, profile: Profile) -> Result<EngineState, String> {
+        if let Some(remembered) = self.remembered.lock().unwrap().as_mut() {
+            remembered.profile = Some(file.to_string());
+        }
+        // Keys held by the previous actions would stay down.
+        keys::release_all();
         self.with_engine(|shared| {
             match shared.engine.as_mut() {
                 Some(engine) if engine.file() == file => engine.reload(profile),
@@ -452,8 +668,7 @@ impl PadConnection {
 
     fn with_engine<T>(&self, f: impl FnOnce(&mut Shared) -> Result<T, String>) -> Result<T, String> {
         let current = self.current.lock().unwrap();
-        let connection =
-            current.as_ref().ok_or_else(|| t!("core.connection.notConnected"))?;
+        let connection = current.as_ref().ok_or_else(|| t!("core.connection.notConnected"))?;
         if !connection.info.native_mode {
             return Err(t!("core.connection.engineNeedsNativeMode"));
         }
@@ -479,22 +694,31 @@ fn check_no_loop(options: &ConnectOptions) -> Result<(), String> {
 
 pub type Handler = Box<dyn FnMut(&[u8]) + Send + 'static>;
 
-const DISPLAY_TICK: std::time::Duration = std::time::Duration::from_millis(100);
+/// Engine clock: rolls, flam notes and the display need a tick this often.
+const ENGINE_TICK: std::time::Duration = std::time::Duration::from_millis(5);
 
-/// Lets the engine bring the bank back on the display after a value. Stops
-/// on its own once the connection is gone.
-fn spawn_display_ticker(shared: std::sync::Weak<Mutex<Shared>>) {
+/// Ticks the engine: plays rolls and flam notes on time, and brings the bank
+/// back on the display after a value. Stops on its own once the connection
+/// is gone.
+fn spawn_engine_ticker(app: AppHandle, shared: std::sync::Weak<Mutex<Shared>>) {
     std::thread::spawn(move || {
         while let Some(shared) = shared.upgrade() {
-            {
+            let sent = {
                 let mut shared = shared.lock().unwrap();
-                if let Some(engine) = shared.engine.as_mut() {
-                    let messages = engine.tick(std::time::Instant::now());
-                    shared.send_pad(&messages);
+                match shared.engine.as_mut() {
+                    Some(engine) => {
+                        let out = engine.tick(std::time::Instant::now());
+                        shared.send_pad(&out.pad);
+                        shared.send_daw(&out.daw)
+                    }
+                    None => vec![],
                 }
-            }
+            };
             drop(shared);
-            std::thread::sleep(DISPLAY_TICK);
+            for message in sent {
+                let _ = app.emit(MESSAGE_EVENT, message);
+            }
+            std::thread::sleep(ENGINE_TICK);
         }
     });
 }
@@ -518,7 +742,9 @@ fn bind_osc_listener(port: u16) -> Result<std::net::UdpSocket, String> {
             }
         }
     };
-    socket.set_read_timeout(Some(OSC_LISTEN_POLL)).map_err(|e| e.to_string())?;
+    socket
+        .set_read_timeout(Some(OSC_LISTEN_POLL))
+        .map_err(|e| e.to_string())?;
     Ok(socket)
 }
 
@@ -560,6 +786,12 @@ fn spawn_osc_listener(
 /// Messages from the padKONTROL: monitor, then engine, then DAW, OSC and LEDs.
 fn pad_input_handler(app: AppHandle, shared: Arc<Mutex<Shared>>) -> Handler {
     Box::new(move |bytes| {
+        // Heartbeat answers would flood the monitor.
+        if padkontrol::is_report_ack(bytes) {
+            let mut shared = shared.lock().unwrap();
+            shared.acks = shared.acks.wrapping_add(1);
+            return;
+        }
         let mut incoming = MidiMessage::new(Direction::In, bytes);
         let mut sent = vec![];
         let mut state = None;
@@ -577,6 +809,8 @@ fn pad_input_handler(app: AppHandle, shared: Arc<Mutex<Shared>>) -> Handler {
                     incoming.encoder_position = out.encoder_position;
                     shared.send_pad(&out.pad);
                     sent = shared.send_daw(&out.daw);
+                    keys::send(&out.keys);
+                    sent.extend(out.keys.iter().map(MidiMessage::key));
                     (out.osc.as_slice(), out.encoder_position)
                 }
                 None => (&[][..], None),
@@ -605,7 +839,10 @@ fn feedback_handler(app: AppHandle, shared: Arc<Mutex<Shared>>) -> Handler {
                 shared.send_pad(&leds);
             }
         }
-        let _ = app.emit(MESSAGE_EVENT, MidiMessage::new(Direction::Feedback, bytes));
+        // Clock pulses and active sensing would flood the monitor.
+        if !matches!(bytes, [0xF8] | [0xFE]) {
+            let _ = app.emit(MESSAGE_EVENT, MidiMessage::new(Direction::Feedback, bytes));
+        }
     })
 }
 
@@ -639,9 +876,14 @@ fn virtual_port_failed(e: impl std::fmt::Display) -> String {
 
 fn open_osc(options: &OscOptions) -> Result<OscOutput, String> {
     let host = options.host.trim();
-    let sender = OscSender::open(host, options.port).map_err(|e| t!("core.osc.unreachable", port = options.port, error = e, host))?;
+    let sender = OscSender::open(host, options.port)
+        .map_err(|e| t!("core.osc.unreachable", port = options.port, error = e, host))?;
     let prefix = osc::normalize_prefix(&options.prefix);
-    Ok(OscOutput { sender, prefix, mirror: options.mirror })
+    Ok(OscOutput {
+        sender,
+        prefix,
+        mirror: options.mirror,
+    })
 }
 
 fn open_output(name: &str) -> Result<MidiOutputConnection, String> {
@@ -651,7 +893,9 @@ fn open_output(name: &str) -> Result<MidiOutputConnection, String> {
         .into_iter()
         .find(|p| midi_out.port_name(p).is_ok_and(|n| n == name))
         .ok_or_else(|| t!("core.midi.outputNotFound", name))?;
-    midi_out.connect(&port, "totalKONTROL-out").map_err(|e| open_failed(name, e))
+    midi_out
+        .connect(&port, "totalKONTROL-out")
+        .map_err(|e| open_failed(name, e))
 }
 
 fn open_daw_output(choice: &PortChoice) -> Result<(DawOutput, String), String> {
@@ -722,7 +966,9 @@ fn virtual_unsupported() -> String {
 }
 
 fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as u64)
 }
 
 #[cfg(test)]

@@ -9,9 +9,10 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 
 use crate::config::{
-    ButtonAction, DISPLAY_LENGTH, EncoderAction, Encoding, KnobAction, Led, Mode, PadDisplay, Profile, Velocity,
-    XyAction,
+    ButtonAction, DISPLAY_LENGTH, EncoderAction, Encoding, FLAM_RANGE_MS, KnobAction, Led, Mode, PadDisplay, Profile,
+    ROLL_DIVISIONS, Velocity, XyAction,
 };
+use crate::keys::{KeyDirection, KeyEvent};
 use crate::osc::{self, OscArg, OscMessage};
 use crate::padkontrol::{self, Control, ControlEvent};
 
@@ -25,6 +26,8 @@ pub struct Output {
     pub encoder_position: Option<i16>,
     /// OSC messages from `osc` actions, for the connection's OSC destination.
     pub osc: Vec<OscMessage>,
+    /// Shortcuts from `key` actions, to type.
+    pub keys: Vec<KeyEvent>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -43,6 +46,58 @@ pub struct EngineState {
 
 /// Range of the relative encoder counter: what the 3-character display can show.
 const RELATIVE_COUNTER: std::ops::RangeInclusive<i16> = -99..=999;
+/// Most shortcuts typed for one encoder message, however fast it turns.
+const MAX_KEY_STEPS: u8 = 8;
+
+/// Velocity of a flam's grace note, relative to the main note.
+const FLAM_GRACE: f32 = 0.6;
+/// Released before its flam main note played: the note off follows it after this.
+const RELEASE_AFTER_FLAM: Duration = Duration::from_millis(20);
+/// MIDI clock pulses per quarter note.
+const CLOCK_PPQN: f32 = 24.0;
+/// The DAW's clock counts as running if a pulse arrived within this time.
+const CLOCK_TIMEOUT: Duration = Duration::from_millis(500);
+
+/// A held pad repeating its note while roll is on.
+#[derive(Debug, Clone, Copy)]
+struct Roll {
+    channel: u8,
+    note: u8,
+    velocity: u8,
+    next: Instant,
+}
+
+/// Tempo of the MIDI clock received from the DAW.
+#[derive(Debug, Clone, Copy, Default)]
+struct Clock {
+    last: Option<Instant>,
+    /// Smoothed time between two pulses.
+    pulse: Option<Duration>,
+}
+
+impl Clock {
+    fn pulse(&mut self, now: Instant) {
+        if let Some(last) = self.last {
+            let gap = now.saturating_duration_since(last);
+            // Ignore gaps after a stop or a stall.
+            if gap < CLOCK_TIMEOUT {
+                self.pulse = Some(match self.pulse {
+                    Some(pulse) => pulse.mul_f32(0.9) + gap.mul_f32(0.1),
+                    None => gap,
+                });
+            }
+        }
+        self.last = Some(now);
+    }
+
+    fn bpm(&self, now: Instant) -> Option<f32> {
+        let running = self
+            .last
+            .is_some_and(|last| now.saturating_duration_since(last) < CLOCK_TIMEOUT);
+        let pulse = self.pulse.filter(|_| running)?;
+        Some(60.0 / (pulse.as_secs_f32() * CLOCK_PPQN))
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum FollowKey {
@@ -72,6 +127,17 @@ pub struct Engine {
     shown: String,
     /// When a value shown on the display gives way to the bank again.
     display_until: Option<Instant>,
+    /// Modes toggled by the `roll` and `flam` actions.
+    roll_on: bool,
+    flam_on: bool,
+    /// Roll speed and flam gap set with the XY pad, over the profile's values.
+    roll_override: Option<u8>,
+    flam_override: Option<u16>,
+    /// Held pads repeating their note.
+    rolls: HashMap<Control, Roll>,
+    /// MIDI messages to send later (flam notes), in time order.
+    scheduled: Vec<(Instant, Vec<u8>)>,
+    clock: Clock,
 }
 
 impl Engine {
@@ -90,6 +156,13 @@ impl Engine {
             last_xy: None,
             shown: String::new(),
             display_until: None,
+            roll_on: false,
+            flam_on: false,
+            roll_override: None,
+            flam_override: None,
+            rolls: HashMap::new(),
+            scheduled: Vec::new(),
+            clock: Clock::default(),
         }
     }
 
@@ -106,13 +179,21 @@ impl Engine {
     /// Swaps in an edited version of the same profile. Stays on the current
     /// bank when it still exists, and keeps the DAW feedback state.
     pub fn reload(&mut self, profile: Profile) {
-        let bank = if self.bank < profile.banks.len() { self.bank } else { profile.start_bank };
+        let bank = if self.bank < profile.banks.len() {
+            self.bank
+        } else {
+            profile.start_bank
+        };
         let follow = std::mem::take(&mut self.follow);
         let osc_follow = std::mem::take(&mut self.osc_follow);
+        let (roll_on, flam_on, clock) = (self.roll_on, self.flam_on, self.clock);
         *self = Engine::new(profile).with_file(std::mem::take(&mut self.file));
         self.bank = bank;
         self.follow = follow;
         self.osc_follow = osc_follow;
+        self.roll_on = roll_on;
+        self.flam_on = flam_on;
+        self.clock = clock;
     }
 
     pub fn state(&self) -> EngineState {
@@ -128,8 +209,9 @@ impl Engine {
 
     /// LEDs and display of the active bank, to send on connection.
     pub fn refresh(&mut self) -> Vec<Vec<u8>> {
-        let mut messages: Vec<Vec<u8>> =
-            Control::all().map(|control| padkontrol::led(control, self.led_state(control))).collect();
+        let mut messages: Vec<Vec<u8>> = Control::all()
+            .map(|control| padkontrol::led(control, self.led_state(control)))
+            .collect();
         messages.push(self.show_bank());
         messages
     }
@@ -138,7 +220,9 @@ impl Engine {
     /// start of its name.
     fn bank_text(&self) -> String {
         let bank = self.bank();
-        bank.display.clone().unwrap_or_else(|| bank.name.chars().filter(|c| !c.is_whitespace()).collect())
+        bank.display
+            .clone()
+            .unwrap_or_else(|| bank.name.chars().filter(|c| !c.is_whitespace()).collect())
     }
 
     fn show_bank(&mut self) -> Vec<u8> {
@@ -156,16 +240,57 @@ impl Engine {
         }
     }
 
-    /// Called regularly: brings the bank back on the display once a value
-    /// has been shown long enough.
-    pub fn tick(&mut self, now: Instant) -> Vec<Vec<u8>> {
-        match self.display_until {
-            Some(until) if now >= until => {
-                self.display_until = None;
-                if self.shown == self.bank_text() { vec![] } else { vec![self.show_bank()] }
+    /// Called every few milliseconds: plays the rolls and the scheduled flam
+    /// notes that are due, and brings the bank back on the display once a
+    /// value has been shown long enough.
+    pub fn tick(&mut self, now: Instant) -> Output {
+        let mut out = Output::default();
+        if let Some(until) = self.display_until
+            && now >= until
+        {
+            self.display_until = None;
+            if self.shown != self.bank_text() {
+                out.pad.push(self.show_bank());
             }
-            _ => vec![],
         }
+
+        let interval = self.roll_interval(now);
+        for roll in self.rolls.values_mut() {
+            if now >= roll.next {
+                out.daw.push(note_off(roll.channel, roll.note));
+                out.daw.push(note_on(roll.channel, roll.note, roll.velocity));
+                // Late ticks do not pile up repeats.
+                roll.next = (roll.next + interval).max(now + interval / 2);
+            }
+        }
+
+        if self.scheduled.first().is_some_and(|(at, _)| *at <= now) {
+            let (due, later): (Vec<_>, Vec<_>) = self.scheduled.drain(..).partition(|(at, _)| *at <= now);
+            self.scheduled = later;
+            out.daw.extend(due.into_iter().map(|(_, message)| message));
+        }
+        out
+    }
+
+    fn schedule(&mut self, at: Instant, message: Vec<u8>) {
+        let index = self.scheduled.partition_point(|(t, _)| *t <= at);
+        self.scheduled.insert(index, (at, message));
+    }
+
+    /// Tempo of the DAW's MIDI clock when it runs, else the profile's.
+    fn bpm(&self, now: Instant) -> f32 {
+        self.clock.bpm(now).unwrap_or(self.profile.repeat.bpm)
+    }
+
+    /// Time between two roll repeats.
+    fn roll_interval(&self, now: Instant) -> Duration {
+        let division = self.roll_override.unwrap_or(self.profile.repeat.roll);
+        // A 4/4 bar lasts four beats.
+        Duration::from_secs_f32(240.0 / self.bpm(now) / f32::from(division))
+    }
+
+    fn flam_gap(&self) -> Duration {
+        Duration::from_millis(self.flam_override.unwrap_or(self.profile.repeat.flam).into())
     }
 
     pub fn select_bank(&mut self, bank: usize) -> Output {
@@ -182,8 +307,14 @@ impl Engine {
         let mut out = Output::default();
         let display = self.profile.display.clone();
         match *event {
-            ControlEvent::Pad { pad, pressed: true, velocity } => {
-                self.press(Control::Pad(pad), Some(velocity), &mut out);
+            ControlEvent::Pad {
+                pad,
+                pressed: true,
+                velocity,
+            } => {
+                // Shaped by the profile's velocity curve, for notes, OSC and the display.
+                let velocity = self.profile.velocity.apply(velocity);
+                self.press(Control::Pad(pad), Some(velocity), now, &mut out);
                 let text = match (display.pads, self.action(self.bank, Control::Pad(pad))) {
                     (PadDisplay::Note, Some(ButtonAction::Note { note, .. })) => Some(note_name(*note)),
                     (PadDisplay::Velocity, Some(_)) => Some(format!("{velocity:>DISPLAY_LENGTH$}")),
@@ -193,11 +324,13 @@ impl Engine {
                     self.show_value(text, now, &mut out);
                 }
             }
-            ControlEvent::Pad { pad, pressed: false, .. } => self.release(Control::Pad(pad), &mut out),
-            ControlEvent::Button { button, pressed: true } => self.press(Control::Button(button), None, &mut out),
-            ControlEvent::Button { button, pressed: false } => self.release(Control::Button(button), &mut out),
-            ControlEvent::XyTouch { pressed: true } => self.press(Control::XyTouch, None, &mut out),
-            ControlEvent::XyTouch { pressed: false } => self.release(Control::XyTouch, &mut out),
+            ControlEvent::Pad {
+                pad, pressed: false, ..
+            } => self.release(Control::Pad(pad), now, &mut out),
+            ControlEvent::Button { button, pressed: true } => self.press(Control::Button(button), None, now, &mut out),
+            ControlEvent::Button { button, pressed: false } => self.release(Control::Button(button), now, &mut out),
+            ControlEvent::XyTouch { pressed: true } => self.press(Control::XyTouch, None, now, &mut out),
+            ControlEvent::XyTouch { pressed: false } => self.release(Control::XyTouch, now, &mut out),
             ControlEvent::Knob { knob, value } => {
                 let shown = match self.bank().knobs.get(&knob).cloned() {
                     Some(KnobAction::Cc { channel, cc, min, max }) => {
@@ -205,8 +338,14 @@ impl Engine {
                         out.daw.push(control_change(channel, cc, scaled));
                         Some(scaled)
                     }
-                    Some(KnobAction::Osc { address, min, max, float }) => {
-                        out.osc.push(OscMessage::new(address, vec![scale_osc(value, min, max, float)]));
+                    Some(KnobAction::Osc {
+                        address,
+                        min,
+                        max,
+                        float,
+                    }) => {
+                        out.osc
+                            .push(OscMessage::new(address, vec![scale_osc(value, min, max, float)]));
                         Some(value)
                     }
                     None => None,
@@ -214,6 +353,20 @@ impl Engine {
                 if let (Some(shown), true) = (shown, display.knobs) {
                     self.show_value(format!("{shown:>DISPLAY_LENGTH$}"), now, &mut out);
                 }
+            }
+            // Like on the hardware: while roll or flam is on, X sets their speed.
+            ControlEvent::Xy { x, .. } if self.profile.repeat.xy_speed && (self.roll_on || self.flam_on) => {
+                let shown = if self.roll_on {
+                    let division = ROLL_DIVISIONS[usize::from(x) * ROLL_DIVISIONS.len() / 128];
+                    self.roll_override = Some(division);
+                    division.to_string()
+                } else {
+                    let (min, max) = (*FLAM_RANGE_MS.start(), *FLAM_RANGE_MS.end());
+                    let gap = min + u16::from(x) * (max - min) / 127;
+                    self.flam_override = Some(gap);
+                    gap.to_string()
+                };
+                self.show_value(format!("{shown:>DISPLAY_LENGTH$}"), now, &mut out);
             }
             ControlEvent::Xy { x, y } => match self.bank().xy.clone() {
                 Some(XyAction::Xy { channel, cc_x, cc_y }) => {
@@ -227,7 +380,10 @@ impl Engine {
                     self.last_xy = Some((x, y));
                 }
                 Some(XyAction::Osc { address }) => {
-                    out.osc.push(OscMessage::new(address, vec![OscArg::Int(x.into()), OscArg::Int(y.into())]));
+                    out.osc.push(OscMessage::new(
+                        address,
+                        vec![OscArg::Int(x.into()), OscArg::Int(y.into())],
+                    ));
                 }
                 None => {}
             },
@@ -262,6 +418,12 @@ impl Engine {
                             };
                             out.osc.push(OscMessage::new(address, vec![OscArg::Int(value)]));
                         }
+                        EncoderAction::Key { left, right } => {
+                            let keys = if delta < 0 { left } else { right };
+                            let steps = delta.unsigned_abs().min(MAX_KEY_STEPS);
+                            out.keys
+                                .extend((0..steps).map(|_| KeyEvent::new(&keys, KeyDirection::Tap)));
+                        }
                     }
                     if display.encoder {
                         self.show_value(format!("{position:>DISPLAY_LENGTH$}"), now, &mut out);
@@ -274,7 +436,18 @@ impl Engine {
 
     /// Message sent back by the DAW: updates the LEDs in `follow` mode.
     pub fn feedback(&mut self, message: &[u8]) -> Vec<Vec<u8>> {
-        let (Some(&status), Some(&number)) = (message.first(), message.get(1)) else { return vec![] };
+        self.feedback_at(message, Instant::now())
+    }
+
+    fn feedback_at(&mut self, message: &[u8], now: Instant) -> Vec<Vec<u8>> {
+        // MIDI clock from the DAW: sets the roll tempo.
+        if message == [MIDI_CLOCK] {
+            self.clock.pulse(now);
+            return vec![];
+        }
+        let (Some(&status), Some(&number)) = (message.first(), message.get(1)) else {
+            return vec![];
+        };
         let channel = (status & 0x0F) + 1;
         let value = message.get(2).copied().unwrap_or(0);
         let (key, on) = match status & 0xF0 {
@@ -308,59 +481,147 @@ impl Engine {
         }
     }
 
-    fn press(&mut self, control: Control, pad_velocity: Option<u8>, out: &mut Output) {
+    fn press(&mut self, control: Control, pad_velocity: Option<u8>, now: Instant, out: &mut Output) {
         let bank = self.bank;
-        let Some(action) = self.action(bank, control).cloned() else { return };
+        let Some(action) = self.action(bank, control).cloned() else {
+            return;
+        };
         self.held.insert(control, bank);
 
         match action {
-            ButtonAction::Note { channel, note, velocity, mode, .. } => {
+            ButtonAction::Note {
+                channel,
+                note,
+                velocity,
+                mode,
+                ..
+            } => {
                 let velocity = match velocity {
                     Some(Velocity::Fixed(v)) => v,
                     _ => pad_velocity.unwrap_or(127),
                 }
                 .max(1);
-                if mode == Mode::Momentary || self.flip(bank, control) {
+                // Roll and flam apply to pads playing momentary notes.
+                let repeatable = mode == Mode::Momentary && matches!(control, Control::Pad(_));
+                let mut first_repeat = now;
+                if repeatable && self.flam_on {
+                    let gap = self.flam_gap();
+                    let grace = (f32::from(velocity) * FLAM_GRACE).round().max(1.0) as u8;
+                    out.daw.push(note_on(channel, note, grace));
+                    self.schedule(now + gap, note_off(channel, note));
+                    self.schedule(now + gap, note_on(channel, note, velocity));
+                    first_repeat = now + gap;
+                } else if mode == Mode::Momentary || self.flip(bank, control) {
                     out.daw.push(note_on(channel, note, velocity));
                 } else {
                     out.daw.push(note_off(channel, note));
                 }
+                if repeatable && self.roll_on {
+                    let next = first_repeat + self.roll_interval(now);
+                    let roll = Roll {
+                        channel,
+                        note,
+                        velocity,
+                        next,
+                    };
+                    self.rolls.insert(control, roll);
+                }
             }
-            ButtonAction::Cc { channel, cc, on_value, off_value, mode, .. } => {
+            ButtonAction::Cc {
+                channel,
+                cc,
+                on_value,
+                off_value,
+                mode,
+                ..
+            } => {
                 let on = mode == Mode::Momentary || self.flip(bank, control);
-                out.daw.push(control_change(channel, cc, if on { on_value } else { off_value }));
+                out.daw
+                    .push(control_change(channel, cc, if on { on_value } else { off_value }));
             }
             ButtonAction::ProgramChange { channel, program, .. } => {
                 out.daw.push(vec![0xC0 | (channel - 1), program]);
             }
             ButtonAction::SwitchBank { bank: target, .. } => self.switch_bank(target, out),
-            ButtonAction::Osc { address, args, release_args, mode, .. } => {
+            ButtonAction::Osc {
+                address,
+                args,
+                release_args,
+                mode,
+                ..
+            } => {
                 let velocity = pad_velocity.unwrap_or(127);
                 if mode == Mode::Momentary || self.flip(bank, control) {
                     out.osc.push(OscMessage::new(address, osc::resolve(&args, velocity)));
                 } else if let Some(release_args) = release_args {
-                    out.osc.push(OscMessage::new(address, osc::resolve(&release_args, velocity)));
+                    out.osc
+                        .push(OscMessage::new(address, osc::resolve(&release_args, velocity)));
                 }
             }
+            ButtonAction::Key { keys, hold, .. } => {
+                let direction = if hold { KeyDirection::Press } else { KeyDirection::Tap };
+                out.keys.push(KeyEvent::new(&keys, direction));
+            }
+            ButtonAction::Roll {} => {
+                self.roll_on = !self.roll_on;
+                if !self.roll_on {
+                    // Held notes stop repeating and end on release.
+                    self.rolls.clear();
+                }
+            }
+            ButtonAction::Flam {} => self.flam_on = !self.flam_on,
         }
         self.update_led(control, out);
     }
 
-    fn release(&mut self, control: Control, out: &mut Output) {
-        let Some(pressed_in) = self.held.remove(&control) else { return };
-        let Some(action) = self.action(pressed_in, control).cloned() else { return };
+    fn release(&mut self, control: Control, now: Instant, out: &mut Output) {
+        let Some(pressed_in) = self.held.remove(&control) else {
+            return;
+        };
+        let Some(action) = self.action(pressed_in, control).cloned() else {
+            return;
+        };
 
         match action {
-            ButtonAction::Note { channel, note, mode: Mode::Momentary, .. } => out.daw.push(note_off(channel, note)),
-            ButtonAction::Cc { channel, cc, off_value, mode: Mode::Momentary, .. } => {
-                out.daw.push(control_change(channel, cc, off_value))
+            ButtonAction::Note {
+                channel,
+                note,
+                mode: Mode::Momentary,
+                ..
+            } => {
+                self.rolls.remove(&control);
+                // Released before its flam main note: end the note right after it.
+                let main_note = self
+                    .scheduled
+                    .iter()
+                    .filter(|(_, message)| is_note_on(message, channel, note))
+                    .map(|(at, _)| *at)
+                    .max();
+                match main_note {
+                    Some(at) => self.schedule(at.max(now) + RELEASE_AFTER_FLAM, note_off(channel, note)),
+                    None => out.daw.push(note_off(channel, note)),
+                }
             }
-            ButtonAction::SwitchBank { bank: target, momentary: true } if self.bank == target => {
-                self.switch_bank(pressed_in, out)
-            }
-            ButtonAction::Osc { address, release_args: Some(release_args), mode: Mode::Momentary, .. } => {
+            ButtonAction::Cc {
+                channel,
+                cc,
+                off_value,
+                mode: Mode::Momentary,
+                ..
+            } => out.daw.push(control_change(channel, cc, off_value)),
+            ButtonAction::SwitchBank {
+                bank: target,
+                momentary: true,
+            } if self.bank == target => self.switch_bank(pressed_in, out),
+            ButtonAction::Osc {
+                address,
+                release_args: Some(release_args),
+                mode: Mode::Momentary,
+                ..
+            } => {
                 out.osc.push(OscMessage::new(address, osc::resolve(&release_args, 0)));
             }
+            ButtonAction::Key { keys, hold: true, .. } => out.keys.push(KeyEvent::new(&keys, KeyDirection::Release)),
             _ => {}
         }
         self.update_led(control, out);
@@ -399,14 +660,24 @@ impl Engine {
         if let Some(&on) = self.led_override.get(&control) {
             return on;
         }
-        let Some(action) = self.action(self.bank, control) else { return false };
+        let Some(action) = self.action(self.bank, control) else {
+            return false;
+        };
+        match action {
+            ButtonAction::Roll {} => return self.roll_on,
+            ButtonAction::Flam {} => return self.flam_on,
+            _ => {}
+        }
         match led_mode(action) {
             Led::None => false,
             Led::Press => self.held.contains_key(&control),
             Led::Toggle => self.toggles.contains(&(self.bank, control)),
             Led::Follow => match action {
                 ButtonAction::Osc { address, .. } => self.osc_follow.get(address).copied().unwrap_or(false),
-                _ => follow_key(action).and_then(|k| self.follow.get(&k)).copied().unwrap_or(false),
+                _ => follow_key(action)
+                    .and_then(|k| self.follow.get(&k))
+                    .copied()
+                    .unwrap_or(false),
             },
         }
     }
@@ -418,7 +689,10 @@ impl Engine {
     pub fn osc_feedback(&mut self, message: &OscMessage, prefix: &str) -> Output {
         let mut out = Output::default();
         let first = message.args.first();
-        let local = message.address.strip_prefix(prefix).filter(|rest| rest.starts_with('/'));
+        let local = message
+            .address
+            .strip_prefix(prefix)
+            .filter(|rest| rest.starts_with('/'));
 
         match local.map(|rest| rest.split('/').skip(1).collect::<Vec<_>>()).as_deref() {
             Some(["bank"]) => {
@@ -473,14 +747,16 @@ impl Engine {
 /// LED behavior, with the schema's default values.
 fn led_mode(action: &ButtonAction) -> Led {
     match action {
-        ButtonAction::Note { led, mode, .. } | ButtonAction::Cc { led, mode, .. } | ButtonAction::Osc { led, mode, .. } => {
-            led.unwrap_or(match mode {
-                Mode::Momentary => Led::Press,
-                Mode::Toggle => Led::Toggle,
-            })
-        }
-        ButtonAction::ProgramChange { led, .. } => led.unwrap_or(Led::Press),
+        ButtonAction::Note { led, mode, .. }
+        | ButtonAction::Cc { led, mode, .. }
+        | ButtonAction::Osc { led, mode, .. } => led.unwrap_or(match mode {
+            Mode::Momentary => Led::Press,
+            Mode::Toggle => Led::Toggle,
+        }),
+        ButtonAction::ProgramChange { led, .. } | ButtonAction::Key { led, .. } => led.unwrap_or(Led::Press),
         ButtonAction::SwitchBank { .. } => Led::Press,
+        // Lit while the mode is on (see `led_state`).
+        ButtonAction::Roll {} | ButtonAction::Flam {} => Led::Toggle,
     }
 }
 
@@ -495,7 +771,11 @@ fn follow_key(action: &ButtonAction) -> Option<FollowKey> {
 /// Knob position (0 to 127) scaled to an OSC range, as a float or rounded.
 fn scale_osc(value: u8, min: f32, max: f32, float: bool) -> OscArg {
     let scaled = min + (max - min) * f32::from(value) / 127.0;
-    if float { OscArg::Float(scaled) } else { OscArg::Int(scaled.round() as i32) }
+    if float {
+        OscArg::Float(scaled)
+    } else {
+        OscArg::Int(scaled.round() as i32)
+    }
 }
 
 /// Note name for the display, with middle C (60) as C3 like most DAWs.
@@ -506,6 +786,13 @@ fn note_name(note: u8) -> String {
 
 fn note_on(channel: u8, note: u8, velocity: u8) -> Vec<u8> {
     vec![0x90 | (channel - 1), note, velocity]
+}
+
+/// Timing clock message, 24 per quarter note.
+pub const MIDI_CLOCK: u8 = 0xF8;
+
+fn is_note_on(message: &[u8], channel: u8, note: u8) -> bool {
+    matches!(*message, [status, n, velocity] if status == 0x90 | (channel - 1) && n == note && velocity > 0)
 }
 
 fn note_off(channel: u8, note: u8) -> Vec<u8> {
@@ -519,7 +806,7 @@ fn control_change(channel: u8, cc: u8, value: u8) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{parse_profile, ButtonId, DEFAULT_PROFILE_JSON};
+    use crate::config::{ButtonId, DEFAULT_PROFILE_JSON, parse_profile};
 
     fn engine(banks: &str) -> Engine {
         Engine::new(parse_profile(&format!(r#"{{ "version": 1, "name": "Test", "banks": [{banks}] }}"#)).unwrap())
@@ -635,15 +922,27 @@ mod tests {
         let mut e = engine(
             r#"{ "name": "A", "knobs": { "2": { "type": "cc", "channel": 3, "cc": 10, "min": 32, "max": 96 } } }"#,
         );
-        assert_eq!(e.handle(&ControlEvent::Knob { knob: 2, value: 0 }).daw, vec![vec![0xB2, 10, 32]]);
-        assert_eq!(e.handle(&ControlEvent::Knob { knob: 2, value: 127 }).daw, vec![vec![0xB2, 10, 96]]);
+        assert_eq!(
+            e.handle(&ControlEvent::Knob { knob: 2, value: 0 }).daw,
+            vec![vec![0xB2, 10, 32]]
+        );
+        assert_eq!(
+            e.handle(&ControlEvent::Knob { knob: 2, value: 127 }).daw,
+            vec![vec![0xB2, 10, 96]]
+        );
     }
 
     #[test]
     fn xy_only_sends_changed_axes() {
         let mut e = engine(r#"{ "name": "A", "xy": { "type": "xy", "channel": 1, "ccX": 3, "ccY": 4 } }"#);
-        assert_eq!(e.handle(&ControlEvent::Xy { x: 10, y: 20 }).daw, vec![vec![0xB0, 3, 10], vec![0xB0, 4, 20]]);
-        assert_eq!(e.handle(&ControlEvent::Xy { x: 11, y: 20 }).daw, vec![vec![0xB0, 3, 11]]);
+        assert_eq!(
+            e.handle(&ControlEvent::Xy { x: 10, y: 20 }).daw,
+            vec![vec![0xB0, 3, 10], vec![0xB0, 4, 20]]
+        );
+        assert_eq!(
+            e.handle(&ControlEvent::Xy { x: 11, y: 20 }).daw,
+            vec![vec![0xB0, 3, 11]]
+        );
     }
 
     #[test]
@@ -653,12 +952,24 @@ mod tests {
                  "buttons": { "setting": { "type": "switchBank", "bank": 1 } } },
                { "name": "A", "encoder": { "type": "cc", "channel": 1, "cc": 11, "encoding": "absolute" } }"#,
         );
-        assert_eq!(e.handle(&ControlEvent::Encoder { delta: 1 }).daw, vec![vec![0xB0, 10, 1]]);
-        assert_eq!(e.handle(&ControlEvent::Encoder { delta: -1 }).daw, vec![vec![0xB0, 10, 127]]);
+        assert_eq!(
+            e.handle(&ControlEvent::Encoder { delta: 1 }).daw,
+            vec![vec![0xB0, 10, 1]]
+        );
+        assert_eq!(
+            e.handle(&ControlEvent::Encoder { delta: -1 }).daw,
+            vec![vec![0xB0, 10, 127]]
+        );
 
         e.handle(&button(ButtonId::Setting, true));
-        assert_eq!(e.handle(&ControlEvent::Encoder { delta: -1 }).daw, vec![vec![0xB0, 11, 0]]);
-        assert_eq!(e.handle(&ControlEvent::Encoder { delta: 3 }).daw, vec![vec![0xB0, 11, 3]]);
+        assert_eq!(
+            e.handle(&ControlEvent::Encoder { delta: -1 }).daw,
+            vec![vec![0xB0, 11, 0]]
+        );
+        assert_eq!(
+            e.handle(&ControlEvent::Encoder { delta: 3 }).daw,
+            vec![vec![0xB0, 11, 3]]
+        );
     }
 
     #[test]
@@ -732,11 +1043,18 @@ mod tests {
         let out = e.handle_at(&ControlEvent::Knob { knob: 1, value: 64 }, t0);
         assert_eq!(out.pad, vec![padkontrol::display(" 64")]);
         // Same value again: nothing new to send.
-        assert!(e.handle_at(&ControlEvent::Knob { knob: 1, value: 64 }, t0).pad.is_empty());
+        assert!(
+            e.handle_at(&ControlEvent::Knob { knob: 1, value: 64 }, t0)
+                .pad
+                .is_empty()
+        );
 
-        assert!(e.tick(t0 + Duration::from_millis(500)).is_empty());
-        assert_eq!(e.tick(t0 + Duration::from_millis(1000)), vec![padkontrol::display("BAT")]);
-        assert!(e.tick(t0 + Duration::from_millis(1500)).is_empty());
+        assert!(e.tick(t0 + Duration::from_millis(500)).pad.is_empty());
+        assert_eq!(
+            e.tick(t0 + Duration::from_millis(1000)).pad,
+            vec![padkontrol::display("BAT")]
+        );
+        assert!(e.tick(t0 + Duration::from_millis(1500)).pad.is_empty());
     }
 
     #[test]
@@ -745,9 +1063,15 @@ mod tests {
         e.refresh();
         let t0 = Instant::now();
         e.handle_at(&ControlEvent::Knob { knob: 1, value: 10 }, t0);
-        e.handle_at(&ControlEvent::Knob { knob: 1, value: 20 }, t0 + Duration::from_millis(800));
-        assert!(e.tick(t0 + Duration::from_millis(1200)).is_empty());
-        assert_eq!(e.tick(t0 + Duration::from_millis(1800)), vec![padkontrol::display("BAT")]);
+        e.handle_at(
+            &ControlEvent::Knob { knob: 1, value: 20 },
+            t0 + Duration::from_millis(800),
+        );
+        assert!(e.tick(t0 + Duration::from_millis(1200)).pad.is_empty());
+        assert_eq!(
+            e.tick(t0 + Duration::from_millis(1800)).pad,
+            vec![padkontrol::display("BAT")]
+        );
     }
 
     #[test]
@@ -782,7 +1106,11 @@ mod tests {
         // Absolute: each bank keeps its own counter, a MIDI value from 0 to 127.
         e.handle(&button(ButtonId::Setting, true));
         assert_eq!(e.state().encoder, 0);
-        assert_eq!(turn(&mut e, -1).encoder_position, Some(0), "never negative in absolute mode");
+        assert_eq!(
+            turn(&mut e, -1).encoder_position,
+            Some(0),
+            "never negative in absolute mode"
+        );
         turn(&mut e, 3);
         let out = turn(&mut e, 2);
         assert_eq!(out.daw, vec![vec![0xB0, 11, 5]]);
@@ -808,17 +1136,28 @@ mod tests {
         let t0 = Instant::now();
 
         let mut e = engine(&format!(r#"{{ "name": "A", {pads} }}"#));
-        assert!(e.handle_at(&pad(1, true, 90), t0).pad.iter().all(|m| m[5] != 0x22), "rien par défaut");
+        assert!(
+            e.handle_at(&pad(1, true, 90), t0).pad.iter().all(|m| m[5] != 0x22),
+            "rien par défaut"
+        );
 
         let mut e = engine_with(&format!(
             r#"{{ "version": 1, "name": "T", "display": {{ "pads": "note" }}, "banks": [{{ "name": "A", {pads} }}] }}"#
         ));
-        assert!(e.handle_at(&pad(1, true, 90), t0).pad.contains(&padkontrol::display("C#1")));
+        assert!(
+            e.handle_at(&pad(1, true, 90), t0)
+                .pad
+                .contains(&padkontrol::display("C#1"))
+        );
 
         let mut e = engine_with(&format!(
             r#"{{ "version": 1, "name": "T", "display": {{ "pads": "velocity" }}, "banks": [{{ "name": "A", {pads} }}] }}"#
         ));
-        assert!(e.handle_at(&pad(1, true, 90), t0).pad.contains(&padkontrol::display(" 90")));
+        assert!(
+            e.handle_at(&pad(1, true, 90), t0)
+                .pad
+                .contains(&padkontrol::display(" 90"))
+        );
     }
 
     #[test]
@@ -876,10 +1215,22 @@ mod tests {
         );
         let out = e.handle(&ControlEvent::Knob { knob: 1, value: 64 });
         assert_eq!(osc_text(&out), vec!["/vol 64"]);
-        assert!(out.pad.contains(&padkontrol::display(" 64")), "the display still shows the knob");
-        assert_eq!(osc_text(&e.handle(&ControlEvent::Knob { knob: 2, value: 127 })), vec!["/pan 1.0"]);
-        assert_eq!(osc_text(&e.handle(&ControlEvent::Knob { knob: 2, value: 0 })), vec!["/pan -1.0"]);
-        assert_eq!(osc_text(&e.handle(&ControlEvent::Xy { x: 10, y: 20 })), vec!["/xy 10 20"]);
+        assert!(
+            out.pad.contains(&padkontrol::display(" 64")),
+            "the display still shows the knob"
+        );
+        assert_eq!(
+            osc_text(&e.handle(&ControlEvent::Knob { knob: 2, value: 127 })),
+            vec!["/pan 1.0"]
+        );
+        assert_eq!(
+            osc_text(&e.handle(&ControlEvent::Knob { knob: 2, value: 0 })),
+            vec!["/pan -1.0"]
+        );
+        assert_eq!(
+            osc_text(&e.handle(&ControlEvent::Xy { x: 10, y: 20 })),
+            vec!["/xy 10 20"]
+        );
 
         let out = e.handle(&ControlEvent::Encoder { delta: -1 });
         assert_eq!(osc_text(&out), vec!["/scroll -1"]);
@@ -923,13 +1274,22 @@ mod tests {
         );
         let out = e.osc_feedback(&osc_in("/live/clip/1", vec![OscArg::Int(1)]), "/tk");
         assert_eq!(out.pad, vec![padkontrol::led(Control::Pad(1), true)]);
-        assert!(e.osc_feedback(&osc_in("/live/clip/1", vec![OscArg::Float(0.7)]), "/tk").pad.is_empty(), "no change");
+        assert!(
+            e.osc_feedback(&osc_in("/live/clip/1", vec![OscArg::Float(0.7)]), "/tk")
+                .pad
+                .is_empty(),
+            "no change"
+        );
         assert_eq!(
             e.osc_feedback(&osc_in("/live/clip/1", vec![OscArg::Int(0)]), "/tk").pad,
             vec![padkontrol::led(Control::Pad(1), false)]
         );
         // Pad 2 does not follow (press LED): nothing to send.
-        assert!(e.osc_feedback(&osc_in("/live/clip/2", vec![OscArg::Int(1)]), "/tk").pad.is_empty());
+        assert!(
+            e.osc_feedback(&osc_in("/live/clip/2", vec![OscArg::Int(1)]), "/tk")
+                .pad
+                .is_empty()
+        );
     }
 
     #[test]
@@ -948,18 +1308,35 @@ mod tests {
 
         let out = e.osc_feedback(&osc_in("/tk/led/button/hold", vec![OscArg::Bool(true)]), "/tk");
         assert_eq!(out.pad, vec![padkontrol::led(Control::Button(ButtonId::Hold), true)]);
-        assert!(e.osc_feedback(&osc_in("/tk/led/button/shift", vec![OscArg::Int(1)]), "/tk").pad.is_empty());
-        assert!(e.osc_feedback(&osc_in("/tk/led/pad/17", vec![OscArg::Int(1)]), "/tk").pad.is_empty());
+        assert!(
+            e.osc_feedback(&osc_in("/tk/led/button/shift", vec![OscArg::Int(1)]), "/tk")
+                .pad
+                .is_empty()
+        );
+        assert!(
+            e.osc_feedback(&osc_in("/tk/led/pad/17", vec![OscArg::Int(1)]), "/tk")
+                .pad
+                .is_empty()
+        );
 
         let out = e.osc_feedback(&osc_in("/tk/display", vec![OscArg::Str("ABC".into())]), "/tk");
         assert_eq!(out.pad, vec![padkontrol::display("ABC")]);
-        assert!(e.tick(Instant::now() + Duration::from_secs(10)).is_empty(), "the text stays");
+        assert!(
+            e.tick(Instant::now() + Duration::from_secs(10)).pad.is_empty(),
+            "the text stays"
+        );
 
         let out = e.osc_feedback(&osc_in("/tk/bank", vec![OscArg::Int(1)]), "/tk");
         assert!(out.bank_changed);
-        assert!(out.pad.contains(&padkontrol::led(Control::Pad(3), false)), "overrides cleared by the bank change");
+        assert!(
+            out.pad.contains(&padkontrol::led(Control::Pad(3), false)),
+            "overrides cleared by the bank change"
+        );
         assert!(out.pad.contains(&padkontrol::display("DEU")));
-        assert!(!e.osc_feedback(&osc_in("/tk/bank", vec![OscArg::Int(9)]), "/tk").bank_changed);
+        assert!(
+            !e.osc_feedback(&osc_in("/tk/bank", vec![OscArg::Int(9)]), "/tk")
+                .bank_changed
+        );
     }
 
     #[test]
@@ -969,6 +1346,208 @@ mod tests {
         let profile = e.profile.clone();
         e.reload(profile);
         assert!(e.refresh().contains(&padkontrol::led(Control::Pad(1), true)));
+    }
+
+    #[test]
+    fn velocity_curve_shapes_pad_hits() {
+        let pads = r#""pads": { "1": { "type": "note", "channel": 1, "note": 36 },
+                                "2": { "type": "note", "channel": 1, "note": 37, "velocity": 100 },
+                                "3": { "type": "osc", "address": "/hit", "args": ["$velocity"] } }"#;
+        let hit = |e: &mut Engine, pad_number, velocity| e.handle(&pad(pad_number, true, velocity));
+
+        let mut e = engine_with(&format!(
+            r#"{{ "version": 1, "name": "T", "velocity": {{ "curve": "soft", "min": 40, "max": 120 }},
+                  "display": {{ "pads": "velocity" }}, "banks": [{{ "name": "A", {pads} }}] }}"#
+        ));
+        assert_eq!(hit(&mut e, 1, 1).daw, vec![vec![0x90, 36, 40]], "softest hit gives min");
+        assert_eq!(
+            hit(&mut e, 1, 127).daw,
+            vec![vec![0x90, 36, 120]],
+            "hardest hit gives max"
+        );
+        let out = hit(&mut e, 1, 64);
+        let soft_middle = out.daw[0][2];
+        assert!(soft_middle > 80, "a soft curve lifts light hits: {soft_middle}");
+        assert!(
+            out.pad.contains(&padkontrol::display(&format!("{soft_middle:>3}"))),
+            "the display shows it"
+        );
+        assert_eq!(
+            hit(&mut e, 2, 10).daw,
+            vec![vec![0x90, 37, 100]],
+            "fixed velocities are left alone"
+        );
+        assert_eq!(osc_text(&hit(&mut e, 3, 127)), vec!["/hit 120"]);
+
+        let mut e = engine_with(&format!(
+            r#"{{ "version": 1, "name": "T", "velocity": {{ "curve": "hard" }}, "banks": [{{ "name": "A", {pads} }}] }}"#
+        ));
+        let hard_middle = hit(&mut e, 1, 64).daw[0][2];
+        assert!(hard_middle < 45, "a hard curve holds back light hits: {hard_middle}");
+
+        // Linear by default: the hit is sent as is.
+        let mut e = engine(&format!(r#"{{ "name": "A", {pads} }}"#));
+        assert_eq!(hit(&mut e, 1, 64).daw, vec![vec![0x90, 36, 64]]);
+    }
+
+    /// Bank with a note on pad 1 and the ROLL / FLAM buttons; 120 BPM, 1/16
+    /// rolls (125 ms) and 30 ms flams unless `repeat` says otherwise.
+    fn repeat_engine(repeat: &str) -> Engine {
+        engine_with(&format!(
+            r#"{{ "version": 1, "name": "T", "repeat": {{ {repeat} }}, "banks": [{{ "name": "A",
+                "pads": {{ "1": {{ "type": "note", "channel": 1, "note": 36 }},
+                           "2": {{ "type": "note", "channel": 1, "note": 37, "mode": "toggle" }} }},
+                "buttons": {{ "roll": {{ "type": "roll" }}, "flam": {{ "type": "flam" }} }},
+                "xy": {{ "type": "xy", "channel": 1, "ccX": 3, "ccY": 4 }} }}] }}"#
+        ))
+    }
+
+    fn press_at(e: &mut Engine, event: ControlEvent, at: Instant) -> Output {
+        e.handle_at(&event, at)
+    }
+
+    #[test]
+    fn roll_repeats_a_held_pad_on_the_beat() {
+        let mut e = repeat_engine("");
+        let t0 = Instant::now();
+        let out = press_at(&mut e, button(ButtonId::Roll, true), t0);
+        assert_eq!(
+            led_on(&out, Control::Button(ButtonId::Roll)),
+            Some(true),
+            "the ROLL LED shows the mode"
+        );
+        assert_eq!(
+            led_on(
+                &press_at(&mut e, button(ButtonId::Roll, false), t0),
+                Control::Button(ButtonId::Roll)
+            ),
+            Some(true),
+            "still on after release"
+        );
+
+        assert_eq!(press_at(&mut e, pad(1, true, 100), t0).daw, vec![vec![0x90, 36, 100]]);
+        assert!(e.tick(t0 + Duration::from_millis(100)).daw.is_empty());
+        assert_eq!(
+            e.tick(t0 + Duration::from_millis(126)).daw,
+            vec![vec![0x80, 36, 0], vec![0x90, 36, 100]],
+            "one 1/16 later at 120 BPM"
+        );
+        assert!(e.tick(t0 + Duration::from_millis(200)).daw.is_empty());
+        assert_eq!(e.tick(t0 + Duration::from_millis(251)).daw.len(), 2);
+
+        assert_eq!(press_at(&mut e, pad(1, false, 0), t0).daw, vec![vec![0x80, 36, 0]]);
+        assert!(
+            e.tick(t0 + Duration::from_millis(500)).daw.is_empty(),
+            "stops on release"
+        );
+
+        // Toggle pads do not roll.
+        press_at(&mut e, pad(2, true, 90), t0);
+        assert!(e.tick(t0 + Duration::from_millis(500)).daw.is_empty());
+
+        // Roll off: nothing repeats any more.
+        press_at(&mut e, button(ButtonId::Roll, true), t0);
+        press_at(&mut e, pad(1, true, 100), t0);
+        assert!(e.tick(t0 + Duration::from_millis(500)).daw.is_empty());
+    }
+
+    #[test]
+    fn flam_plays_a_softer_grace_note_first() {
+        let mut e = repeat_engine(r#""flam": 40"#);
+        let t0 = Instant::now();
+        press_at(&mut e, button(ButtonId::Flam, true), t0);
+
+        assert_eq!(
+            press_at(&mut e, pad(1, true, 100), t0).daw,
+            vec![vec![0x90, 36, 60]],
+            "grace note at 60 %"
+        );
+        assert!(e.tick(t0 + Duration::from_millis(30)).daw.is_empty());
+        assert_eq!(
+            e.tick(t0 + Duration::from_millis(40)).daw,
+            vec![vec![0x80, 36, 0], vec![0x90, 36, 100]],
+            "main note 40 ms later"
+        );
+        assert_eq!(press_at(&mut e, pad(1, false, 0), t0).daw, vec![vec![0x80, 36, 0]]);
+
+        // Released before the main note: the note off comes right after it.
+        press_at(&mut e, pad(1, true, 100), t0);
+        assert!(
+            press_at(&mut e, pad(1, false, 0), t0 + Duration::from_millis(10))
+                .daw
+                .is_empty()
+        );
+        let main = e.tick(t0 + Duration::from_millis(40)).daw;
+        assert_eq!(main.last(), Some(&vec![0x90, 36, 100]));
+        assert_eq!(e.tick(t0 + Duration::from_millis(60)).daw, vec![vec![0x80, 36, 0]]);
+    }
+
+    #[test]
+    fn xy_sets_roll_speed_while_roll_is_on() {
+        let mut e = repeat_engine("");
+        let t0 = Instant::now();
+        // Normal XY action while roll and flam are off.
+        assert_eq!(press_at(&mut e, ControlEvent::Xy { x: 127, y: 0 }, t0).daw.len(), 2);
+
+        press_at(&mut e, button(ButtonId::Roll, true), t0);
+        let out = press_at(&mut e, ControlEvent::Xy { x: 127, y: 50 }, t0);
+        assert!(out.daw.is_empty(), "the XY pad sets the speed instead");
+        assert!(out.pad.contains(&padkontrol::display(" 32")));
+        press_at(&mut e, pad(1, true, 100), t0);
+        // 1/32 at 120 BPM: 62.5 ms.
+        assert_eq!(e.tick(t0 + Duration::from_millis(63)).daw.len(), 2);
+
+        // xySpeed off: the XY pad keeps its action.
+        let mut e = repeat_engine(r#""xySpeed": false"#);
+        press_at(&mut e, button(ButtonId::Roll, true), t0);
+        assert_eq!(press_at(&mut e, ControlEvent::Xy { x: 127, y: 0 }, t0).daw.len(), 2);
+    }
+
+    #[test]
+    fn roll_follows_the_daw_clock() {
+        let mut e = repeat_engine("");
+        let t0 = Instant::now();
+        // 24 pulses per quarter note at 60 BPM: one every 41.67 ms.
+        let pulse = Duration::from_secs_f64(1.0 / 24.0);
+        for i in 0..48 {
+            e.feedback_at(&[MIDI_CLOCK], t0 + pulse * i);
+        }
+        let now = t0 + pulse * 47;
+        assert!((e.bpm(now) - 60.0).abs() < 1.0, "clock tempo: {}", e.bpm(now));
+        // 1/16 at 60 BPM: 250 ms.
+        assert!((e.roll_interval(now).as_secs_f32() - 0.25).abs() < 0.01);
+        // The clock stopped: back to the profile's tempo.
+        assert_eq!(e.bpm(now + Duration::from_secs(1)), 120.0);
+    }
+
+    #[test]
+    fn key_actions_type_shortcuts() {
+        let mut e = engine_with(
+            r#"{ "version": 1, "name": "T", "banks": [{ "name": "A",
+                "pads": { "1": { "type": "key", "keys": "ctrl+s" },
+                          "2": { "type": "key", "keys": "shift", "hold": true } },
+                "encoder": { "type": "key", "left": "ctrl+minus", "right": "ctrl+plus" } }] }"#,
+        );
+        let tap = e.handle(&pad(1, true, 100));
+        assert_eq!(tap.keys, vec![KeyEvent::new("ctrl+s", KeyDirection::Tap)]);
+        assert!(tap.daw.is_empty());
+        assert_eq!(led_on(&tap, Control::Pad(1)), Some(true), "lit while pressed");
+        assert!(e.handle(&pad(1, false, 0)).keys.is_empty());
+
+        assert_eq!(
+            e.handle(&pad(2, true, 100)).keys,
+            vec![KeyEvent::new("shift", KeyDirection::Press)]
+        );
+        assert_eq!(
+            e.handle(&pad(2, false, 0)).keys,
+            vec![KeyEvent::new("shift", KeyDirection::Release)]
+        );
+
+        let turned = e.handle(&ControlEvent::Encoder { delta: -2 });
+        assert_eq!(turned.keys, vec![KeyEvent::new("ctrl+minus", KeyDirection::Tap); 2]);
+        let fast = e.handle(&ControlEvent::Encoder { delta: 40 });
+        assert_eq!(fast.keys.len(), usize::from(MAX_KEY_STEPS));
+        assert_eq!(fast.keys[0].keys, "ctrl+plus");
     }
 
     #[test]

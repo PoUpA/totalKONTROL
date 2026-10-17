@@ -106,3 +106,7 @@ Sysex done : f042406e08450e40f7
 pad 16 on/off
 Sysex done : f042406e08454f13f7
 Sysex done : f042406e08450f40f7
+Acknowledgements (sent by the padKONTROL)
+native mode on request f042406e08000001f7 -> f042406e08400003f7 (resets the control reporting setup)
+native mode off request f042406e08000000f7 -> f042406e08400002f7
+reporting setup (3F 2A ...) -> f042406e085f0000f7, LEDs and display (3F 0A ...) -> f042406e085f0100f7

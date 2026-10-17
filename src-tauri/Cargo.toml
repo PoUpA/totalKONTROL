@@ -1,6 +1,6 @@
 [package]
 name = "totalkontrol"
-version = "0.1.0"
+version = "0.1.1"
 description = "Contrôle complet du Korg padKONTROL"
 authors = ["PoUpA"]
 license = "MIT"
@@ -33,13 +33,14 @@ tauri-build = { version = "2", features = [] }
 windows-bindgen = { version = "0.66", optional = true }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 midir = "0.10"
 sys-locale = "0.3.2"
 rosc = "0.11.4"
+enigo = "0.6.1"
 
 [target.'cfg(windows)'.dependencies]
 windows-core = { version = "0.62", optional = true }

@@ -6,11 +6,13 @@ totalKONTROL puts the padKONTROL in its native mode and takes over every control
 
 ## Features
 
-- **Every control mapped**: notes, CCs, program changes, bank switches or OSC messages, per bank, in momentary or toggle mode.
+- **Every control mapped**: notes, CCs, program changes, bank switches, OSC messages or keyboard shortcuts, per bank, in momentary or toggle mode.
+- **Playing aids**: velocity curves, and the ROLL and FLAM buttons brought back to life, in time with the DAW's MIDI clock.
 - **LEDs and display**: LEDs light on press, follow a toggle, or follow your DAW or OSC software; the display shows the bank, the knob and encoder values, and optionally the note or velocity of each pad hit.
 - **Visual profile editor**: a picture of the padKONTROL to click on, a form per control, live validation, and a learn mode that selects the control you touch.
 - **Live view and monitor**: see every control move and every message in and out.
 - **OSC**: mirror every control to fixed addresses, send custom OSC messages, and receive OSC to drive the LEDs, the display and the banks.
+- **Stays out of the way**: lives in the system tray, connects at startup, and reconnects when the padKONTROL is plugged back in.
 - **English, French and Spanish**.
 
 ## Getting started
@@ -32,6 +34,10 @@ The installers are not code-signed yet: Windows SmartScreen and macOS Gatekeeper
 
 Once connected, the display shows the bank and the LEDs follow the profile. The live view shows every control as it moves; the monitor lists each message with its direction. Disconnecting, or closing the app, returns the padKONTROL to its normal mode.
 
+If the padKONTROL is unplugged, the app waits for it and reconnects with the same settings and profile. **Connect at startup with these settings** connects as soon as the app opens.
+
+Closing the window keeps the app running in the system tray, so the padKONTROL keeps working; quit from the tray icon's menu.
+
 The language follows the system and can be changed from the header.
 
 ### Connecting to the DAW
@@ -47,8 +53,11 @@ The feedback port must differ from the output port: a loopMIDI port echoes every
 A profile describes, bank by bank, what each control does:
 
 - **Controls**: pads `1` to `16` (pad 1 top left), buttons (`setting`, `x`, `pedal`…), knobs `1` and `2`, the XY pad, touching the XY pad (`xyTouch`: an action on touch and release, like a button without an LED), and the encoder.
-- **Actions**: `note`, `cc`, `programChange`, `switchBank` or `osc`. Pads and buttons can be `momentary` or `toggle`, and their LED `none`, `press`, `toggle` or `follow` (driven by the DAW or by OSC).
+- **Actions**: `note`, `cc`, `programChange`, `switchBank`, `osc`, `key`, `roll` or `flam`. Pads and buttons can be `momentary` or `toggle`, and their LED `none`, `press`, `toggle` or `follow` (driven by the DAW or by OSC).
 - **Display**: each bank shows its `display` text, or the start of its name. When a knob turns, the display shows the value sent; when the encoder turns, its position: 0 to 127 in absolute mode, a free counter from -99 to 999 in relative mode, where the DAW only gets steps. The bank comes back after `display.duration` milliseconds. A pad hit can show its note or velocity (`display.pads`).
+- **Velocity**: a `soft`, `linear` or `hard` curve, and the velocities sent for the softest and hardest hits (`velocity`). It shapes pad hits everywhere: notes, OSC `$velocity` and the display.
+- **Keyboard shortcuts**: a `key` action types a shortcut such as `ctrl+shift+s` into the app in front, on press, or keeps its keys down while the control is held (`hold`). On the encoder, it types one shortcut per step to the left and another to the right. Names are separated by `+`: `ctrl`, `shift`, `alt`, `meta` (Windows or Command key), a character, `plus`, `minus`, `space`, `enter`, `tab`, `esc`, `backspace`, `delete`, `home`, `end`, `pageup`, `pagedown`, the arrows `up`, `down`, `left`, `right`, `f1` to `f20`, `num0` to `num9`, and the media keys `volumeup`, `volumedown`, `mute`, `playpause`, `next`, `previous`. In the editor, **Record** captures a shortcut from the keyboard. On macOS, allow totalKONTROL in System Settings › Privacy & Security › Accessibility; on Linux, shortcuts need an X11 session.
+- **Roll and flam**: a `roll` action turns roll on or off: a held momentary pad repeats its note, at `repeat.roll` divisions of a whole note (16 for sixteenth notes). The tempo follows the MIDI clock when the DAW sends it to the feedback port, and `repeat.bpm` otherwise. A `flam` action turns flam on or off: each hit plays a softer grace note `repeat.flam` milliseconds before the note. While either is on, the X axis of the XY pad sets the speed or the gap (`repeat.xySpeed`). The default profile maps them to the ROLL and FLAM buttons.
 
 Edit profiles in the **Profiles** tab, or by hand: they live in the app's config folder, under `profiles/`, next to a copy of the [JSON Schema](src-tauri/profiles/profile.schema.json), so an editor such as VS Code offers completion and flags errors. See the [default profile](src-tauri/profiles/default.json) for an example.
 

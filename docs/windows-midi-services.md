@@ -30,13 +30,13 @@ How the app copes:
 
 ## End-user requirements
 
-| Item | Status |
-| --- | --- |
-| Windows 11 25H2 or later (build ≥ 26200) | required (Microsoft does not support 24H2) |
-| `midisrv` service and virtual transport | already part of Windows |
-| `Windows.Devices.Midi2.dll` API | **not in Windows yet**: ships next to the app's executable |
-| Fix for bug #1047 | Windows update at the end of November 2026 |
-| loopMIDI | no longer needed |
+| Item                                     | Status                                                     |
+| ---------------------------------------- | ---------------------------------------------------------- |
+| Windows 11 25H2 or later (build ≥ 26200) | required (Microsoft does not support 24H2)                 |
+| `midisrv` service and virtual transport  | already part of Windows                                    |
+| `Windows.Devices.Midi2.dll` API          | **not in Windows yet**: ships next to the app's executable |
+| Fix for bug #1047                        | Windows update at the end of November 2026                 |
+| loopMIDI                                 | no longer needed                                           |
 
 The API (`Windows.Devices.Midi2.dll` + `.pri`, about 7 MB for x64) comes from the `Windows.Devices.Midi2` NuGet package, published on the [GitHub releases](https://github.com/microsoft/MIDI/releases). The version used is `0.99.92-preview.11` ("API surface lock"). Its "go live" license allows shipping it with the app, provided that:
 

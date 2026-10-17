@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { useI18n } from "../i18n";
 import type {
   ConnectionInfo,
@@ -33,6 +33,7 @@ type Selection = {
   feedback: string;
   profile: string;
   osc?: OscSettings;
+  autoConnect?: boolean;
 };
 
 /** OSC settings as edited in the panel; `enabled` and `listen` turn output and input on or off. */
@@ -69,7 +70,13 @@ const isValid = (value: string | undefined, options: string[]) =>
 
 /** The remembered port if it still exists, otherwise the most likely padKONTROL port. */
 function pickPadPort(ports: MidiPort[], remembered: string | undefined, preferences: RegExp[]): string {
-  if (isValid(remembered, ports.map((p) => p.name))) return remembered!;
+  if (
+    isValid(
+      remembered,
+      ports.map((p) => p.name),
+    )
+  )
+    return remembered!;
   const pads = ports.filter((p) => p.isPadKontrol);
   for (const preference of preferences) {
     const match = pads.find((p) => preference.test(p.name));
@@ -147,12 +154,15 @@ type Props = {
   onDisconnect: () => void;
   /** One-line version, with the port settings folded away. */
   compact?: boolean;
+  /** The padKONTROL was unplugged: the app reconnects when it comes back. */
+  waiting: boolean;
 };
 
 function ConnectionPanelView({
   ports,
   profiles,
   connection,
+  waiting,
   busy,
   onRefresh,
   onConnect,
@@ -167,6 +177,8 @@ function ConnectionPanelView({
   const [feedback, setFeedback] = useState("");
   const [profile, setProfile] = useState("");
   const [osc, setOsc] = useState<OscSettings>(() => ({ ...DEFAULT_OSC, ...loadSelection().osc }));
+  const [autoConnect, setAutoConnect] = useState(() => loadSelection().autoConnect ?? false);
+  const autoConnectTried = useRef(false);
   const { t } = useI18n();
   const editOsc = (change: Partial<OscSettings>) => setOsc((o) => ({ ...o, ...change }));
 
@@ -193,7 +205,7 @@ function ConnectionPanelView({
   const virtualSupported = ports?.virtualSupported ?? false;
 
   const connect = () => {
-    saveSelection({ input, output, nativeMode, daw, feedback, profile, osc });
+    saveSelection({ input, output, nativeMode, daw, feedback, profile, osc, autoConnect });
     onConnect(
       {
         input,
@@ -215,6 +227,19 @@ function ConnectionPanelView({
     );
   };
 
+  // At launch, once the ports are known and preselected: reconnect with the
+  // last settings when asked to.
+  useEffect(() => {
+    if (autoConnectTried.current || !ports || input === "") return;
+    autoConnectTried.current = true;
+    if (autoConnect && !connected && !waiting && canConnect) connect();
+  }, [ports, input]);
+
+  const toggleAutoConnect = (on: boolean) => {
+    setAutoConnect(on);
+    saveSelection({ ...loadSelection(), autoConnect: on } as Selection);
+  };
+
   const showForm = !compact || expanded;
 
   return (
@@ -226,169 +251,184 @@ function ConnectionPanelView({
             {connected ? `${connection.input} · ${connection.dawOutput ?? t("connection.noDaw")}` : input}
           </span>
         )}
-        <span className={connected ? "status ok" : "status"}>
+        <span className={connected ? "status ok" : waiting ? "status waiting" : "status"}>
           {connected
             ? connection.nativeMode
               ? t("connection.statusNative")
               : t("connection.statusConnected")
-            : t("connection.statusDisconnected")}
+            : waiting
+              ? t("connection.statusWaiting")
+              : t("connection.statusDisconnected")}
         </span>
       </div>
 
       {showForm && (
-      <>
-      <h3>padKONTROL</h3>
-      <div className="form-grid">
-        <label>
-          {t("connection.input")}
-          <select value={input} onChange={(e) => setInput(e.target.value)} disabled={connected}>
-            {ports?.inputs.map((p) => (
-              <option key={p.name} value={p.name}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {t("connection.output")}
-          <select value={output} onChange={(e) => setOutput(e.target.value)} disabled={connected}>
-            <option value="">{t("common.noneFem")}</option>
-            {ports?.outputs.map((p) => (
-              <option key={p.name} value={p.name}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          checked={nativeMode}
-          onChange={(e) => setNativeMode(e.target.checked)}
-          disabled={connected}
-        />
-        {t("connection.nativeMode")}
-      </label>
-
-      <h3>DAW</h3>
-      <div className="form-grid">
-        <DawSelect
-          label={t("connection.dawOutput")}
-          value={daw}
-          onChange={setDaw}
-          ports={ports?.outputs ?? []}
-          virtualSupported={virtualSupported}
-          virtualName={ports?.virtualOutputName ?? ""}
-          disabled={connected}
-        />
-        <DawSelect
-          label={t("connection.dawFeedback")}
-          value={feedback}
-          onChange={setFeedback}
-          ports={ports?.inputs ?? []}
-          virtualSupported={virtualSupported}
-          virtualName={ports?.virtualFeedbackName ?? ""}
-          disabled={connected}
-        />
-        <label>
-          {t("connection.profile")}
-          <select value={profile} onChange={(e) => setProfile(e.target.value)} disabled={connected || !nativeMode}>
-            <option value="">{t("common.none")}</option>
-            {validProfiles.map((p) => (
-              <option key={p.file} value={p.file}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      {ports?.virtualNote && <p className="hint warn-text">{ports.virtualNote}</p>}
-      {!virtualSupported && (
-        <p className="muted hint">{t("connection.loopMidiHint")}</p>
-      )}
-
-      <h3>OSC</h3>
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          checked={osc.enabled}
-          onChange={(e) => editOsc({ enabled: e.target.checked })}
-          disabled={connected}
-        />
-        {t("connection.oscEnabled")}
-      </label>
-      {osc.enabled && (
         <>
+          <h3>padKONTROL</h3>
           <div className="form-grid">
             <label>
-              {t("connection.oscHost")}
-              <input value={osc.host} onChange={(e) => editOsc({ host: e.target.value })} disabled={connected} />
+              {t("connection.input")}
+              <select value={input} onChange={(e) => setInput(e.target.value)} disabled={connected}>
+                {ports?.inputs.map((p) => (
+                  <option key={p.name} value={p.name}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
-              {t("connection.oscPort")}
-              <input
-                type="number"
-                min={1}
-                max={65535}
-                value={osc.port}
-                onChange={(e) => {
-                  const port = Number.parseInt(e.target.value, 10);
-                  if (port >= 1 && port <= 65535) editOsc({ port });
-                }}
-                disabled={connected}
-              />
-            </label>
-            <label>
-              {t("connection.oscPrefix")}
-              <input value={osc.prefix} onChange={(e) => editOsc({ prefix: e.target.value })} disabled={connected} />
+              {t("connection.output")}
+              <select value={output} onChange={(e) => setOutput(e.target.value)} disabled={connected}>
+                <option value="">{t("common.noneFem")}</option>
+                {ports?.outputs.map((p) => (
+                  <option key={p.name} value={p.name}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
             </label>
           </div>
+
           <label className="checkbox">
             <input
               type="checkbox"
-              checked={osc.mirror}
-              onChange={(e) => editOsc({ mirror: e.target.checked })}
+              checked={nativeMode}
+              onChange={(e) => setNativeMode(e.target.checked)}
               disabled={connected}
             />
-            {t("connection.oscMirror", { prefix: osc.prefix || "/" })}
+            {t("connection.nativeMode")}
           </label>
-          <div className="osc-listen">
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={osc.listen}
-                onChange={(e) => editOsc({ listen: e.target.checked })}
-                disabled={connected}
-              />
-              {t("connection.oscListen")}
-            </label>
-            <input
-              type="number"
-              min={1}
-              max={65535}
-              value={osc.listenPort}
-              aria-label={t("connection.oscListenPort")}
-              onChange={(e) => {
-                const listenPort = Number.parseInt(e.target.value, 10);
-                if (listenPort >= 1 && listenPort <= 65535) editOsc({ listenPort });
-              }}
-              disabled={connected || !osc.listen}
+
+          <h3>DAW</h3>
+          <div className="form-grid">
+            <DawSelect
+              label={t("connection.dawOutput")}
+              value={daw}
+              onChange={setDaw}
+              ports={ports?.outputs ?? []}
+              virtualSupported={virtualSupported}
+              virtualName={ports?.virtualOutputName ?? ""}
+              disabled={connected}
             />
+            <DawSelect
+              label={t("connection.dawFeedback")}
+              value={feedback}
+              onChange={setFeedback}
+              ports={ports?.inputs ?? []}
+              virtualSupported={virtualSupported}
+              virtualName={ports?.virtualFeedbackName ?? ""}
+              disabled={connected}
+            />
+            <label>
+              {t("connection.profile")}
+              <select value={profile} onChange={(e) => setProfile(e.target.value)} disabled={connected || !nativeMode}>
+                <option value="">{t("common.none")}</option>
+                {validProfiles.map((p) => (
+                  <option key={p.file} value={p.file}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
-          {osc.listen && (
-            <p className="muted hint">{t("connection.oscListenHint", { prefix: osc.prefix || "/" })}</p>
+          {ports?.virtualNote && <p className="hint warn-text">{ports.virtualNote}</p>}
+          {!virtualSupported && <p className="muted hint">{t("connection.loopMidiHint")}</p>}
+
+          <h3>OSC</h3>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={osc.enabled}
+              onChange={(e) => editOsc({ enabled: e.target.checked })}
+              disabled={connected}
+            />
+            {t("connection.oscEnabled")}
+          </label>
+          {osc.enabled && (
+            <>
+              <div className="form-grid">
+                <label>
+                  {t("connection.oscHost")}
+                  <input value={osc.host} onChange={(e) => editOsc({ host: e.target.value })} disabled={connected} />
+                </label>
+                <label>
+                  {t("connection.oscPort")}
+                  <input
+                    type="number"
+                    min={1}
+                    max={65535}
+                    value={osc.port}
+                    onChange={(e) => {
+                      const port = Number.parseInt(e.target.value, 10);
+                      if (port >= 1 && port <= 65535) editOsc({ port });
+                    }}
+                    disabled={connected}
+                  />
+                </label>
+                <label>
+                  {t("connection.oscPrefix")}
+                  <input
+                    value={osc.prefix}
+                    onChange={(e) => editOsc({ prefix: e.target.value })}
+                    disabled={connected}
+                  />
+                </label>
+              </div>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={osc.mirror}
+                  onChange={(e) => editOsc({ mirror: e.target.checked })}
+                  disabled={connected}
+                />
+                {t("connection.oscMirror", { prefix: osc.prefix || "/" })}
+              </label>
+              <div className="osc-listen">
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={osc.listen}
+                    onChange={(e) => editOsc({ listen: e.target.checked })}
+                    disabled={connected}
+                  />
+                  {t("connection.oscListen")}
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={65535}
+                  value={osc.listenPort}
+                  aria-label={t("connection.oscListenPort")}
+                  onChange={(e) => {
+                    const listenPort = Number.parseInt(e.target.value, 10);
+                    if (listenPort >= 1 && listenPort <= 65535) editOsc({ listenPort });
+                  }}
+                  disabled={connected || !osc.listen}
+                />
+              </div>
+              {osc.listen && (
+                <p className="muted hint">{t("connection.oscListenHint", { prefix: osc.prefix || "/" })}</p>
+              )}
+            </>
           )}
         </>
       )}
-      </>
+
+      {showForm && (
+        <label className="checkbox">
+          <input type="checkbox" checked={autoConnect} onChange={(e) => toggleAutoConnect(e.target.checked)} />
+          {t("connection.autoConnect")}
+        </label>
       )}
 
       <div className="actions">
         {connected ? (
           <button className="primary" onClick={onDisconnect} disabled={busy}>
             {t("connection.disconnect")}
+          </button>
+        ) : waiting ? (
+          <button onClick={onDisconnect} disabled={busy}>
+            {t("connection.stopWaiting")}
           </button>
         ) : (
           <button className="primary" onClick={connect} disabled={busy || !canConnect}>

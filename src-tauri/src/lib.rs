@@ -2,9 +2,11 @@
 mod i18n;
 mod config;
 mod engine;
+mod keys;
 mod midi;
 mod osc;
 mod padkontrol;
+mod tray;
 #[cfg(all(windows, feature = "windows-midi-services"))]
 mod winmidi;
 
@@ -34,7 +36,8 @@ async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Result<T, String> + Sen
         std::thread::spawn(move || {
             let _ = tx.send(f());
         });
-        rx.recv_timeout(MIDI_TIMEOUT).unwrap_or_else(|_| Err(midi::midi_service_frozen()))
+        rx.recv_timeout(MIDI_TIMEOUT)
+            .unwrap_or_else(|_| Err(midi::midi_service_frozen()))
     })
     .await
     .map_err(|e| e.to_string())?
@@ -44,8 +47,9 @@ const MIDI_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 
 /// Language of the messages produced by the Rust core, sent by the UI.
 #[tauri::command]
-fn set_locale(lang: i18n::Lang) {
+fn set_locale(app: AppHandle, lang: i18n::Lang) {
     i18n::set(lang);
+    tray::relabel(&app);
 }
 
 #[tauri::command]
@@ -74,8 +78,8 @@ fn disconnect_pad(connection: State<PadConnection>) {
 }
 
 #[tauri::command]
-fn connection_status(connection: State<PadConnection>) -> Option<ConnectionInfo> {
-    connection.info()
+fn connection_status(connection: State<PadConnection>) -> midi::ConnectionState {
+    connection.state()
 }
 
 #[tauri::command]
@@ -84,7 +88,11 @@ fn engine_state(connection: State<PadConnection>) -> Option<EngineState> {
 }
 
 #[tauri::command]
-fn set_profile(connection: State<PadConnection>, store: State<ProfileStore>, file: String) -> Result<EngineState, String> {
+fn set_profile(
+    connection: State<PadConnection>,
+    store: State<ProfileStore>,
+    file: String,
+) -> Result<EngineState, String> {
     connection.set_profile(&file, load(&store, &file)?)
 }
 
@@ -164,8 +172,11 @@ pub fn run() {
                 println!("{copied} profil(s) repris de {}", legacy.display());
             }
             app.manage(store);
+            tray::setup(app.handle());
+            midi::spawn_watchdog(app.handle().clone());
             Ok(())
         })
+        .on_window_event(tray::on_window_event)
         .invoke_handler(tauri::generate_handler![
             set_locale,
             list_midi_ports,

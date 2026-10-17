@@ -43,8 +43,8 @@
         "knob1Assign": { "type": "note", "channel": 1, "note": 13, "mode": "toggle" },
         "knob2Assign": { "type": "note", "channel": 1, "note": 14, "mode": "toggle" },
         "pedal": { "type": "note", "channel": 1, "note": 15 },
-        "roll": { "type": "note", "channel": 1, "note": 16, "mode": "toggle" },
-        "flam": { "type": "note", "channel": 1, "note": 17, "mode": "toggle" },
+        "roll": { "type": "roll" },
+        "flam": { "type": "flam" },
         "hold": { "type": "note", "channel": 1, "note": 18, "mode": "toggle" }
       },
       "knobs": {

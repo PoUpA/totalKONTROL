@@ -12,6 +12,7 @@ import type {
   XyAction,
 } from "../../types";
 import { useI18n, type Translate } from "../../i18n";
+import { KeysField } from "./KeysField";
 import { controlLabel, noteName, type AnyAction } from "./profile";
 
 type Props = {
@@ -94,7 +95,12 @@ function TextField({
   return (
     <label>
       {label}
-      <input className="text-input" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+      <input
+        className="text-input"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+      />
       {hint && <span className="muted hint">{hint}</span>}
     </label>
   );
@@ -214,6 +220,11 @@ function newButtonAction(type: ButtonType, control: ControlRef, previous?: Butto
       return { type, channel, program: 0 };
     case "switchBank":
       return { type, bank: 0 };
+    case "key":
+      return { type, keys: "space" };
+    case "roll":
+    case "flam":
+      return { type };
     case "osc":
       return control.kind === "pad"
         ? { type, address: `${DEFAULT_OSC_ADDRESS}/pad/${control.pad}`, args: ["$velocity"] }
@@ -254,6 +265,9 @@ function ButtonFields({
           ["programChange", t("action.programChange")],
           ["switchBank", t("action.switchBank")],
           ["osc", t("action.osc")],
+          ["key", t("action.key")],
+          ["roll", t("action.roll")],
+          ["flam", t("action.flam")],
         ]}
         onChange={(next) => onChange(newButtonAction(next, control, action))}
       />
@@ -303,7 +317,13 @@ function ButtonFields({
 
       {action?.type === "cc" && (
         <>
-          <NumberField label={t("action.ccNumber")} value={action.cc} min={0} max={127} onChange={(cc) => onChange({ ...action, cc })} />
+          <NumberField
+            label={t("action.ccNumber")}
+            value={action.cc}
+            min={0}
+            max={127}
+            onChange={(cc) => onChange({ ...action, cc })}
+          />
           <NumberField
             label={t("action.onValue")}
             value={action.onValue ?? 127}
@@ -350,6 +370,25 @@ function ButtonFields({
         </>
       )}
 
+      {action?.type === "key" && (
+        <>
+          <KeysField label={t("action.keys")} value={action.keys} onChange={(keys) => onChange({ ...action, keys })} />
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={action.hold ?? false}
+              onChange={(e) => onChange(withField(action, "hold", e.target.checked, false))}
+            />
+            {t("action.keysHold")}
+          </label>
+          <p className="hint">{t("action.keysHint")}</p>
+        </>
+      )}
+
+      {(action?.type === "roll" || action?.type === "flam") && (
+        <p className="hint">{t(action.type === "roll" ? "action.rollHint" : "action.flamHint")}</p>
+      )}
+
       {action?.type === "osc" && (
         <>
           <TextField
@@ -392,14 +431,18 @@ function ButtonFields({
       )}
 
       {/* The XY pad has no LED. */}
-      {action && action.type !== "switchBank" && control.kind !== "xyTouch" && (
-        <SelectField<Led | "">
-          label={t("action.led")}
-          value={action.led ?? ""}
-          options={ledOptions(t)}
-          onChange={(led) => onChange(withField(action, "led", led === "" ? undefined : led))}
-        />
-      )}
+      {action &&
+        action.type !== "switchBank" &&
+        action.type !== "roll" &&
+        action.type !== "flam" &&
+        control.kind !== "xyTouch" && (
+          <SelectField<Led | "">
+            label={t("action.led")}
+            value={action.led ?? ""}
+            options={ledOptions(t)}
+            onChange={(led) => onChange(withField(action, "led", led === "" ? undefined : led))}
+          />
+        )}
     </>
   );
 }
@@ -437,17 +480,53 @@ function KnobFields({
       />
       {action?.type === "cc" && (
         <>
-          <NumberField label={t("action.channel")} value={action.channel} min={1} max={16} onChange={(channel) => onChange({ ...action, channel })} />
-          <NumberField label={t("action.ccNumber")} value={action.cc} min={0} max={127} onChange={(cc) => onChange({ ...action, cc })} />
-          <NumberField label={t("action.min")} value={action.min ?? 0} min={0} max={127} onChange={(v) => onChange(withField(action, "min", v, 0))} />
-          <NumberField label={t("action.max")} value={action.max ?? 127} min={0} max={127} onChange={(v) => onChange(withField(action, "max", v, 127))} />
+          <NumberField
+            label={t("action.channel")}
+            value={action.channel}
+            min={1}
+            max={16}
+            onChange={(channel) => onChange({ ...action, channel })}
+          />
+          <NumberField
+            label={t("action.ccNumber")}
+            value={action.cc}
+            min={0}
+            max={127}
+            onChange={(cc) => onChange({ ...action, cc })}
+          />
+          <NumberField
+            label={t("action.min")}
+            value={action.min ?? 0}
+            min={0}
+            max={127}
+            onChange={(v) => onChange(withField(action, "min", v, 0))}
+          />
+          <NumberField
+            label={t("action.max")}
+            value={action.max ?? 127}
+            min={0}
+            max={127}
+            onChange={(v) => onChange(withField(action, "max", v, 127))}
+          />
         </>
       )}
       {action?.type === "osc" && (
         <>
-          <TextField label={t("action.oscAddress")} value={action.address} onChange={(address) => onChange({ ...action, address })} />
-          <DecimalField label={t("action.min")} value={action.min ?? 0} onChange={(v) => onChange(withField(action, "min", v, 0))} />
-          <DecimalField label={t("action.max")} value={action.max ?? 127} onChange={(v) => onChange(withField(action, "max", v, 127))} />
+          <TextField
+            label={t("action.oscAddress")}
+            value={action.address}
+            onChange={(address) => onChange({ ...action, address })}
+          />
+          <DecimalField
+            label={t("action.min")}
+            value={action.min ?? 0}
+            onChange={(v) => onChange(withField(action, "min", v, 0))}
+          />
+          <DecimalField
+            label={t("action.max")}
+            value={action.max ?? 127}
+            onChange={(v) => onChange(withField(action, "max", v, 127))}
+          />
           <label className="checkbox">
             <input
               type="checkbox"
@@ -486,13 +565,35 @@ function XyFields({ action, onChange }: { action: XyAction | undefined; onChange
       />
       {action?.type === "xy" && (
         <>
-          <NumberField label={t("action.channel")} value={action.channel} min={1} max={16} onChange={(channel) => onChange({ ...action, channel })} />
-          <NumberField label={t("action.ccX")} value={action.ccX} min={0} max={127} onChange={(ccX) => onChange({ ...action, ccX })} />
-          <NumberField label={t("action.ccY")} value={action.ccY} min={0} max={127} onChange={(ccY) => onChange({ ...action, ccY })} />
+          <NumberField
+            label={t("action.channel")}
+            value={action.channel}
+            min={1}
+            max={16}
+            onChange={(channel) => onChange({ ...action, channel })}
+          />
+          <NumberField
+            label={t("action.ccX")}
+            value={action.ccX}
+            min={0}
+            max={127}
+            onChange={(ccX) => onChange({ ...action, ccX })}
+          />
+          <NumberField
+            label={t("action.ccY")}
+            value={action.ccY}
+            min={0}
+            max={127}
+            onChange={(ccY) => onChange({ ...action, ccY })}
+          />
         </>
       )}
       {action?.type === "osc" && (
-        <TextField label={t("action.oscAddress")} value={action.address} onChange={(address) => onChange({ ...action, address })} />
+        <TextField
+          label={t("action.oscAddress")}
+          value={action.address}
+          onChange={(address) => onChange({ ...action, address })}
+        />
       )}
     </>
   );
@@ -515,6 +616,7 @@ function EncoderFields({
           ["", t("common.noneFem")],
           ["cc", t("action.cc")],
           ["osc", t("action.osc")],
+          ["key", t("action.key")],
         ]}
         onChange={(type) =>
           onChange(
@@ -522,20 +624,52 @@ function EncoderFields({
               ? { type: "cc", channel: 1, cc: 10 }
               : type === "osc"
                 ? { type: "osc", address: `${DEFAULT_OSC_ADDRESS}/encoder` }
-                : undefined,
+                : type === "key"
+                  ? { type: "key", left: "left", right: "right" }
+                  : undefined,
           )
         }
       />
       {action?.type === "cc" && (
         <>
-          <NumberField label={t("action.channel")} value={action.channel} min={1} max={16} onChange={(channel) => onChange({ ...action, channel })} />
-          <NumberField label={t("action.ccNumber")} value={action.cc} min={0} max={127} onChange={(cc) => onChange({ ...action, cc })} />
+          <NumberField
+            label={t("action.channel")}
+            value={action.channel}
+            min={1}
+            max={16}
+            onChange={(channel) => onChange({ ...action, channel })}
+          />
+          <NumberField
+            label={t("action.ccNumber")}
+            value={action.cc}
+            min={0}
+            max={127}
+            onChange={(cc) => onChange({ ...action, cc })}
+          />
         </>
       )}
       {action?.type === "osc" && (
-        <TextField label={t("action.oscAddress")} value={action.address} onChange={(address) => onChange({ ...action, address })} />
+        <TextField
+          label={t("action.oscAddress")}
+          value={action.address}
+          onChange={(address) => onChange({ ...action, address })}
+        />
       )}
-      {action && (
+      {action?.type === "key" && (
+        <>
+          <KeysField
+            label={t("action.keysLeft")}
+            value={action.left}
+            onChange={(left) => onChange({ ...action, left })}
+          />
+          <KeysField
+            label={t("action.keysRight")}
+            value={action.right}
+            onChange={(right) => onChange({ ...action, right })}
+          />
+        </>
+      )}
+      {action && action.type !== "key" && (
         <SelectField
           label={t("action.encoding")}
           value={action.encoding ?? "relative"}
@@ -554,13 +688,20 @@ export function ActionForm({ control, action, banks, errors, onChange }: Props) 
       <h3>{controlLabel(control, t)}</h3>
       <div className="form-stack">
         {(control.kind === "pad" || control.kind === "button" || control.kind === "xyTouch") && (
-          <ButtonFields control={control} action={action as ButtonAction | undefined} banks={banks} onChange={onChange} />
+          <ButtonFields
+            control={control}
+            action={action as ButtonAction | undefined}
+            banks={banks}
+            onChange={onChange}
+          />
         )}
         {control.kind === "knob" && (
           <KnobFields control={control} action={action as KnobAction | undefined} onChange={onChange} />
         )}
         {control.kind === "xy" && <XyFields action={action as XyAction | undefined} onChange={onChange} />}
-        {control.kind === "encoder" && <EncoderFields action={action as EncoderAction | undefined} onChange={onChange} />}
+        {control.kind === "encoder" && (
+          <EncoderFields action={action as EncoderAction | undefined} onChange={onChange} />
+        )}
       </div>
       {errors.length > 0 && (
         <ul className="errors">

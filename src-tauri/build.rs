@@ -91,7 +91,10 @@ mod windows_midi {
                 let indent = lines[i][..lines[i].len() - t.len()].to_string();
                 let close = format!("{indent}}})");
                 let j = (i + 1..lines.len()).find(|&k| lines[k] == close).unwrap();
-                if lines[i..j].iter().any(|l| l.contains("debug_assert!(hresult__.0 == 0)")) {
+                if lines[i..j]
+                    .iter()
+                    .any(|l| l.contains("debug_assert!(hresult__.0 == 0)"))
+                {
                     let last = lines[j - 1].clone();
                     let lt = last.trim_start();
                     let lindent = &last[..last.len() - lt.len()];

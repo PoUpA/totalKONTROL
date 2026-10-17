@@ -15,6 +15,7 @@ const DIRECTIONS: Record<MidiMessage["direction"], string> = {
   feedback: "← DAW",
   osc: "→ OSC",
   oscIn: "← OSC",
+  key: "⌨",
 };
 
 const time = (ms: number, locale: string) =>

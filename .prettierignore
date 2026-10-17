@@ -1,0 +1,8 @@
+dist
+node_modules
+package-lock.json
+src-tauri/target
+src-tauri/vendor
+src-tauri/gen
+*.wxs
+*.nsh

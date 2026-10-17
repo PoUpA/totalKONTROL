@@ -26,8 +26,8 @@ use bindings::Windows::Devices::Midi2::Transports::Virtual::{
     MidiVirtualDevice, MidiVirtualDeviceCreationConfig, MidiVirtualDeviceManager,
 };
 use bindings::Windows::Devices::Midi2::{
-    IMidiMessageReceivedEventSource, MidiApi, MidiEndpointConnection, MidiGroup,
-    MidiMessageProcessingPluginAddResult, MidiMessageReceivedEventArgs, MidiSession,
+    IMidiMessageReceivedEventSource, MidiApi, MidiEndpointConnection, MidiGroup, MidiMessageProcessingPluginAddResult,
+    MidiMessageReceivedEventArgs, MidiSession,
 };
 use windows::Foundation::TypedEventHandler;
 use windows::Win32::System::WinRT::{RO_INIT_MULTITHREADED, RoInitialize};
@@ -135,7 +135,11 @@ pub fn availability() -> Availability {
         })
         .recv_timeout(CREATION_TIMEOUT)
         .unwrap_or(false);
-        if ready { Availability::Ready } else { Availability::Unavailable }
+        if ready {
+            Availability::Ready
+        } else {
+            Availability::Unavailable
+        }
     })
 }
 
@@ -163,7 +167,11 @@ fn transport_version() -> Option<(u16, u16, u16)> {
             return None;
         }
         let info = &*(info as *const VS_FIXEDFILEINFO);
-        Some(((info.dwFileVersionMS >> 16) as u16, info.dwFileVersionMS as u16, (info.dwFileVersionLS >> 16) as u16))
+        Some((
+            (info.dwFileVersionMS >> 16) as u16,
+            info.dwFileVersionMS as u16,
+            (info.dwFileVersionLS >> 16) as u16,
+        ))
     }
 }
 
@@ -190,9 +198,7 @@ fn error(what: String) -> impl Fn(windows_core::Error) -> String {
 }
 
 fn create() -> Result<VirtualDevice, String> {
-    let session = MidiSession::Create(&HSTRING::from(DEVICE_NAME)).ok_or_else(|| {
-        t!("core.winmidi.sessionFailed")
-    })?;
+    let session = MidiSession::Create(&HSTRING::from(DEVICE_NAME)).ok_or_else(|| t!("core.winmidi.sessionFailed"))?;
 
     let info = MidiDeclaredEndpointInfo::new().map_err(error(t!("core.winmidi.stepDeviceDescription")))?;
     info.SetName(&HSTRING::from(DEVICE_NAME));
@@ -228,15 +234,14 @@ fn create() -> Result<VirtualDevice, String> {
         .Append(&block)
         .map_err(error(t!("core.winmidi.stepAddBlock")))?;
 
-    let device = MidiVirtualDeviceManager::CreateVirtualDevice(&config).ok_or_else(|| {
-        t!("core.winmidi.deviceRefused")
-    })?;
+    let device =
+        MidiVirtualDeviceManager::CreateVirtualDevice(&config).ok_or_else(|| t!("core.winmidi.deviceRefused"))?;
     // MIDI 2.0 discovery messages are handled by the device itself.
     device.SetSuppressHandledMessages(true);
 
-    let connection = session.CreateEndpointConnection(&device.DeviceEndpointDeviceId()).ok_or_else(|| {
-        t!("core.winmidi.connectFailed")
-    })?;
+    let connection = session
+        .CreateEndpointConnection(&device.DeviceEndpointDeviceId())
+        .ok_or_else(|| t!("core.winmidi.connectFailed"))?;
 
     let receiver: Receiver = Arc::default();
     let incoming = receiver.clone();
@@ -261,7 +266,12 @@ fn create() -> Result<VirtualDevice, String> {
         return Err(t!("core.winmidi.openFailed"));
     }
 
-    Ok(VirtualDevice { connection, receiver, _session: session, _device: device })
+    Ok(VirtualDevice {
+        connection,
+        receiver,
+        _session: session,
+        _device: device,
+    })
 }
 
 /// MIDI 1.0 message → type 2 UMP (MIDI 1.0 channel voice) on group 1.
@@ -271,7 +281,11 @@ fn to_ump(message: &[u8]) -> Option<u32> {
         return None;
     }
     let data = |i: usize| message.get(i).copied().unwrap_or(0) as u32 & 0x7F;
-    let second = if matches!(status & 0xF0, 0xC0 | 0xD0) { 0 } else { data(2) };
+    let second = if matches!(status & 0xF0, 0xC0 | 0xD0) {
+        0
+    } else {
+        data(2)
+    };
     Some(0x2000_0000 | (status as u32) << 16 | data(1) << 8 | second)
 }
 
@@ -298,7 +312,10 @@ mod tests {
     #[ignore]
     fn print_transport() {
         let version = transport_version();
-        println!("transport: {version:?}, buggy: {}", version.is_some_and(|v| v <= LAST_BUGGY_TRANSPORT));
+        println!(
+            "transport: {version:?}, buggy: {}",
+            version.is_some_and(|v| v <= LAST_BUGGY_TRANSPORT)
+        );
     }
 
     #[test]
