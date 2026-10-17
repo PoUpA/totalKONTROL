@@ -243,7 +243,7 @@ mod tests {
     }
 
     fn decoded(s: &str) -> ControlEvent {
-        decode(&hex(s)).unwrap_or_else(|| panic!("{s} non décodé"))
+        decode(&hex(s)).unwrap_or_else(|| panic!("{s} not decoded"))
     }
 
     // Frames captured in docs/padkontrol-sysex.txt.

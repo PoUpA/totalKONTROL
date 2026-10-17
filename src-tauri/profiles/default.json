@@ -1,12 +1,12 @@
 {
   "$schema": "./profile.schema.json",
   "version": 1,
-  "name": "Défaut",
+  "name": "Default",
   "ports": { "input": "padKONTROL", "output": "totalKONTROL" },
   "startBank": 0,
   "banks": [
     {
-      "name": "Batterie",
+      "name": "Drums",
       "display": "DRM",
       "pads": {
         "1": { "type": "note", "channel": 10, "note": 36 },

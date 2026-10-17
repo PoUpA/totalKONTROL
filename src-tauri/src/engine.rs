@@ -979,7 +979,10 @@ mod tests {
         );
         let control = Control::Pad(5);
         assert_eq!(e.feedback(&[0x91, 64, 127]), vec![padkontrol::led(control, true)]);
-        assert!(e.feedback(&[0x91, 64, 100]).is_empty(), "état inchangé, rien à envoyer");
+        assert!(
+            e.feedback(&[0x91, 64, 100]).is_empty(),
+            "state unchanged, nothing to send"
+        );
         assert_eq!(e.feedback(&[0x91, 64, 0]), vec![padkontrol::led(control, false)]);
         assert!(e.feedback(&[0x90, 64, 127]).is_empty(), "autre canal");
 
@@ -1020,7 +1023,7 @@ mod tests {
         assert_eq!(e.refresh().len(), 36);
         assert_eq!(e.handle(&pad(1, true, 100)).daw, vec![vec![0x99, 36, 100]]);
         assert!(e.handle(&button(ButtonId::Setting, true)).bank_changed);
-        assert_eq!(e.state().banks, vec!["Batterie", "Clips"]);
+        assert_eq!(e.state().banks, vec!["Drums", "Clips"]);
     }
 
     fn engine_with(profile: &str) -> Engine {
@@ -1138,7 +1141,7 @@ mod tests {
         let mut e = engine(&format!(r#"{{ "name": "A", {pads} }}"#));
         assert!(
             e.handle_at(&pad(1, true, 90), t0).pad.iter().all(|m| m[5] != 0x22),
-            "rien par défaut"
+            "nothing by default"
         );
 
         let mut e = engine_with(&format!(

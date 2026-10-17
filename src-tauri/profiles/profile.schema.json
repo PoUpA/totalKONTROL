@@ -2,58 +2,58 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/PoUpA/totalKONTROL/profile.schema.json",
   "title": "Profil totalKONTROL",
-  "description": "Mapping des contrôles du Korg padKONTROL vers des messages MIDI, organisé en banques.",
+  "description": "Mapping of the Korg padKONTROL's controls to MIDI messages, organized in banks.",
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "name", "banks"],
   "properties": {
     "$schema": { "type": "string" },
     "version": {
-      "description": "Version du format de profil.",
+      "description": "Version of the profile format.",
       "const": 1
     },
     "name": {
-      "description": "Nom affiché du profil.",
+      "description": "Name of the profile as shown.",
       "type": "string",
       "minLength": 1
     },
     "ports": {
-      "description": "Ports MIDI à utiliser. Chaque valeur est un extrait du nom du port, sans tenir compte de la casse.",
+      "description": "MIDI ports to use. Each value is part of the port name, ignoring case.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "input": { "type": "string", "description": "Port d'entrée du padKONTROL.", "default": "padKONTROL" },
-        "output": { "type": "string", "description": "Port de sortie vers le DAW.", "default": "totalKONTROL" }
+        "input": { "type": "string", "description": "padKONTROL input port.", "default": "padKONTROL" },
+        "output": { "type": "string", "description": "Output port to the DAW.", "default": "totalKONTROL" }
       }
     },
     "startBank": {
-      "description": "Index (à partir de 0) de la banque active au démarrage.",
+      "description": "Index (from 0) of the bank active at startup.",
       "type": "integer",
       "minimum": 0,
       "default": 0
     },
     "display": {
-      "description": "Ce que montre l'afficheur à 3 caractères en plus de la banque active.",
+      "description": "What the 3-character display shows besides the active bank.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "knobs": {
-          "description": "Montre la valeur envoyée quand un potentiomètre tourne.",
+          "description": "Shows the value sent when a knob turns.",
           "type": "boolean",
           "default": true
         },
         "encoder": {
-          "description": "Montre la valeur envoyée quand l'encodeur tourne.",
+          "description": "Shows the value sent when the encoder turns.",
           "type": "boolean",
           "default": true
         },
         "pads": {
-          "description": "Ce que montre une frappe sur un pad. none : rien. note : la note jouée. velocity : la vélocité.",
+          "description": "What a pad hit shows. none: nothing. note: the note played. velocity: the velocity.",
           "enum": ["none", "note", "velocity"],
           "default": "none"
         },
         "duration": {
-          "description": "Temps d'affichage d'une valeur avant le retour à la banque, en millisecondes.",
+          "description": "Milliseconds a value stays on the display before the bank comes back.",
           "type": "integer",
           "minimum": 200,
           "maximum": 10000,
@@ -62,24 +62,24 @@
       }
     },
     "velocity": {
-      "description": "Mise en forme de la vélocité des frappes sur les pads (notes, $velocity des actions OSC, afficheur). Les vélocités fixes ne changent pas.",
+      "description": "Shaping of the pads' hit velocity (notes, $velocity of OSC actions, display). Fixed velocities do not change.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "curve": {
-          "description": "soft : les frappes légères sortent plus fort. linear : telle quelle. hard : il faut frapper fort pour monter.",
+          "description": "soft: light hits come out louder. linear: as is. hard: hit hard to go high.",
           "enum": ["soft", "linear", "hard"],
           "default": "linear"
         },
         "min": {
-          "description": "Vélocité envoyée pour la frappe la plus légère.",
+          "description": "Velocity sent for the softest hit.",
           "type": "integer",
           "minimum": 1,
           "maximum": 127,
           "default": 1
         },
         "max": {
-          "description": "Vélocité envoyée pour la frappe la plus forte.",
+          "description": "Velocity sent for the hardest hit.",
           "type": "integer",
           "minimum": 1,
           "maximum": 127,
@@ -88,31 +88,31 @@
       }
     },
     "repeat": {
-      "description": "Réglages du roll (note répétée tant que le pad est tenu) et du flam (note fantôme juste avant la frappe), activés par les actions roll et flam.",
+      "description": "Settings of roll (note repeated while the pad is held) and flam (grace note just before the hit), turned on by the roll and flam actions.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "bpm": {
-          "description": "Tempo du roll quand le DAW n'envoie pas d'horloge MIDI sur l'entrée de retour.",
+          "description": "Roll tempo when the DAW sends no MIDI clock to the feedback input.",
           "type": "number",
           "minimum": 20,
           "maximum": 300,
           "default": 120
         },
         "roll": {
-          "description": "Division de la ronde : 16 pour des doubles croches, 12 pour des triolets de croches.",
+          "description": "Division of a whole note: 16 for sixteenth notes, 12 for eighth-note triplets.",
           "enum": [4, 6, 8, 12, 16, 24, 32],
           "default": 16
         },
         "flam": {
-          "description": "Écart en millisecondes entre la note fantôme et la frappe.",
+          "description": "Milliseconds between the grace note and the hit.",
           "type": "integer",
           "minimum": 5,
           "maximum": 200,
           "default": 30
         },
         "xySpeed": {
-          "description": "true : quand roll ou flam est actif, l'axe X du pad XY règle la division ou l'écart au lieu de son action.",
+          "description": "true: while roll or flam is on, the X axis of the XY pad sets the division or the gap instead of its action.",
           "type": "boolean",
           "default": true
         }
@@ -125,16 +125,16 @@
     }
   },
   "$defs": {
-    "channel": { "description": "Canal MIDI, de 1 à 16.", "type": "integer", "minimum": 1, "maximum": 16 },
+    "channel": { "description": "MIDI channel, from 1 to 16.", "type": "integer", "minimum": 1, "maximum": 16 },
     "midiValue": { "type": "integer", "minimum": 0, "maximum": 127 },
-    "velocity": { "description": "Vélocité fixe, de 1 à 127.", "type": "integer", "minimum": 1, "maximum": 127 },
+    "velocity": { "description": "Fixed velocity, from 1 to 127.", "type": "integer", "minimum": 1, "maximum": 127 },
     "mode": {
-      "description": "momentary : actif tant que le contrôle est enfoncé. toggle : alterne à chaque appui.",
+      "description": "momentary: on while the control is held down. toggle: flips on each press.",
       "enum": ["momentary", "toggle"],
       "default": "momentary"
     },
     "led": {
-      "description": "Comportement de la LED. none : éteinte. press : allumée pendant l'appui. toggle : suit l'état du mode toggle. follow : pilotée par le message identique renvoyé par le DAW. Par défaut : press en mode momentary, toggle en mode toggle.",
+      "description": "LED behavior. none: off. press: lit while pressed. toggle: follows the toggle state. follow: driven by the same message sent back by the DAW. Default: press in momentary mode, toggle in toggle mode.",
       "enum": ["none", "press", "toggle", "follow"]
     },
     "bank": {
@@ -144,12 +144,12 @@
       "properties": {
         "name": { "type": "string", "minLength": 1 },
         "display": {
-          "description": "Texte de l'afficheur pour cette banque, 3 caractères au plus. Par défaut : le début du nom.",
+          "description": "Display text for this bank, 3 characters at most. Default: the start of the name.",
           "type": "string",
           "pattern": "^[ -~]{0,3}$"
         },
         "pads": {
-          "description": "Pads 1 à 16, numérotés de gauche à droite et de haut en bas.",
+          "description": "Pads 1 to 16, numbered from left to right and top to bottom.",
           "type": "object",
           "propertyNames": { "pattern": "^([1-9]|1[0-6])$" },
           "additionalProperties": { "$ref": "#/$defs/padAction" }
@@ -160,14 +160,14 @@
           "additionalProperties": { "$ref": "#/$defs/buttonAction" }
         },
         "knobs": {
-          "description": "Potentiomètres 1 et 2.",
+          "description": "Knobs 1 and 2.",
           "type": "object",
           "propertyNames": { "enum": ["1", "2"] },
           "additionalProperties": { "$ref": "#/$defs/knobAction" }
         },
         "xy": { "$ref": "#/$defs/xyAction" },
         "xyTouch": {
-          "description": "Action quand un doigt se pose sur le pad XY (appui) puis le quitte (relâchement). Comme un bouton, sans LED.",
+          "description": "Action when a finger lands on the XY pad (press) then leaves it (release). Like a button, without an LED.",
           "$ref": "#/$defs/buttonAction"
         },
         "encoder": { "$ref": "#/$defs/encoderAction" }
@@ -218,7 +218,7 @@
         "channel": { "$ref": "#/$defs/channel" },
         "note": { "$ref": "#/$defs/midiValue" },
         "velocity": {
-          "description": "\"pad\" : vélocité de la frappe sur le pad. Sinon, vélocité fixe.",
+          "description": "\"pad\": velocity of the pad hit. Otherwise, a fixed velocity.",
           "oneOf": [{ "const": "pad" }, { "$ref": "#/$defs/velocity" }],
           "default": "pad"
         },
@@ -257,21 +257,21 @@
       "required": ["type", "bank"],
       "properties": {
         "type": { "const": "switchBank" },
-        "bank": { "description": "Index (à partir de 0) de la banque cible.", "type": "integer", "minimum": 0 },
+        "bank": { "description": "Index (from 0) of the target bank.", "type": "integer", "minimum": 0 },
         "momentary": {
-          "description": "true : revient à la banque précédente au relâchement.",
+          "description": "true: goes back to the previous bank on release.",
           "type": "boolean",
           "default": false
         }
       }
     },
     "keys": {
-      "description": "Raccourci clavier : noms séparés par +, par exemple ctrl+shift+s. Modificateurs : ctrl, shift, alt (option), meta (win, cmd). Touches : un caractère, plus, minus, space, enter, tab, esc, backspace, delete, insert, home, end, pageup, pagedown, up, down, left, right, f1 à f20, num0 à num9, capslock, printscreen, pause, volumeup, volumedown, mute, playpause, next, previous.",
+      "description": "Keyboard shortcut: names separated by +, for example ctrl+shift+s. Modifiers: ctrl, shift, alt (option), meta (win, cmd). Keys: a character, plus, minus, space, enter, tab, esc, backspace, delete, insert, home, end, pageup, pagedown, up, down, left, right, f1 to f20, num0 to num9, capslock, printscreen, pause, volumeup, volumedown, mute, playpause, next, previous.",
       "type": "string",
       "minLength": 1
     },
     "keyAction": {
-      "description": "Tape un raccourci clavier dans le logiciel au premier plan.",
+      "description": "Types a keyboard shortcut into the app in front.",
       "type": "object",
       "additionalProperties": false,
       "required": ["type", "keys"],
@@ -279,7 +279,7 @@
         "type": { "const": "key" },
         "keys": { "$ref": "#/$defs/keys" },
         "hold": {
-          "description": "true : les touches restent enfoncées tant que le contrôle est tenu. false : un appui bref à chaque pression.",
+          "description": "true: the keys stay down while the control is held. false: a short tap on each press.",
           "type": "boolean",
           "default": false
         },
@@ -287,14 +287,14 @@
       }
     },
     "rollAction": {
-      "description": "Active ou coupe le roll : les pads en mode momentary répètent leur note tant qu'ils sont tenus.",
+      "description": "Turns roll on or off: pads in momentary mode repeat their note while held.",
       "type": "object",
       "additionalProperties": false,
       "required": ["type"],
       "properties": { "type": { "const": "roll" } }
     },
     "flamAction": {
-      "description": "Active ou coupe le flam : les pads en mode momentary jouent une note fantôme plus douce juste avant la frappe.",
+      "description": "Turns flam on or off: pads in momentary mode play a softer grace note just before the hit.",
       "type": "object",
       "additionalProperties": false,
       "required": ["type"],
@@ -325,12 +325,12 @@
       ]
     },
     "oscAddress": {
-      "description": "Adresse OSC : commence par / et ne contient pas d'espace.",
+      "description": "OSC address: starts with / and has no spaces.",
       "type": "string",
       "pattern": "^/\\S*$"
     },
     "oscValue": {
-      "description": "Argument OSC : entier, décimal, booléen ou texte. Le texte \"$velocity\" est remplacé par la vélocité de la frappe (127 pour un bouton).",
+      "description": "OSC argument: integer, decimal, boolean or text. The text \"$velocity\" is replaced by the velocity of the hit (127 for a button).",
       "type": ["integer", "number", "boolean", "string"]
     },
     "oscButtonAction": {
@@ -341,12 +341,12 @@
         "type": { "const": "osc" },
         "address": { "$ref": "#/$defs/oscAddress" },
         "args": {
-          "description": "Arguments envoyés à l'appui (ou quand la bascule s'allume).",
+          "description": "Arguments sent on press (or when the toggle turns on).",
           "type": "array",
           "items": { "$ref": "#/$defs/oscValue" }
         },
         "releaseArgs": {
-          "description": "Arguments envoyés au relâchement (ou quand la bascule s'éteint). Sans ce champ, rien n'est envoyé.",
+          "description": "Arguments sent on release (or when the toggle turns off). Without this field, nothing is sent.",
           "type": "array",
           "items": { "$ref": "#/$defs/oscValue" }
         },
@@ -375,10 +375,18 @@
           "properties": {
             "type": { "const": "osc" },
             "address": { "$ref": "#/$defs/oscAddress" },
-            "min": { "description": "Valeur envoyée potentiomètre à fond à gauche.", "type": "number", "default": 0 },
-            "max": { "description": "Valeur envoyée potentiomètre à fond à droite.", "type": "number", "default": 127 },
+            "min": {
+              "description": "Value sent with the knob all the way to the left.",
+              "type": "number",
+              "default": 0
+            },
+            "max": {
+              "description": "Value sent with the knob all the way to the right.",
+              "type": "number",
+              "default": 127
+            },
             "float": {
-              "description": "true : envoie un décimal. Sinon, un entier arrondi.",
+              "description": "true: sends a decimal. Otherwise, a rounded integer.",
               "type": "boolean",
               "default": false
             }
@@ -400,7 +408,7 @@
           }
         },
         {
-          "description": "Envoie x et y (0 à 127) en deux entiers.",
+          "description": "Sends x and y (0 to 127) as two integers.",
           "type": "object",
           "additionalProperties": false,
           "required": ["type", "address"],
@@ -412,7 +420,7 @@
       ]
     },
     "encoding": {
-      "description": "relative : envoie un pas (CC : 1 par cran à droite et 127 par cran à gauche ; OSC : +1 / -1). absolute : envoie une valeur de 0 à 127 tenue par l'application.",
+      "description": "relative: sends a step (CC: 1 per step to the right and 127 per step to the left; OSC: +1 / -1). absolute: sends a value from 0 to 127 kept by the app.",
       "enum": ["relative", "absolute"],
       "default": "relative"
     },
@@ -440,14 +448,14 @@
           }
         },
         {
-          "description": "Tape un raccourci clavier à chaque cran.",
+          "description": "Types a keyboard shortcut at each step.",
           "type": "object",
           "additionalProperties": false,
           "required": ["type", "left", "right"],
           "properties": {
             "type": { "const": "key" },
-            "left": { "$ref": "#/$defs/keys", "description": "Raccourci tapé à chaque cran vers la gauche." },
-            "right": { "$ref": "#/$defs/keys", "description": "Raccourci tapé à chaque cran vers la droite." }
+            "left": { "$ref": "#/$defs/keys", "description": "Shortcut typed at each step to the left." },
+            "right": { "$ref": "#/$defs/keys", "description": "Shortcut typed at each step to the right." }
           }
         }
       ]

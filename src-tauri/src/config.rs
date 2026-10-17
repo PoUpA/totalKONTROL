@@ -1017,7 +1017,7 @@ mod tests {
 
     #[test]
     fn default_profile_is_valid() {
-        let profile = parse_profile(DEFAULT_PROFILE_JSON).expect("profil par défaut invalide");
+        let profile = parse_profile(DEFAULT_PROFILE_JSON).expect("invalid default profile");
         assert_eq!(profile.banks.len(), 2);
         assert_eq!(profile.banks[0].pads.len(), 16);
     }
@@ -1025,7 +1025,7 @@ mod tests {
     fn schema_errors(json: &str) -> Vec<String> {
         let schema: serde_json::Value = serde_json::from_str(SCHEMA_JSON).unwrap();
         let profile: serde_json::Value = serde_json::from_str(json).unwrap();
-        let validator = jsonschema::validator_for(&schema).expect("schéma invalide");
+        let validator = jsonschema::validator_for(&schema).expect("invalid schema");
         validator.iter_errors(&profile).map(|e| e.to_string()).collect()
     }
 
@@ -1094,8 +1094,8 @@ mod tests {
             minimal(r#"{ "name": "A", "encoder": { "type": "key", "left": "left" } }"#),
         ];
         for json in invalid {
-            assert!(!schema_errors(&json).is_empty(), "le schéma accepte : {json}");
-            assert!(parse_profile(&json).is_err(), "le parseur accepte : {json}");
+            assert!(!schema_errors(&json).is_empty(), "the schema accepts: {json}");
+            assert!(parse_profile(&json).is_err(), "the parser accepts: {json}");
         }
         // Beyond what the schema can express.
         let swapped =
