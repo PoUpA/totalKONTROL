@@ -9,8 +9,8 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 
 use crate::config::{
-    ButtonAction, DISPLAY_LENGTH, EncoderAction, Encoding, FLAM_RANGE_MS, KnobAction, Led, Mode, PadDisplay, Profile,
-    ROLL_DIVISIONS, Velocity, XyAction,
+    BPM_RANGE, ButtonAction, DISPLAY_LENGTH, EncoderAction, Encoding, FLAM_RANGE_MS, KnobAction, Led, Mode, PadDisplay,
+    Profile, ROLL_DIVISIONS, Velocity, XyAction,
 };
 use crate::keys::{KeyDirection, KeyEvent};
 use crate::osc::{self, OscArg, OscMessage};
@@ -57,6 +57,9 @@ const RELEASE_AFTER_FLAM: Duration = Duration::from_millis(20);
 const CLOCK_PPQN: f32 = 24.0;
 /// The DAW's clock counts as running if a pulse arrived within this time.
 const CLOCK_TIMEOUT: Duration = Duration::from_millis(500);
+/// Shortest time between two clock pulses taken into account (1 ms is
+/// already 2500 BPM).
+const MIN_CLOCK_GAP: Duration = Duration::from_millis(1);
 
 /// A held pad repeating its note while roll is on.
 #[derive(Debug, Clone, Copy)]
@@ -79,8 +82,9 @@ impl Clock {
     fn pulse(&mut self, now: Instant) {
         if let Some(last) = self.last {
             let gap = now.saturating_duration_since(last);
-            // Ignore gaps after a stop or a stall.
-            if gap < CLOCK_TIMEOUT {
+            // Ignore gaps after a stop or a stall, and pulses delivered in a
+            // burst, which would make the tempo shoot up.
+            if (MIN_CLOCK_GAP..CLOCK_TIMEOUT).contains(&gap) {
                 self.pulse = Some(match self.pulse {
                     Some(pulse) => pulse.mul_f32(0.9) + gap.mul_f32(0.1),
                     None => gap,
@@ -177,8 +181,10 @@ impl Engine {
     }
 
     /// Swaps in an edited version of the same profile. Stays on the current
-    /// bank when it still exists, and keeps the DAW feedback state.
-    pub fn reload(&mut self, profile: Profile) {
+    /// bank when it still exists, and keeps the DAW feedback state. Returns
+    /// what ends the notes the previous version left on (see `release_all`).
+    pub fn reload(&mut self, profile: Profile) -> Output {
+        let out = self.release_all();
         let bank = if self.bank < profile.banks.len() {
             self.bank
         } else {
@@ -194,6 +200,53 @@ impl Engine {
         self.roll_on = roll_on;
         self.flam_on = flam_on;
         self.clock = clock;
+        out
+    }
+
+    /// Ends what this engine left on in the DAW and the OSC software, before
+    /// it goes (disconnection, profile change): held notes and CCs as if
+    /// released, toggles turned off, and the note offs of pending flams.
+    pub fn release_all(&mut self) -> Output {
+        let mut out = Output::default();
+        let held: Vec<(Control, usize)> = self.held.drain().collect();
+        let toggled: Vec<(usize, Control)> = self.toggles.drain().collect();
+        let controls = held
+            .into_iter()
+            .map(|(control, bank)| (bank, control, Mode::Momentary))
+            .chain(toggled.into_iter().map(|(bank, control)| (bank, control, Mode::Toggle)));
+        for (bank, control, state) in controls {
+            match self.action(bank, control).cloned() {
+                Some(ButtonAction::Note {
+                    channel, note, mode, ..
+                }) if mode == state => out.daw.push(note_off(channel, note)),
+                Some(ButtonAction::Cc {
+                    channel,
+                    cc,
+                    off_value,
+                    mode,
+                    ..
+                }) if mode == state => out.daw.push(control_change(channel, cc, off_value)),
+                Some(ButtonAction::Osc {
+                    address,
+                    release_args: Some(args),
+                    mode,
+                    ..
+                }) if mode == state => out.osc.push(OscMessage::new(address, osc::resolve(&args, 0))),
+                Some(ButtonAction::Key { keys, hold: true, .. }) if state == Mode::Momentary => {
+                    out.keys.push(KeyEvent::new(&keys, KeyDirection::Release))
+                }
+                _ => {}
+            }
+        }
+        // Grace notes of pending flams end; their main notes never start.
+        out.daw.extend(
+            std::mem::take(&mut self.scheduled)
+                .into_iter()
+                .map(|(_, message)| message)
+                .filter(|message| matches!(message.first(), Some(status) if status & 0xF0 == 0x80)),
+        );
+        self.rolls.clear();
+        out
     }
 
     pub fn state(&self) -> EngineState {
@@ -279,7 +332,9 @@ impl Engine {
 
     /// Tempo of the DAW's MIDI clock when it runs, else the profile's.
     fn bpm(&self, now: Instant) -> f32 {
-        self.clock.bpm(now).unwrap_or(self.profile.repeat.bpm)
+        self.clock.bpm(now).map_or(self.profile.repeat.bpm, |bpm| {
+            bpm.clamp(*BPM_RANGE.start(), *BPM_RANGE.end())
+        })
     }
 
     /// Time between two roll repeats.
@@ -719,6 +774,17 @@ impl Engine {
                 }
             }
             _ => {
+                // Only addresses some action follows: any sender could
+                // otherwise fill this table without limit.
+                let followed = self.profile.banks.iter().any(|bank| {
+                    bank.pads
+                        .values()
+                        .chain(bank.buttons.values())
+                        .any(|a| matches!(a, ButtonAction::Osc { address, .. } if *address == message.address))
+                });
+                if !followed {
+                    return out;
+                }
                 let on = first.is_some_and(OscArg::is_on);
                 if self.osc_follow.insert(message.address.clone(), on) != Some(on) {
                     let following: Vec<Control> = Control::all()
@@ -1349,6 +1415,12 @@ mod tests {
         let profile = e.profile.clone();
         e.reload(profile);
         assert!(e.refresh().contains(&padkontrol::led(Control::Pad(1), true)));
+
+        // Addresses no action uses are not kept.
+        for i in 0..100 {
+            e.osc_feedback(&osc_in(&format!("/noise/{i}"), vec![OscArg::Int(1)]), "/tk");
+        }
+        assert_eq!(e.osc_follow.len(), 1);
     }
 
     #[test]
@@ -1521,6 +1593,74 @@ mod tests {
         assert!((e.roll_interval(now).as_secs_f32() - 0.25).abs() < 0.01);
         // The clock stopped: back to the profile's tempo.
         assert_eq!(e.bpm(now + Duration::from_secs(1)), 120.0);
+    }
+
+    #[test]
+    fn release_all_ends_what_is_on() {
+        let json = r#"{ "version": 1, "name": "T", "banks": [{ "name": "A",
+                "pads": { "1": { "type": "note", "channel": 1, "note": 36 },
+                          "2": { "type": "cc", "channel": 2, "cc": 7, "mode": "toggle", "offValue": 5 },
+                          "3": { "type": "note", "channel": 1, "note": 38 },
+                          "4": { "type": "note", "channel": 1, "note": 40, "mode": "toggle" } },
+                "buttons": { "flam": { "type": "flam" } } }] }"#;
+        let mut e = engine_with(json);
+        let t0 = Instant::now();
+        e.handle_at(&pad(1, true, 100), t0);
+        e.handle_at(&pad(2, true, 100), t0);
+        e.handle_at(&pad(2, false, 0), t0);
+        // Toggled on then off again: nothing to end.
+        e.handle_at(&pad(4, true, 100), t0);
+        e.handle_at(&pad(4, false, 0), t0);
+        e.handle_at(&pad(4, true, 100), t0);
+        e.handle_at(&pad(4, false, 0), t0);
+        // A flam in flight: its grace note is on, its main note pending.
+        e.handle_at(&button(ButtonId::Flam, true), t0);
+        e.handle_at(&pad(3, true, 100), t0);
+
+        let mut daw = e.release_all().daw;
+        daw.sort();
+        assert_eq!(
+            daw,
+            vec![
+                vec![0x80, 36, 0],
+                vec![0x80, 38, 0],
+                vec![0x80, 38, 0],
+                vec![0xB1, 7, 5]
+            ],
+            "held note, the flam's grace note (pad 3 is held too) and the toggled CC"
+        );
+        assert!(
+            e.tick(t0 + Duration::from_secs(1)).daw.is_empty(),
+            "the main flam note never starts"
+        );
+        assert!(e.handle(&pad(1, false, 0)).daw.is_empty(), "already released");
+        assert!(e.release_all().daw.is_empty());
+
+        // Reloading ends the notes too.
+        e.handle(&button(ButtonId::Flam, true));
+        e.handle(&pad(1, true, 100));
+        assert_eq!(e.reload(parse_profile(json).unwrap()).daw, vec![vec![0x80, 36, 0]]);
+    }
+
+    #[test]
+    fn clock_bursts_do_not_break_the_tempo() {
+        let mut e = engine_with(r#"{ "version": 1, "name": "T", "banks": [{ "name": "A" }] }"#);
+        let t0 = Instant::now();
+        // Two pulses at once, then a steady 120 BPM (20.8 ms per pulse).
+        e.feedback_at(&[MIDI_CLOCK], t0);
+        e.feedback_at(&[MIDI_CLOCK], t0);
+        let pulse = Duration::from_secs_f64(60.0 / 120.0 / 24.0);
+        for i in 1..48 {
+            e.feedback_at(&[MIDI_CLOCK], t0 + pulse * i);
+        }
+        let now = t0 + pulse * 47;
+        assert!((e.bpm(now) - 120.0).abs() < 1.0, "{}", e.bpm(now));
+        // A clock far too fast is held to the supported range.
+        let mut e = engine_with(r#"{ "version": 1, "name": "T", "banks": [{ "name": "A" }] }"#);
+        for i in 0..48 {
+            e.feedback_at(&[MIDI_CLOCK], t0 + Duration::from_millis(2) * i);
+        }
+        assert_eq!(e.bpm(t0 + Duration::from_millis(94)), 300.0);
     }
 
     #[test]

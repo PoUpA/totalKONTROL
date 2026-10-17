@@ -161,7 +161,6 @@ fn delete_profile(connection: State<PadConnection>, store: State<ProfileStore>, 
 pub fn run() {
     i18n::init_from_system();
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
         .manage(PadConnection::default())
         .setup(|app| {
             let dir = app.path().app_config_dir()?.join("profiles");

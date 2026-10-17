@@ -46,6 +46,7 @@
   "connection.oscMirror": "Mirror: send every control to {prefix}/pad/3, {prefix}/knob/1…",
   "connection.oscListen": "Listen for OSC on port",
   "connection.oscListenPort": "OSC listening port",
+  "connection.oscListenNetwork": "Accept OSC from other devices on the network (a tablet, another computer)",
   "connection.oscListenHint": "{prefix}/led/pad/3 1, {prefix}/led/button/hold 0, {prefix}/display \"ABC\", {prefix}/bank 1. Any other address drives the “Driven by the DAW” LEDs of the OSC actions sending to it. Needs an active profile.",
   "controls.title": "Live controls",
   "controls.seen_one": "{count} / {total} control seen",

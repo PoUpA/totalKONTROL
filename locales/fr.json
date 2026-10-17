@@ -46,6 +46,7 @@
   "connection.oscMirror": "Miroir : envoie chaque contrôle à {prefix}/pad/3, {prefix}/knob/1…",
   "connection.oscListen": "Écouter l'OSC sur le port",
   "connection.oscListenPort": "Port d'écoute OSC",
+  "connection.oscListenNetwork": "Accepter l'OSC des autres appareils du réseau (une tablette, un autre ordinateur)",
   "connection.oscListenHint": "{prefix}/led/pad/3 1, {prefix}/led/button/hold 0, {prefix}/display \"ABC\", {prefix}/bank 1. Toute autre adresse pilote les LEDs « Pilotée par le DAW » des actions OSC qui y envoient. Demande un profil actif.",
   "controls.title": "Contrôles en direct",
   "controls.seen_one": "{count} / {total} contrôle vu",

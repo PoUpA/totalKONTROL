@@ -77,7 +77,7 @@ Turn on **OSC output** in the connection card and set the host, port and address
   - `<prefix>/encoder <step> [<position>]`
   - `<prefix>/bank <index>`
 - **`osc` actions** in profiles: pads and buttons send an address with arguments on press (`$velocity` stands for the velocity of the hit) and, optionally, other arguments on release; knobs send a value scaled to a range, as an integer or a float; the XY pad sends x and y; the encoder sends its step (relative) or its position (absolute).
-- **Input**: turn on **Listen for OSC on port** (9001 by default) to drive the padKONTROL from your software. It needs an active profile in native mode:
+- **Input**: turn on **Listen for OSC on port** (9001 by default) to drive the padKONTROL from your software. The app only accepts OSC from the same computer unless **Accept OSC from other devices on the network** is on, for a tablet for instance. It needs an active profile in native mode:
   - `<prefix>/led/pad/3 1|0` and `<prefix>/led/button/hold 1|0` set an LED until the next bank change;
   - `<prefix>/display "ABC"` writes on the display;
   - `<prefix>/bank 2` switches bank;

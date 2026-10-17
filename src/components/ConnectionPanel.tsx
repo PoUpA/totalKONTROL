@@ -47,6 +47,7 @@ const DEFAULT_OSC: OscSettings = {
   mirror: true,
   listen: false,
   listenPort: 9001,
+  listenNetwork: false,
 };
 
 function loadSelection(): Partial<Selection> {
@@ -220,6 +221,7 @@ function ConnectionPanelView({
               prefix: osc.prefix,
               mirror: osc.mirror,
               listenPort: osc.listen ? osc.listenPort : null,
+              listenNetwork: osc.listenNetwork,
             }
           : null,
       },
@@ -407,7 +409,18 @@ function ConnectionPanelView({
                 />
               </div>
               {osc.listen && (
-                <p className="muted hint">{t("connection.oscListenHint", { prefix: osc.prefix || "/" })}</p>
+                <>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={osc.listenNetwork}
+                      onChange={(e) => editOsc({ listenNetwork: e.target.checked })}
+                      disabled={connected}
+                    />
+                    {t("connection.oscListenNetwork")}
+                  </label>
+                  <p className="muted hint">{t("connection.oscListenHint", { prefix: osc.prefix || "/" })}</p>
+                </>
               )}
             </>
           )}

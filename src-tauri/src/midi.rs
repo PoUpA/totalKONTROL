@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::config::{Profile, ProfileStore};
-use crate::engine::{Engine, EngineState};
+use crate::engine::{Engine, EngineState, Output};
 use crate::keys::{self, KeyEvent};
 use crate::osc::{self, OscMessage, OscSender};
 use crate::padkontrol::{self, ControlEvent};
@@ -264,6 +264,9 @@ pub struct OscOptions {
     /// UDP port to listen on for LED, display and bank messages.
     #[serde(default)]
     pub listen_port: Option<u16>,
+    /// Accept OSC from other devices (a tablet…), not only from this computer.
+    #[serde(default)]
+    pub listen_network: bool,
 }
 
 /// OSC side of a connection.
@@ -372,6 +375,13 @@ impl Shared {
         }
     }
 
+    /// Sends what an engine releases before it goes, without the monitor.
+    fn send_released(&mut self, out: &Output) {
+        self.send_daw(&out.daw);
+        self.send_osc(&out.osc, None, None, None);
+        keys::send(&out.keys);
+    }
+
     /// Sends to the DAW and returns the messages for the monitor.
     fn send_daw(&mut self, messages: &[Vec<u8>]) -> Vec<MidiMessage> {
         let Some(out) = self.daw_out.as_mut() else {
@@ -394,8 +404,13 @@ struct Connection {
 
 impl Connection {
     fn close(self) {
-        keys::release_all();
         let mut shared = self.shared.lock().unwrap();
+        // Notes left on would keep sounding in the DAW.
+        if let Some(mut engine) = shared.engine.take() {
+            let released = engine.release_all();
+            shared.send_released(&released);
+        }
+        keys::release_all();
         if self.info.native_mode {
             // Without this message the padKONTROL stays silent until it is power-cycled.
             shared.send_pad(&[padkontrol::exit_native_mode()]);
@@ -536,9 +551,13 @@ impl PadConnection {
         let osc_listener = match &options.osc {
             Some(OscOptions {
                 listen_port: Some(port),
+                listen_network,
                 prefix,
                 ..
-            }) => Some((bind_osc_listener(*port)?, osc::normalize_prefix(prefix))),
+            }) => Some((
+                bind_osc_listener(*port, *listen_network)?,
+                osc::normalize_prefix(prefix),
+            )),
             _ => None,
         };
         let osc_listen = osc_listener
@@ -633,10 +652,15 @@ impl PadConnection {
         // Keys held by the previous actions would stay down.
         keys::release_all();
         self.with_engine(|shared| {
-            match shared.engine.as_mut() {
+            let released = match shared.engine.as_mut() {
                 Some(engine) if engine.file() == file => engine.reload(profile),
-                _ => shared.engine = Some(Engine::new(profile).with_file(file)),
-            }
+                _ => {
+                    let released = shared.engine.as_mut().map(Engine::release_all).unwrap_or_default();
+                    shared.engine = Some(Engine::new(profile).with_file(file));
+                    released
+                }
+            };
+            shared.send_released(&released);
             let engine = shared.engine.as_mut().expect("engine set just above");
             let state = engine.state();
             let refresh = engine.refresh();
@@ -726,12 +750,15 @@ fn spawn_engine_ticker(app: AppHandle, shared: std::sync::Weak<Mutex<Shared>>) {
 /// How often the OSC listener checks that its connection is still there.
 const OSC_LISTEN_POLL: std::time::Duration = std::time::Duration::from_millis(100);
 
-fn bind_osc_listener(port: u16) -> Result<std::net::UdpSocket, String> {
+/// Listens on this computer only unless `network`: anyone on the network
+/// could otherwise drive the LEDs, the display and the banks.
+fn bind_osc_listener(port: u16, network: bool) -> Result<std::net::UdpSocket, String> {
+    let host = if network { "0.0.0.0" } else { "127.0.0.1" };
     // On a quick reconnect, the previous listener can hold the port for one
     // more poll before it notices and stops.
     let mut attempt = 0;
     let socket = loop {
-        match std::net::UdpSocket::bind(("0.0.0.0", port)) {
+        match std::net::UdpSocket::bind((host, port)) {
             Ok(socket) => break socket,
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse && attempt < 5 => {
                 attempt += 1;
@@ -998,7 +1025,7 @@ mod tests {
 
     #[test]
     fn osc_listener_receives_and_frees_its_port() {
-        let socket = bind_osc_listener(0).unwrap();
+        let socket = bind_osc_listener(0, false).unwrap();
         let port = socket.local_addr().unwrap().port();
         let sender = OscSender::open("127.0.0.1", port).unwrap();
         assert!(sender.send(&OscMessage::new("/tk/bank", vec![osc::OscArg::Int(1)])));
@@ -1007,9 +1034,9 @@ mod tests {
         assert_eq!(osc::decode(&buffer[..size])[0].describe(), "/tk/bank 1");
 
         // A second listener on a taken port reports it.
-        assert!(bind_osc_listener(port).is_err());
+        assert!(bind_osc_listener(port, false).is_err());
         drop(socket);
-        assert!(bind_osc_listener(port).is_ok());
+        assert!(bind_osc_listener(port, false).is_ok());
     }
 
     /// Diagnostic tool: `cargo test print_ports -- --ignored --nocapture`.

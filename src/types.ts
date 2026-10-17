@@ -35,6 +35,8 @@ export type OscOptions = {
   mirror: boolean;
   /** UDP port to listen on for LED, display and bank messages. */
   listenPort: number | null;
+  /** Accept OSC from other devices on the network, not only from this computer. */
+  listenNetwork: boolean;
 };
 
 export type ConnectionInfo = {

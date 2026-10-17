@@ -289,13 +289,24 @@ fn to_ump(message: &[u8]) -> Option<u32> {
     Some(0x2000_0000 | (status as u32) << 16 | data(1) << 8 | second)
 }
 
-/// Type 2 UMP → MIDI 1.0 message. Other types are ignored.
+/// Type 1 (system: clock, start, stop…) or type 2 (channel voice) UMP →
+/// MIDI 1.0 message. Other types are ignored.
 fn from_ump(word: u32) -> Option<Vec<u8>> {
-    if word >> 28 != 0x2 {
-        return None;
-    }
     let status = (word >> 16) as u8;
-    let mut message = vec![status, (word >> 8) as u8 & 0x7F, word as u8 & 0x7F];
+    let (data1, data2) = ((word >> 8) as u8 & 0x7F, word as u8 & 0x7F);
+    match word >> 28 {
+        0x1 => {
+            return match status {
+                0xF1 | 0xF3 => Some(vec![status, data1]),
+                0xF2 => Some(vec![status, data1, data2]),
+                0xF6 | 0xF8..=0xFF => Some(vec![status]),
+                _ => None,
+            };
+        }
+        0x2 => {}
+        _ => return None,
+    }
+    let mut message = vec![status, data1, data2];
     if matches!(status & 0xF0, 0xC0 | 0xD0) {
         message.truncate(2);
     }
@@ -330,5 +341,11 @@ mod tests {
         assert_eq!(from_ump(0x20C2_0500), Some(vec![0xC2, 5]));
         assert_eq!(from_ump(0x4090_3000), None);
         assert_eq!(from_ump(0xF000_0000), None);
+
+        // System messages: clock, start, song position.
+        assert_eq!(from_ump(0x10F8_0000), Some(vec![0xF8]));
+        assert_eq!(from_ump(0x10FA_0000), Some(vec![0xFA]));
+        assert_eq!(from_ump(0x10F2_1020), Some(vec![0xF2, 0x10, 0x20]));
+        assert_eq!(from_ump(0x10F4_0000), None);
     }
 }

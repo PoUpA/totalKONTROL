@@ -25,6 +25,9 @@ const MAX_MESSAGES = 300;
 // them once per screen frame, so it stays smooth; the monitor, a long table,
 // only refreshes a few times per second.
 const MONITOR_INTERVAL_MS = 100;
+// Screen frames stop while the window is hidden in the tray: past this many
+// waiting events, the live view takes them at once rather than piling them up.
+const MAX_PENDING_CONTROLS = 500;
 
 /** Without a profile, the live view counts like a relative encoder: -99 to 999. */
 const clampCounter = (value: number) => Math.min(999, Math.max(-99, value));
@@ -137,23 +140,34 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const applyControls = () => {
+      const batch = pendingControls.current;
+      if (batch.length === 0) return;
+      pendingControls.current = [];
+      setControls((state) =>
+        batch.reduce((s, m) => (m.event ? applyEvent(s, m.event, m.encoderPosition) : s), {
+          ...state,
+          seen: new Set(state.seen),
+        }),
+      );
+    };
+
     const unlisten = listen<MidiMessage>("midi-message", (e) => {
-      if (e.payload.event) pendingControls.current.push(e.payload);
-      if (!pausedRef.current) pendingMonitor.current.push({ ...e.payload, id: nextId.current++ });
+      if (e.payload.event) {
+        pendingControls.current.push(e.payload);
+        if (pendingControls.current.length >= MAX_PENDING_CONTROLS) applyControls();
+      }
+      if (!pausedRef.current) {
+        const pending = pendingMonitor.current;
+        pending.push({ ...e.payload, id: nextId.current++ });
+        // The monitor only shows the latest messages.
+        if (pending.length > MAX_MESSAGES) pending.splice(0, pending.length - MAX_MESSAGES);
+      }
     });
 
     let frame = 0;
     const flushControls = () => {
-      const batch = pendingControls.current;
-      if (batch.length > 0) {
-        pendingControls.current = [];
-        setControls((state) =>
-          batch.reduce((s, m) => (m.event ? applyEvent(s, m.event, m.encoderPosition) : s), {
-            ...state,
-            seen: new Set(state.seen),
-          }),
-        );
-      }
+      applyControls();
       frame = requestAnimationFrame(flushControls);
     };
     frame = requestAnimationFrame(flushControls);

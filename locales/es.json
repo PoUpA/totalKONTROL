@@ -46,6 +46,7 @@
   "connection.oscMirror": "Espejo: envía cada control a {prefix}/pad/3, {prefix}/knob/1…",
   "connection.oscListen": "Escuchar OSC en el puerto",
   "connection.oscListenPort": "Puerto de escucha OSC",
+  "connection.oscListenNetwork": "Aceptar OSC de otros dispositivos de la red (una tableta, otro ordenador)",
   "connection.oscListenHint": "{prefix}/led/pad/3 1, {prefix}/led/button/hold 0, {prefix}/display \"ABC\", {prefix}/bank 1. Cualquier otra dirección controla los LED «Controlado por el DAW» de las acciones OSC que envían a ella. Requiere un perfil activo.",
   "controls.title": "Controles en vivo",
   "controls.seen_one": "{count} / {total} control visto",

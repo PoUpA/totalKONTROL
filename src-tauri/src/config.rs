@@ -802,6 +802,18 @@ impl Validator {
     }
 }
 
+/// Writes next to the file, then swaps it in: a crash midway leaves the
+/// previous version intact. The temporary name is not listed as a profile.
+fn write_atomically(path: &Path, contents: &str) -> std::io::Result<()> {
+    let mut temporary = path.as_os_str().to_owned();
+    temporary.push(".tmp");
+    let temporary = PathBuf::from(temporary);
+    fs::write(&temporary, contents)?;
+    fs::rename(&temporary, path).inspect_err(|_| {
+        let _ = fs::remove_file(&temporary);
+    })
+}
+
 /// Summary of a profile file, for the list shown in the UI.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -904,7 +916,7 @@ impl ProfileStore {
     pub fn save(&self, file: &str, profile: Profile) -> Result<(), Vec<String>> {
         let path = self.resolve(file).map_err(|e| vec![e])?;
         let json = to_saved_json(checked(profile)?).map_err(|e| vec![e.to_string()])?;
-        fs::write(&path, json).map_err(|e| vec![format!("{file} : {e}")])
+        write_atomically(&path, &json).map_err(|e| vec![format!("{file} : {e}")])
     }
 
     /// Creates an empty profile with one bank and returns its file name.
@@ -1345,6 +1357,9 @@ mod tests {
         );
         store.save(&file, profile.clone()).unwrap();
         assert_eq!(store.load(&file).unwrap().banks[0].pads.len(), 1);
+        // Saving again replaces the file and leaves no temporary file behind.
+        store.save(&file, profile.clone()).unwrap();
+        assert!(!store.dir.join(format!("{file}.tmp")).exists());
 
         // An invalid profile is refused and the file is left untouched.
         let mut broken = profile.clone();
