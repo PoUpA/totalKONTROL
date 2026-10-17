@@ -199,6 +199,7 @@
   "core.connection.nativeModeSendFailed": "no se pudo enviar el modo nativo: {error}",
   "core.connection.noActiveProfile": "ningún perfil activo",
   "core.connection.notConnected": "sin conexión",
+  "core.connection.shuttingDown": "La aplicación se está cerrando",
   "core.connection.engineNeedsNativeMode": "el motor necesita el modo nativo",
   "core.connection.feedbackLoop": "el puerto de retorno debe ser distinto del puerto hacia el DAW; si no, los mensajes entran en bucle",
   "core.midi.serviceFrozen": "el servicio MIDI de Windows ya no responde: cierra las aplicaciones MIDI y el DAW, ejecuta scripts/restart-midisrv.ps1 como administrador y luego haz clic en Actualizar",

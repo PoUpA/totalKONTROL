@@ -67,27 +67,30 @@ async fn connect_pad(
         let profile = profile
             .map(|file| load(&app.state::<ProfileStore>(), &file).map(|profile| (file, profile)))
             .transpose()?;
-        app.state::<PadConnection>().connect(app.clone(), options, profile)
+        app.state::<PadConnection>().connect(&app, options, profile)
     })
     .await
 }
 
-#[tauri::command]
-fn disconnect_pad(connection: State<PadConnection>) {
-    connection.disconnect();
+// Commands touching the connection run on a thread pool, never on the main
+// thread: they can wait for a connection being opened or closed.
+
+#[tauri::command(async)]
+fn disconnect_pad(app: AppHandle, connection: State<PadConnection>) {
+    connection.disconnect(&app);
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn connection_status(connection: State<PadConnection>) -> midi::ConnectionState {
     connection.state()
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn engine_state(connection: State<PadConnection>) -> Option<EngineState> {
     connection.engine_state()
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn set_profile(
     connection: State<PadConnection>,
     store: State<ProfileStore>,
@@ -96,7 +99,7 @@ fn set_profile(
     connection.set_profile(&file, load(&store, &file)?)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn select_bank(connection: State<PadConnection>, bank: usize) -> Result<EngineState, String> {
     connection.select_bank(bank)
 }
@@ -124,7 +127,7 @@ fn validate_profile(profile: serde_json::Value) -> Vec<String> {
 
 /// Saves a profile. When it is the one running, the engine picks up the
 /// changes right away and the new engine state is returned.
-#[tauri::command]
+#[tauri::command(async)]
 fn save_profile(
     connection: State<PadConnection>,
     store: State<ProfileStore>,
@@ -149,12 +152,23 @@ fn duplicate_profile(store: State<ProfileStore>, file: String) -> Result<String,
     store.duplicate(&file)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn delete_profile(connection: State<PadConnection>, store: State<ProfileStore>, file: String) -> Result<(), String> {
     if connection.active_file().as_deref() == Some(file.as_str()) {
         return Err(t!("core.app.profileInUse"));
     }
     store.delete(&file)
+}
+
+/// Release builds abort on panic, skipping `RunEvent::Exit`: hands the
+/// padKONTROL back and ends the notes first, or the padKONTROL would stay
+/// silent until power-cycled and the DAW keep sounding.
+fn release_on_panic(app: AppHandle) {
+    let report = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        app.state::<PadConnection>().release_on_panic();
+        report(info);
+    }));
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -171,6 +185,7 @@ pub fn run() {
                 println!("{copied} profil(s) repris de {}", legacy.display());
             }
             app.manage(store);
+            release_on_panic(app.handle().clone());
             tray::setup(app.handle());
             midi::spawn_watchdog(app.handle().clone());
             Ok(())
@@ -199,7 +214,7 @@ pub fn run() {
         .run(|app, event| {
             // Returns the padKONTROL to its normal mode when the app closes.
             if let RunEvent::Exit = event {
-                app.state::<PadConnection>().disconnect();
+                app.state::<PadConnection>().shut_down(app);
             }
         });
 }

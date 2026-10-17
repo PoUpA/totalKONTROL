@@ -1,4 +1,5 @@
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, mpsc};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use midir::{Ignore, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
@@ -110,7 +111,8 @@ const HEARTBEAT_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(
 /// Watches the padKONTROL: when its input port disappears or, in native
 /// mode, it stops answering the heartbeat (unplugged), the connection is
 /// dropped and its settings kept; when it comes back, the app reconnects with
-/// them and reloads the profile.
+/// them and reloads the profile. Each decision is dropped if the user
+/// connected or disconnected in the meantime (see `PadConnection::generation`).
 pub fn spawn_watchdog(app: AppHandle) {
     std::thread::spawn(move || {
         let mut delay = WATCH_INTERVAL;
@@ -118,6 +120,7 @@ pub fn spawn_watchdog(app: AppHandle) {
             std::thread::sleep(delay);
             delay = WATCH_INTERVAL;
             let connection = app.state::<PadConnection>();
+            let generation = connection.generation();
             let Some(input) = connection.watched_input() else {
                 continue;
             };
@@ -126,27 +129,13 @@ pub fn spawn_watchdog(app: AppHandle) {
                 continue;
             };
             let present = names.contains(&input);
-            let connected = connection.info().is_some();
-            if connected && (!present || connection.responds() == Some(false)) {
-                connection.lose();
-                let _ = app.emit(CONNECTION_EVENT, connection.state());
-            } else if !connected && present && connection.waiting() {
-                std::thread::sleep(SETTLE_TIME);
-                let Some(remembered) = connection.remembered.lock().unwrap().clone() else {
-                    continue;
-                };
-                let profile = remembered
-                    .profile
-                    .and_then(|file| app.state::<ProfileStore>().load(&file).ok().map(|p| (file, p)));
-                // A failed attempt keeps waiting: the next round tries again.
-                if connection.connect(app.clone(), remembered.options, profile).is_ok() {
-                    // Ports still listed but nobody behind them.
-                    if connection.responds() == Some(false) {
-                        connection.lose();
-                    } else {
-                        let _ = app.emit(CONNECTION_EVENT, connection.state());
-                    }
+            if connection.info().is_some() {
+                if !present || connection.responds() == Some(false) {
+                    connection.lose_if(&app, &input, generation);
                 }
+            } else if present && connection.waiting() {
+                std::thread::sleep(SETTLE_TIME);
+                connection.reconnect_if(&app, generation);
             }
         }
     });
@@ -327,6 +316,68 @@ impl DawOutput {
     }
 }
 
+/// How long closing waits for an output to send what is queued.
+const CLOSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1);
+/// The same, when the app is going down after a panic.
+const PANIC_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(300);
+
+enum WriterCommand {
+    Send(Vec<u8>),
+    Flush(mpsc::Sender<()>),
+}
+
+/// Sends MIDI from its own thread. Callbacks and locks only queue messages:
+/// on Windows a SysEx message is sent synchronously and waits for the driver,
+/// which would otherwise hold up the inputs, the engine ticker and the
+/// heartbeat. The port closes when the writer is closed or dropped.
+struct Writer {
+    tx: mpsc::Sender<WriterCommand>,
+    closed: mpsc::Receiver<()>,
+}
+
+impl Writer {
+    fn spawn(mut send: impl FnMut(&[u8]) + Send + 'static) -> Self {
+        let (tx, rx) = mpsc::channel();
+        let (closed_tx, closed) = mpsc::channel();
+        std::thread::spawn(move || {
+            for command in rx {
+                match command {
+                    WriterCommand::Send(message) => send(&message),
+                    WriterCommand::Flush(done) => {
+                        let _ = done.send(());
+                    }
+                }
+            }
+            // Closes the port before telling.
+            drop(send);
+            let _ = closed_tx.send(());
+        });
+        Self { tx, closed }
+    }
+
+    fn send(&self, message: Vec<u8>) {
+        let _ = self.tx.send(WriterCommand::Send(message));
+    }
+
+    fn flush(&self, timeout: std::time::Duration) -> bool {
+        flush(&self.tx, timeout)
+    }
+
+    /// Sends what is queued and closes the port, waiting at most `timeout`:
+    /// a port reopened right after must be free.
+    fn close(self, timeout: std::time::Duration) {
+        let Writer { tx, closed } = self;
+        drop(tx);
+        let _ = closed.recv_timeout(timeout);
+    }
+}
+
+/// Waits until what was queued before has been sent, at most `timeout`.
+fn flush(tx: &mpsc::Sender<WriterCommand>, timeout: std::time::Duration) -> bool {
+    let (done, wait) = mpsc::channel();
+    tx.send(WriterCommand::Flush(done)).is_ok() && wait.recv_timeout(timeout).is_ok()
+}
+
 /// Where messages from the DAW come from. Dropping it stops listening.
 enum FeedbackInput {
     Midir(#[allow(dead_code)] MidiInputConnection<()>),
@@ -338,8 +389,8 @@ enum FeedbackInput {
 #[derive(Default)]
 struct Shared {
     engine: Option<Engine>,
-    pad_out: Option<MidiOutputConnection>,
-    daw_out: Option<DawOutput>,
+    pad_out: Option<Writer>,
+    daw_out: Option<Writer>,
     osc: Option<OscOutput>,
     /// Reporting setup acknowledgements received, for the heartbeat.
     acks: u32,
@@ -367,10 +418,10 @@ impl Shared {
             .collect()
     }
 
-    fn send_pad(&mut self, messages: &[Vec<u8>]) {
-        if let Some(out) = self.pad_out.as_mut() {
+    fn send_pad(&self, messages: &[Vec<u8>]) {
+        if let Some(out) = &self.pad_out {
             for message in messages {
-                let _ = out.send(message);
+                out.send(message.clone());
             }
         }
     }
@@ -382,15 +433,17 @@ impl Shared {
         keys::send(&out.keys);
     }
 
-    /// Sends to the DAW and returns the messages for the monitor.
-    fn send_daw(&mut self, messages: &[Vec<u8>]) -> Vec<MidiMessage> {
-        let Some(out) = self.daw_out.as_mut() else {
+    /// Queues for the DAW and returns the messages for the monitor.
+    fn send_daw(&self, messages: &[Vec<u8>]) -> Vec<MidiMessage> {
+        let Some(out) = &self.daw_out else {
             return vec![];
         };
         messages
             .iter()
-            .filter(|m| out.send(m))
-            .map(|m| MidiMessage::new(Direction::Out, m))
+            .map(|m| {
+                out.send(m.clone());
+                MidiMessage::new(Direction::Out, m)
+            })
             .collect()
     }
 }
@@ -404,16 +457,22 @@ struct Connection {
 
 impl Connection {
     fn close(self) {
-        let mut shared = self.shared.lock().unwrap();
-        // Notes left on would keep sounding in the DAW.
-        if let Some(mut engine) = shared.engine.take() {
-            let released = engine.release_all();
-            shared.send_released(&released);
-        }
+        let writers = {
+            let mut shared = self.shared.lock().unwrap();
+            // Notes left on would keep sounding in the DAW.
+            if let Some(mut engine) = shared.engine.take() {
+                let released = engine.release_all();
+                shared.send_released(&released);
+            }
+            if self.info.native_mode {
+                // Without this message the padKONTROL stays silent until it is power-cycled.
+                shared.send_pad(&[padkontrol::exit_native_mode()]);
+            }
+            [shared.pad_out.take(), shared.daw_out.take()]
+        };
         keys::release_all();
-        if self.info.native_mode {
-            // Without this message the padKONTROL stays silent until it is power-cycled.
-            shared.send_pad(&[padkontrol::exit_native_mode()]);
+        for writer in writers.into_iter().flatten() {
+            writer.close(CLOSE_TIMEOUT);
         }
     }
 }
@@ -432,7 +491,18 @@ pub struct PadConnection {
     /// Settings of the last connection, until the user disconnects.
     remembered: Mutex<Option<Remembered>>,
     /// The padKONTROL went away: reconnect as soon as it is back.
-    waiting: std::sync::atomic::AtomicBool,
+    waiting: AtomicBool,
+    /// Held while connecting, disconnecting or dropping a lost connection, so
+    /// that the user and the watchdog never interleave them.
+    operations: Mutex<()>,
+    /// Bumped by each of them: the watchdog gives up a decision it took
+    /// before, such as reconnecting after the user said to stop waiting.
+    generation: AtomicU64,
+    /// The app is closing: nothing connects any more.
+    shutting_down: AtomicBool,
+    /// Queue of the padKONTROL output, reachable without the other locks, so
+    /// that a panic can still hand the padKONTROL back.
+    emergency: Mutex<Option<mpsc::Sender<WriterCommand>>>,
 }
 
 /// Sent to the UI whenever the connection is lost or comes back by itself.
@@ -448,7 +518,17 @@ pub const CONNECTION_EVENT: &str = "connection-state";
 
 impl PadConnection {
     pub fn waiting(&self) -> bool {
-        self.waiting.load(std::sync::atomic::Ordering::Relaxed)
+        self.waiting.load(Ordering::SeqCst)
+    }
+
+    fn generation(&self) -> u64 {
+        self.generation.load(Ordering::SeqCst)
+    }
+
+    /// Records a change of connection and tells the UI.
+    fn changed(&self, app: &AppHandle) {
+        self.generation.fetch_add(1, Ordering::SeqCst);
+        let _ = app.emit(CONNECTION_EVENT, self.state());
     }
 
     pub fn state(&self) -> ConnectionState {
@@ -489,7 +569,7 @@ impl PadConnection {
         // Two tries, so that one lost message does not drop the connection.
         for _ in 0..2 {
             let before = {
-                let mut shared = shared.lock().unwrap();
+                let shared = shared.lock().unwrap();
                 shared.send_pad(&[padkontrol::report_all_controls()]);
                 shared.acks
             };
@@ -504,10 +584,49 @@ impl PadConnection {
         Some(false)
     }
 
-    /// The padKONTROL went away: drop the connection, keep its settings.
-    fn lose(&self) {
+    /// Watchdog: the padKONTROL on `input` went away. Drops the connection
+    /// and keeps its settings, unless the connection changed since the
+    /// watchdog looked (`generation`).
+    fn lose_if(&self, app: &AppHandle, input: &str, generation: u64) {
+        let _operation = self.operations.lock().unwrap();
+        if self.generation() != generation || self.info().is_none_or(|info| info.input != input) {
+            return;
+        }
         self.close_current();
-        self.waiting.store(true, std::sync::atomic::Ordering::Relaxed);
+        let remembered = self.remembered.lock().unwrap().is_some();
+        self.waiting.store(remembered, Ordering::SeqCst);
+        self.changed(app);
+    }
+
+    /// Watchdog: the padKONTROL waited for is back. Reconnects with the
+    /// remembered settings, unless the user connected, disconnected or
+    /// stopped waiting since the watchdog looked (`generation`).
+    fn reconnect_if(&self, app: &AppHandle, generation: u64) {
+        let _operation = self.operations.lock().unwrap();
+        if self.generation() != generation
+            || self.shutting_down.load(Ordering::SeqCst)
+            || !self.waiting()
+            || self.info().is_some()
+        {
+            return;
+        }
+        let Some(remembered) = self.remembered.lock().unwrap().clone() else {
+            return;
+        };
+        let profile = remembered
+            .profile
+            .and_then(|file| app.state::<ProfileStore>().load(&file).ok().map(|p| (file, p)));
+        // A failed attempt keeps waiting: the next round tries again.
+        if self.connect_locked(app, remembered.options, profile).is_err() {
+            return;
+        }
+        // Ports still listed but nobody behind them.
+        if self.responds() == Some(false) {
+            self.close_current();
+            self.waiting.store(true, Ordering::SeqCst);
+            return;
+        }
+        self.changed(app);
     }
 
     pub fn info(&self) -> Option<ConnectionInfo> {
@@ -520,9 +639,30 @@ impl PadConnection {
         shared.engine.as_ref().map(Engine::state)
     }
 
+    /// Connects on the user's request. Tells the UI even when the command
+    /// that asked has given up waiting (frozen MIDI service).
     pub fn connect(
         &self,
-        app: AppHandle,
+        app: &AppHandle,
+        options: ConnectOptions,
+        profile: Option<(String, Profile)>,
+    ) -> Result<ConnectionInfo, String> {
+        let _operation = self.operations.lock().unwrap();
+        if self.shutting_down.load(Ordering::SeqCst) {
+            return Err(t!("core.connection.shuttingDown"));
+        }
+        let result = self.connect_locked(app, options, profile);
+        if result.is_ok() {
+            self.changed(app);
+        }
+        result
+    }
+
+    /// Opens everything and replaces the current connection. The caller holds
+    /// `operations`.
+    fn connect_locked(
+        &self,
+        app: &AppHandle,
         options: ConnectOptions,
         profile: Option<(String, Profile)>,
     ) -> Result<ConnectionInfo, String> {
@@ -540,8 +680,11 @@ impl PadConnection {
         let mut pad_out = options.output.as_deref().map(open_output).transpose()?;
         let (daw_out, daw_name) = match &options.daw_output {
             Some(choice) => {
-                let (output, name) = open_daw_output(choice)?;
-                (Some(output), Some(name))
+                let (mut output, name) = open_daw_output(choice)?;
+                let writer = Writer::spawn(move |message| {
+                    output.send(message);
+                });
+                (Some(writer), Some(name))
             }
             None => (None, None),
         };
@@ -595,6 +738,13 @@ impl PadConnection {
         if let Some(engine) = &engine {
             let _ = app.emit(ENGINE_EVENT, Some(engine.state()));
         }
+        // From here on, the padKONTROL output only sends from its writer.
+        let pad_out = pad_out.map(|mut out| {
+            Writer::spawn(move |message| {
+                let _ = out.send(message);
+            })
+        });
+        let emergency = pad_out.as_ref().filter(|_| options.native_mode).map(|w| w.tx.clone());
         *shared.lock().unwrap() = Shared {
             engine,
             pad_out,
@@ -625,21 +775,59 @@ impl PadConnection {
             shared,
             info: info.clone(),
         });
+        *self.emergency.lock().unwrap() = emergency;
         *self.remembered.lock().unwrap() = Some(remembered);
-        self.waiting.store(false, std::sync::atomic::Ordering::Relaxed);
+        self.waiting.store(false, Ordering::SeqCst);
         Ok(info)
     }
 
     /// Disconnects on the user's request: nothing reconnects by itself.
-    pub fn disconnect(&self) {
+    pub fn disconnect(&self, app: &AppHandle) {
+        let _operation = self.operations.lock().unwrap();
         self.close_current();
         *self.remembered.lock().unwrap() = None;
-        self.waiting.store(false, std::sync::atomic::Ordering::Relaxed);
+        self.waiting.store(false, Ordering::SeqCst);
+        self.changed(app);
+    }
+
+    /// The app is closing: hands the padKONTROL back, and nothing connects
+    /// again, not even a reconnection already under way.
+    pub fn shut_down(&self, app: &AppHandle) {
+        self.shutting_down.store(true, Ordering::SeqCst);
+        self.disconnect(app);
     }
 
     fn close_current(&self) {
-        if let Some(connection) = self.current.lock().unwrap().take() {
+        // The writer only closes once every queue to it is gone.
+        self.emergency.lock().unwrap().take();
+        let connection = self.current.lock().unwrap().take();
+        if let Some(connection) = connection {
             connection.close();
+        }
+    }
+
+    /// Last resort while the app goes down after a panic: ends the notes and
+    /// hands the padKONTROL back, without waiting on a lock another thread
+    /// may hold.
+    pub fn release_on_panic(&self) {
+        if let Ok(current) = self.current.try_lock()
+            && let Some(connection) = current.as_ref()
+            && let Ok(mut shared) = connection.shared.try_lock()
+        {
+            if let Some(engine) = shared.engine.as_mut() {
+                let released = engine.release_all();
+                shared.send_daw(&released.daw);
+            }
+            if let Some(daw) = &shared.daw_out {
+                daw.flush(PANIC_TIMEOUT);
+            }
+        }
+        keys::release_all();
+        if let Ok(emergency) = self.emergency.try_lock()
+            && let Some(tx) = emergency.as_ref()
+        {
+            let _ = tx.send(WriterCommand::Send(padkontrol::exit_native_mode()));
+            flush(tx, PANIC_TIMEOUT);
         }
     }
 
@@ -1021,6 +1209,49 @@ mod tests {
         assert!(check_no_loop(&options(port("totalKONTROL"), port("totalKONTROL feedback"))).is_ok());
         assert!(check_no_loop(&options(Some(PortChoice::Virtual), Some(PortChoice::Virtual))).is_ok());
         assert!(check_no_loop(&options(None, port("x"))).is_ok());
+    }
+
+    #[test]
+    fn writer_sends_in_order_and_closes_its_port() {
+        let sent = Arc::new(Mutex::new(Vec::new()));
+        let port_open = Arc::new(AtomicBool::new(true));
+        struct Port(Arc<AtomicBool>);
+        impl Drop for Port {
+            fn drop(&mut self) {
+                // A slow driver closing the port.
+                std::thread::sleep(std::time::Duration::from_millis(50));
+                self.0.store(false, Ordering::SeqCst);
+            }
+        }
+        let port = Port(port_open.clone());
+        let log = sent.clone();
+        let writer = Writer::spawn(move |message| {
+            let _keep = &port;
+            std::thread::sleep(std::time::Duration::from_millis(5));
+            log.lock().unwrap().push(message.to_vec());
+        });
+        for i in 0..10u8 {
+            writer.send(vec![0x90, i, 100]);
+        }
+        assert!(writer.flush(std::time::Duration::from_secs(2)));
+        let sent_now: Vec<u8> = sent.lock().unwrap().iter().map(|m| m[1]).collect();
+        assert_eq!(
+            sent_now,
+            (0..10).collect::<Vec<u8>>(),
+            "everything queued before the flush, in order"
+        );
+
+        writer.send(vec![0x80, 0, 0]);
+        writer.close(std::time::Duration::from_secs(2));
+        assert_eq!(sent.lock().unwrap().len(), 11, "closing sends what is queued");
+        assert!(!port_open.load(Ordering::SeqCst), "and waits for the port to close");
+    }
+
+    #[test]
+    fn writer_flush_gives_up_on_a_stalled_output() {
+        let writer = Writer::spawn(|_| std::thread::sleep(std::time::Duration::from_millis(500)));
+        writer.send(vec![0xF0, 0xF7]);
+        assert!(!writer.flush(std::time::Duration::from_millis(50)));
     }
 
     #[test]
