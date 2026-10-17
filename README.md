@@ -156,7 +156,7 @@ git push origin v0.1.0
 - `docs`: [SysEx messages captured from the padKONTROL](docs/padkontrol-sysex.txt) and [notes on Windows MIDI Services](docs/windows-midi-services.md)
 - `tools`: the OSC LED demo
 
-The original Qt/C++ version of totalKONTROL lives on the `master` branch.
+The original Qt/C++ version of totalKONTROL is in the history, up to commit [`741dd18`](https://github.com/PoUpA/totalKONTROL/tree/741dd18e654c117ccad21254f3954ae552e8bd19).
 
 ## License
 
