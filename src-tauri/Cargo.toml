@@ -1,7 +1,7 @@
 [package]
 name = "totalkontrol"
-version = "0.1.1"
-description = "Contrôle complet du Korg padKONTROL"
+version = "0.1.2"
+description = "Full control of the Korg padKONTROL"
 authors = ["PoUpA"]
 license = "MIT"
 repository = "https://github.com/PoUpA/totalKONTROL"
