@@ -501,7 +501,13 @@ input[type="checkbox"] {
 
 .profile-list {
   display: grid;
+  /* Lets long names, the input and the path shrink to the column. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+}
+
+.profile-list .path {
+  overflow-wrap: anywhere;
 }
 
 .profile-item {
@@ -528,6 +534,7 @@ input[type="checkbox"] {
 
 .new-profile input {
   flex: 1;
+  min-width: 0;
 }
 
 .editor-main {

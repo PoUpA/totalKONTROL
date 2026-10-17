@@ -4,6 +4,8 @@ Full control of the **Korg padKONTROL**, on Windows, macOS and Linux.
 
 totalKONTROL puts the padKONTROL in its native mode and takes over every control: the 16 pads, the 19 buttons, both knobs, the XY pad and the encoder. It turns them into MIDI for your DAW or OSC for any other software, switches between banks, and drives the LEDs and the 3-character display.
 
+![Live view: every control of the padKONTROL as it moves, and the MIDI monitor](docs/screenshot-control.png)
+
 ## Features
 
 - **Every control mapped**: notes, CCs, program changes, bank switches, OSC messages or keyboard shortcuts, per bank, in momentary or toggle mode.
@@ -58,6 +60,8 @@ A profile describes, bank by bank, what each control does:
 - **Velocity**: a `soft`, `linear` or `hard` curve, and the velocities sent for the softest and hardest hits (`velocity`). It shapes pad hits everywhere: notes, OSC `$velocity` and the display.
 - **Keyboard shortcuts**: a `key` action types a shortcut such as `ctrl+shift+s` into the app in front, on press, or keeps its keys down while the control is held (`hold`). On the encoder, it types one shortcut per step to the left and another to the right. Names are separated by `+`: `ctrl`, `shift`, `alt`, `meta` (Windows or Command key), a character, `plus`, `minus`, `space`, `enter`, `tab`, `esc`, `backspace`, `delete`, `home`, `end`, `pageup`, `pagedown`, the arrows `up`, `down`, `left`, `right`, `f1` to `f20`, `num0` to `num9`, and the media keys `volumeup`, `volumedown`, `mute`, `playpause`, `next`, `previous`. In the editor, **Record** captures a shortcut from the keyboard. On macOS, allow totalKONTROL in System Settings › Privacy & Security › Accessibility; on Linux, shortcuts need an X11 session.
 - **Roll and flam**: a `roll` action turns roll on or off: a held momentary pad repeats its note, at `repeat.roll` divisions of a whole note (16 for sixteenth notes). The tempo follows the MIDI clock when the DAW sends it to the feedback port, and `repeat.bpm` otherwise. A `flam` action turns flam on or off: each hit plays a softer grace note `repeat.flam` milliseconds before the note. While either is on, the X axis of the XY pad sets the speed or the gap (`repeat.xySpeed`). The default profile maps them to the ROLL and FLAM buttons.
+
+![Profile editor: banks, profile settings, the front panel and the form of the selected pad](docs/screenshot-profiles.png)
 
 Edit profiles in the **Profiles** tab, or by hand: they live in the app's config folder, under `profiles/`, next to a copy of the [JSON Schema](src-tauri/profiles/profile.schema.json), so an editor such as VS Code offers completion and flags errors. See the [default profile](src-tauri/profiles/default.json) for an example.
 
@@ -163,7 +167,7 @@ git push origin v0.1.0
 - `src`: the React UI
 - `locales`: the translations, one JSON file per language, shared by the UI and the Rust core (`core.*` keys). English is the reference; to add a language, copy `en.json`, translate it and register the language in `src/i18n/index.tsx` and `src-tauri/src/i18n.rs`. Tests check that every language has the same keys and placeholders.
 - `src-tauri/profiles`: the profile JSON Schema and the default profile
-- `docs`: [SysEx messages captured from the padKONTROL](docs/padkontrol-sysex.txt) and [notes on Windows MIDI Services](docs/windows-midi-services.md)
+- `docs`: [SysEx messages captured from the padKONTROL](docs/padkontrol-sysex.txt), [notes on Windows MIDI Services](docs/windows-midi-services.md) and the README screenshots
 - `tools`: the OSC LED demo
 
 The original Qt/C++ version of totalKONTROL is in the history, up to commit [`741dd18`](https://github.com/PoUpA/totalKONTROL/tree/741dd18e654c117ccad21254f3954ae552e8bd19).
