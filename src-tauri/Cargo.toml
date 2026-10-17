@@ -1,0 +1,68 @@
+[package]
+name = "totalkontrol"
+version = "0.1.0"
+description = "Contrôle complet du Korg padKONTROL"
+authors = ["PoUpA"]
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "totalkontrol_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+# Windows: the app creates its own virtual MIDI device through Windows MIDI
+# Services, instead of loopMIDI. Requires the Windows.Devices.Midi2 package in
+# vendor/windows-midi2 (see scripts/fetch-windows-midi.ps1).
+windows-midi-services = [
+    "dep:windows",
+    "dep:windows-core",
+    "dep:windows-collections",
+    "dep:windows-future",
+    "dep:windows-bindgen",
+]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+windows-bindgen = { version = "0.66", optional = true }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+midir = "0.10"
+sys-locale = "0.3.2"
+rosc = "0.11.4"
+
+[target.'cfg(windows)'.dependencies]
+windows-core = { version = "0.62", optional = true }
+windows-collections = { version = "0.3", optional = true }
+windows-future = { version = "0.3", optional = true }
+windows = { version = "0.62", optional = true, features = [
+    "Foundation",
+    "Foundation_Collections",
+    "Data_Json",
+    "Devices_Enumeration",
+    "Devices_Midi",
+    "Storage",
+    "Storage_Streams",
+    "Win32_Storage_FileSystem",
+    "Win32_System_WinRT",
+] }
+
+
+# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
+
+[dev-dependencies]
+jsonschema = "0.58.6"

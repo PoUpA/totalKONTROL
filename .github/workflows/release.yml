@@ -1,0 +1,92 @@
+name: Release
+
+# Builds the installers on Windows, macOS and Linux for each version tag
+# (v0.2.0, …) and attaches them to a draft GitHub release, to review and
+# publish by hand.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.os }}${{ matrix.variant && format(' ({0})', matrix.variant) || '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+          # Windows variant with the windows-midi-services feature: the app
+          # creates its own virtual MIDI device on a Windows with a fixed MIDI
+          # service, and falls back to loopMIDI otherwise. Its installers
+          # refuse to run before Windows 11 25H2 (license of the bundled
+          # Windows.Devices.Midi2.dll, see docs/windows-midi-services.md).
+          - os: windows-latest
+            variant: winmidi
+            args: --config src-tauri/tauri.windows-midi.conf.json --features windows-midi-services
+            assetNamePattern: "[name]_[version]_[arch]_winmidi[_setup][ext]"
+          - os: macos-latest
+          - os: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: System dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            libasound2-dev
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.variant }}
+
+      - name: npm ci
+        run: npm ci
+
+      # Windows.Devices.Midi2 NuGet package (about 103 MB, from Microsoft's
+      # GitHub releases), needed to build with the windows-midi-services feature.
+      - name: Windows MIDI Services package
+        if: matrix.variant == 'winmidi'
+        shell: pwsh
+        run: ./scripts/fetch-windows-midi.ps1
+
+      # The plain Windows installers are built without the
+      # windows-midi-services feature and rely on loopMIDI (see
+      # docs/windows-midi-services.md).
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: totalKONTROL ${{ github.ref_name }}
+          releaseBody: >-
+            See the README for setup. Installers are not code-signed yet.
+            The Windows installers marked winmidi need Windows 11 25H2 or later
+            and create their own virtual MIDI device once Windows ships the MIDI
+            service fix; the other Windows installers rely on loopMIDI.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+          assetNamePattern: ${{ matrix.assetNamePattern }}
+          includeUpdaterJson: ${{ matrix.variant != 'winmidi' }}

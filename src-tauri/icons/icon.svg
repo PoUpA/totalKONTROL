@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- totalKONTROL icon: the padKONTROL's 4x4 pad grid, with a few pads lit. -->
+  <rect x="32" y="32" width="960" height="960" rx="200" fill="#1f2226"/>
+  <g fill="#d9dce1">
+    <rect x="132" y="132" width="160" height="160" rx="28"/>
+    <rect x="332" y="132" width="160" height="160" rx="28"/>
+    <rect x="532" y="132" width="160" height="160" rx="28"/>
+    <rect x="732" y="132" width="160" height="160" rx="28"/>
+    <rect x="132" y="332" width="160" height="160" rx="28"/>
+    <rect x="532" y="332" width="160" height="160" rx="28"/>
+    <rect x="732" y="332" width="160" height="160" rx="28"/>
+    <rect x="132" y="532" width="160" height="160" rx="28"/>
+    <rect x="332" y="532" width="160" height="160" rx="28"/>
+    <rect x="732" y="532" width="160" height="160" rx="28"/>
+    <rect x="132" y="732" width="160" height="160" rx="28"/>
+    <rect x="332" y="732" width="160" height="160" rx="28"/>
+    <rect x="532" y="732" width="160" height="160" rx="28"/>
+  </g>
+  <g fill="#e8590c">
+    <rect x="332" y="332" width="160" height="160" rx="28"/>
+    <rect x="532" y="532" width="160" height="160" rx="28"/>
+    <rect x="732" y="732" width="160" height="160" rx="28"/>
+  </g>
+</svg>

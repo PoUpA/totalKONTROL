@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/PoUpA/totalKONTROL/profile.schema.json",
+  "title": "Profil totalKONTROL",
+  "description": "Mapping des contrôles du Korg padKONTROL vers des messages MIDI, organisé en banques.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "name", "banks"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": {
+      "description": "Version du format de profil.",
+      "const": 1
+    },
+    "name": {
+      "description": "Nom affiché du profil.",
+      "type": "string",
+      "minLength": 1
+    },
+    "ports": {
+      "description": "Ports MIDI à utiliser. Chaque valeur est un extrait du nom du port, sans tenir compte de la casse.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "input": { "type": "string", "description": "Port d'entrée du padKONTROL.", "default": "padKONTROL" },
+        "output": { "type": "string", "description": "Port de sortie vers le DAW.", "default": "totalKONTROL" }
+      }
+    },
+    "startBank": {
+      "description": "Index (à partir de 0) de la banque active au démarrage.",
+      "type": "integer",
+      "minimum": 0,
+      "default": 0
+    },
+    "display": {
+      "description": "Ce que montre l'afficheur à 3 caractères en plus de la banque active.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "knobs": { "description": "Montre la valeur envoyée quand un potentiomètre tourne.", "type": "boolean", "default": true },
+        "encoder": { "description": "Montre la valeur envoyée quand l'encodeur tourne.", "type": "boolean", "default": true },
+        "pads": {
+          "description": "Ce que montre une frappe sur un pad. none : rien. note : la note jouée. velocity : la vélocité.",
+          "enum": ["none", "note", "velocity"],
+          "default": "none"
+        },
+        "duration": {
+          "description": "Temps d'affichage d'une valeur avant le retour à la banque, en millisecondes.",
+          "type": "integer",
+          "minimum": 200,
+          "maximum": 10000,
+          "default": 1000
+        }
+      }
+    },
+    "banks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/bank" }
+    }
+  },
+  "$defs": {
+    "channel": { "description": "Canal MIDI, de 1 à 16.", "type": "integer", "minimum": 1, "maximum": 16 },
+    "midiValue": { "type": "integer", "minimum": 0, "maximum": 127 },
+    "velocity": { "description": "Vélocité fixe, de 1 à 127.", "type": "integer", "minimum": 1, "maximum": 127 },
+    "mode": {
+      "description": "momentary : actif tant que le contrôle est enfoncé. toggle : alterne à chaque appui.",
+      "enum": ["momentary", "toggle"],
+      "default": "momentary"
+    },
+    "led": {
+      "description": "Comportement de la LED. none : éteinte. press : allumée pendant l'appui. toggle : suit l'état du mode toggle. follow : pilotée par le message identique renvoyé par le DAW. Par défaut : press en mode momentary, toggle en mode toggle.",
+      "enum": ["none", "press", "toggle", "follow"]
+    },
+    "bank": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "display": {
+          "description": "Texte de l'afficheur pour cette banque, 3 caractères au plus. Par défaut : le début du nom.",
+          "type": "string",
+          "pattern": "^[ -~]{0,3}$"
+        },
+        "pads": {
+          "description": "Pads 1 à 16, numérotés de gauche à droite et de haut en bas.",
+          "type": "object",
+          "propertyNames": { "pattern": "^([1-9]|1[0-6])$" },
+          "additionalProperties": { "$ref": "#/$defs/padAction" }
+        },
+        "buttons": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/buttonId" },
+          "additionalProperties": { "$ref": "#/$defs/buttonAction" }
+        },
+        "knobs": {
+          "description": "Potentiomètres 1 et 2.",
+          "type": "object",
+          "propertyNames": { "enum": ["1", "2"] },
+          "additionalProperties": { "$ref": "#/$defs/knobAction" }
+        },
+        "xy": { "$ref": "#/$defs/xyAction" },
+        "xyTouch": {
+          "description": "Action quand un doigt se pose sur le pad XY (appui) puis le quitte (relâchement). Comme un bouton, sans LED.",
+          "$ref": "#/$defs/buttonAction"
+        },
+        "encoder": { "$ref": "#/$defs/encoderAction" }
+      }
+    },
+    "buttonId": {
+      "enum": [
+        "scene", "message", "setting", "noteCc", "midiCh", "swType", "relVal",
+        "velocity", "port", "fixedVelocity", "progChange", "x", "y",
+        "knob1Assign", "knob2Assign", "pedal", "roll", "flam", "hold"
+      ]
+    },
+    "noteAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "channel", "note"],
+      "properties": {
+        "type": { "const": "note" },
+        "channel": { "$ref": "#/$defs/channel" },
+        "note": { "$ref": "#/$defs/midiValue" },
+        "velocity": { "$ref": "#/$defs/velocity", "default": 127 },
+        "mode": { "$ref": "#/$defs/mode" },
+        "led": { "$ref": "#/$defs/led" }
+      }
+    },
+    "padNoteAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "channel", "note"],
+      "properties": {
+        "type": { "const": "note" },
+        "channel": { "$ref": "#/$defs/channel" },
+        "note": { "$ref": "#/$defs/midiValue" },
+        "velocity": {
+          "description": "\"pad\" : vélocité de la frappe sur le pad. Sinon, vélocité fixe.",
+          "oneOf": [{ "const": "pad" }, { "$ref": "#/$defs/velocity" }],
+          "default": "pad"
+        },
+        "mode": { "$ref": "#/$defs/mode" },
+        "led": { "$ref": "#/$defs/led" }
+      }
+    },
+    "ccButtonAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "channel", "cc"],
+      "properties": {
+        "type": { "const": "cc" },
+        "channel": { "$ref": "#/$defs/channel" },
+        "cc": { "$ref": "#/$defs/midiValue" },
+        "onValue": { "$ref": "#/$defs/midiValue", "default": 127 },
+        "offValue": { "$ref": "#/$defs/midiValue", "default": 0 },
+        "mode": { "$ref": "#/$defs/mode" },
+        "led": { "$ref": "#/$defs/led" }
+      }
+    },
+    "programChangeAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "channel", "program"],
+      "properties": {
+        "type": { "const": "programChange" },
+        "channel": { "$ref": "#/$defs/channel" },
+        "program": { "$ref": "#/$defs/midiValue" },
+        "led": { "$ref": "#/$defs/led" }
+      }
+    },
+    "switchBankAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "bank"],
+      "properties": {
+        "type": { "const": "switchBank" },
+        "bank": { "description": "Index (à partir de 0) de la banque cible.", "type": "integer", "minimum": 0 },
+        "momentary": {
+          "description": "true : revient à la banque précédente au relâchement.",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "padAction": {
+      "oneOf": [
+        { "$ref": "#/$defs/padNoteAction" },
+        { "$ref": "#/$defs/ccButtonAction" },
+        { "$ref": "#/$defs/programChangeAction" },
+        { "$ref": "#/$defs/switchBankAction" },
+        { "$ref": "#/$defs/oscButtonAction" }
+      ]
+    },
+    "buttonAction": {
+      "oneOf": [
+        { "$ref": "#/$defs/noteAction" },
+        { "$ref": "#/$defs/ccButtonAction" },
+        { "$ref": "#/$defs/programChangeAction" },
+        { "$ref": "#/$defs/switchBankAction" },
+        { "$ref": "#/$defs/oscButtonAction" }
+      ]
+    },
+    "oscAddress": {
+      "description": "Adresse OSC : commence par / et ne contient pas d'espace.",
+      "type": "string",
+      "pattern": "^/\\S*$"
+    },
+    "oscValue": {
+      "description": "Argument OSC : entier, décimal, booléen ou texte. Le texte \"$velocity\" est remplacé par la vélocité de la frappe (127 pour un bouton).",
+      "type": ["integer", "number", "boolean", "string"]
+    },
+    "oscButtonAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "address"],
+      "properties": {
+        "type": { "const": "osc" },
+        "address": { "$ref": "#/$defs/oscAddress" },
+        "args": {
+          "description": "Arguments envoyés à l'appui (ou quand la bascule s'allume).",
+          "type": "array",
+          "items": { "$ref": "#/$defs/oscValue" }
+        },
+        "releaseArgs": {
+          "description": "Arguments envoyés au relâchement (ou quand la bascule s'éteint). Sans ce champ, rien n'est envoyé.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/oscValue" }
+        },
+        "mode": { "$ref": "#/$defs/mode" },
+        "led": { "$ref": "#/$defs/led" }
+      }
+    },
+    "knobAction": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "channel", "cc"],
+          "properties": {
+            "type": { "const": "cc" },
+            "channel": { "$ref": "#/$defs/channel" },
+            "cc": { "$ref": "#/$defs/midiValue" },
+            "min": { "$ref": "#/$defs/midiValue", "default": 0 },
+            "max": { "$ref": "#/$defs/midiValue", "default": 127 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "address"],
+          "properties": {
+            "type": { "const": "osc" },
+            "address": { "$ref": "#/$defs/oscAddress" },
+            "min": { "description": "Valeur envoyée potentiomètre à fond à gauche.", "type": "number", "default": 0 },
+            "max": { "description": "Valeur envoyée potentiomètre à fond à droite.", "type": "number", "default": 127 },
+            "float": { "description": "true : envoie un décimal. Sinon, un entier arrondi.", "type": "boolean", "default": false }
+          }
+        }
+      ]
+    },
+    "xyAction": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "channel", "ccX", "ccY"],
+          "properties": {
+            "type": { "const": "xy" },
+            "channel": { "$ref": "#/$defs/channel" },
+            "ccX": { "$ref": "#/$defs/midiValue" },
+            "ccY": { "$ref": "#/$defs/midiValue" }
+          }
+        },
+        {
+          "description": "Envoie x et y (0 à 127) en deux entiers.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "address"],
+          "properties": {
+            "type": { "const": "osc" },
+            "address": { "$ref": "#/$defs/oscAddress" }
+          }
+        }
+      ]
+    },
+    "encoding": {
+      "description": "relative : envoie un pas (CC : 1 par cran à droite et 127 par cran à gauche ; OSC : +1 / -1). absolute : envoie une valeur de 0 à 127 tenue par l'application.",
+      "enum": ["relative", "absolute"],
+      "default": "relative"
+    },
+    "encoderAction": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "channel", "cc"],
+          "properties": {
+            "type": { "const": "cc" },
+            "channel": { "$ref": "#/$defs/channel" },
+            "cc": { "$ref": "#/$defs/midiValue" },
+            "encoding": { "$ref": "#/$defs/encoding" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "address"],
+          "properties": {
+            "type": { "const": "osc" },
+            "address": { "$ref": "#/$defs/oscAddress" },
+            "encoding": { "$ref": "#/$defs/encoding" }
+          }
+        }
+      ]
+    }
+  }
+}

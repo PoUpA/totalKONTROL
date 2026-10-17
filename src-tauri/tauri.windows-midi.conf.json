@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "targets": ["msi", "nsis"],
+    "resources": {
+      "vendor/windows-midi2/runtimes/win-x64/native/Windows.Devices.Midi2.dll": "Windows.Devices.Midi2.dll",
+      "vendor/windows-midi2/runtimes/win-x64/native/Windows.Devices.Midi2.pri": "Windows.Devices.Midi2.pri"
+    },
+    "windows": {
+      "nsis": {
+        "installerHooks": "windows/windows-midi-hooks.nsh"
+      },
+      "wix": {
+        "fragmentPaths": ["windows/windows-midi-fragment.wxs"],
+        "componentGroupRefs": ["WindowsMidiLaunchCondition"]
+      }
+    }
+  }
+}
