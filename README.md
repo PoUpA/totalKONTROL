@@ -157,3 +157,7 @@ git push origin v0.1.0
 - `tools`: the OSC LED demo
 
 The original Qt/C++ version of totalKONTROL lives on the `master` branch.
+
+## License
+
+[MIT](LICENSE). The `Windows.Devices.Midi2` package used by the optional `windows-midi-services` build is Microsoft's and comes with its own license (see [docs/windows-midi-services.md](docs/windows-midi-services.md)).

@@ -32,6 +32,7 @@
     "longDescription": "Puts the Korg padKONTROL in native mode, maps its pads, buttons, knobs, XY pad and encoder to MIDI messages for your DAW, and drives its LEDs and display.",
     "homepage": "https://github.com/PoUpA/totalKONTROL",
     "copyright": "Copyright © 2026 PoUpA",
+    "license": "MIT",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
