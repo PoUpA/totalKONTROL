@@ -175,6 +175,27 @@ pub fn mirror(prefix: &str, event: &ControlEvent, encoder_position: Option<i16>)
     }
 }
 
+/// Mirror message of plain MIDI from a padKONTROL outside native mode,
+/// which plays its own scenes: `<prefix>/note channel note velocity` (0 for
+/// a note off) and `<prefix>/cc channel cc value`, channels from 1. Other
+/// messages are not mirrored.
+pub fn mirror_midi(prefix: &str, message: &[u8]) -> Option<OscMessage> {
+    let [status, data1, data2] = *message else {
+        return None;
+    };
+    let channel = OscArg::Int(i32::from(status & 0x0F) + 1);
+    let (kind, value) = match status & 0xF0 {
+        0x90 => ("note", data2),
+        0x80 => ("note", 0),
+        0xB0 => ("cc", data2),
+        _ => return None,
+    };
+    Some(OscMessage::new(
+        format!("{prefix}/{kind}"),
+        vec![channel, OscArg::Int(data1.into()), OscArg::Int(value.into())],
+    ))
+}
+
 pub fn mirror_bank(prefix: &str, bank: usize) -> OscMessage {
     OscMessage::new(format!("{prefix}/bank"), vec![OscArg::Int(bank as i32)])
 }
@@ -218,6 +239,16 @@ impl OscSender {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mirrors_plain_midi_notes_and_ccs() {
+        let describe = |m: &[u8]| mirror_midi("/tk", m).map(|m| m.describe());
+        assert_eq!(describe(&[0x99, 36, 100]).as_deref(), Some("/tk/note 10 36 100"));
+        assert_eq!(describe(&[0x89, 36, 64]).as_deref(), Some("/tk/note 10 36 0"));
+        assert_eq!(describe(&[0xB0, 7, 90]).as_deref(), Some("/tk/cc 1 7 90"));
+        assert_eq!(describe(&[0xC0, 5]), None, "program changes are not mirrored");
+        assert_eq!(describe(&[0xF0, 0x42, 0xF7]), None);
+    }
 
     #[test]
     fn replaces_velocity_in_arguments() {

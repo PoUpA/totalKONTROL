@@ -1077,14 +1077,23 @@ fn pad_input_handler(app: AppHandle, shared: Arc<Mutex<Shared>>) -> Handler {
         }
         let mut incoming = MidiMessage::new(Direction::In, bytes);
         // Outside native mode the padKONTROL plays its own scenes: they go
-        // on to the DAW as they are.
+        // on to the DAW as they are, and their notes and CCs to the OSC mirror.
         if incoming.event.is_none() {
-            let thru = {
-                let shared = shared.lock().unwrap();
-                shared.thru.then(|| shared.send_daw(&[bytes.to_vec()]))
-            };
+            let mut sent = vec![];
+            {
+                let mut shared = shared.lock().unwrap();
+                if shared.thru {
+                    sent = shared.send_daw(&[bytes.to_vec()]);
+                    let mirrored = shared
+                        .osc
+                        .as_ref()
+                        .filter(|osc| osc.mirror)
+                        .and_then(|osc| osc::mirror_midi(&osc.prefix, bytes));
+                    sent.extend(shared.send_osc(&Vec::from_iter(mirrored), None, None, None));
+                }
+            }
             let _ = app.emit(MESSAGE_EVENT, incoming);
-            for message in thru.into_iter().flatten() {
+            for message in sent {
                 let _ = app.emit(MESSAGE_EVENT, message);
             }
             return;
