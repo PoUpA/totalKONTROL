@@ -49,6 +49,8 @@ export type ConnectionInfo = {
   osc: string | null;
   /** UDP port the app listens on for OSC. */
   oscListen: number | null;
+  /** Global MIDI channel of the padKONTROL (1 to 16), in native mode. */
+  globalChannel: number | null;
 };
 
 /** Connection, plus whether the app waits for an unplugged padKONTROL to come back. */

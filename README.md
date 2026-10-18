@@ -30,13 +30,14 @@ The installers are not code-signed yet: Windows SmartScreen and macOS Gatekeeper
 
 ### Connection
 
-- **padKONTROL ports**: with the Korg driver on Windows, the controls arrive on `PORT A` and the padKONTROL listens for native mode on `CTRL`; `MIDI IN` and `MIDI OUT` are the DIN sockets on the back. The app preselects the right ports.
+- **padKONTROL ports**: with the Korg driver on Windows, the controls arrive on `PORT A` and the padKONTROL listens for native mode on `CTRL`; `MIDI IN` and `MIDI OUT` are the DIN sockets on the back. The app preselects the right ports, and finds the padKONTROL's global MIDI channel by itself.
+- **Native mode**: on, the app takes over every control and drives the LEDs and the display. Off, the padKONTROL plays its own scenes, and the app passes what it sends on to the DAW port.
 - **DAW ports**: the port that carries messages to the DAW, and the port that brings messages back from the DAW for the LEDs in `follow` mode.
 - **Profile**: the mapping to apply. Profiles can be switched, and banks selected, while connected.
 
 Once connected, the display shows the bank and the LEDs follow the profile. The live view shows every control as it moves; the monitor lists each message with its direction. Disconnecting, or closing the app, returns the padKONTROL to its normal mode.
 
-If the padKONTROL is unplugged, the app waits for it and reconnects with the same settings and profile. **Connect at startup with these settings** connects as soon as the app opens.
+If the padKONTROL is unplugged, the app ends the notes left on and waits for it. When it comes back, the app reconnects with the same settings and profile, on the same bank, with roll and flam as they were. **Connect at startup with these settings** connects as soon as the app opens.
 
 Closing the window keeps the app running in the system tray, so the padKONTROL keeps working; quit from the tray icon's menu.
 

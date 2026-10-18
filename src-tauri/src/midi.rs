@@ -297,6 +297,8 @@ pub struct ConnectionInfo {
     pub osc: Option<String>,
     /// UDP port the app listens on for OSC.
     pub osc_listen: Option<u16>,
+    /// Global MIDI channel of the padKONTROL (1 to 16), in native mode.
+    pub global_channel: Option<u8>,
 }
 
 /// Where messages for the DAW go.
@@ -316,6 +318,9 @@ impl DawOutput {
     }
 }
 
+/// How long the padKONTROL has to answer native mode on, telling its global
+/// MIDI channel.
+const CHANNEL_DETECTION_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(500);
 /// How long closing waits for an output to send what is queued.
 const CLOSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1);
 /// The same, when the app is going down after a panic.
@@ -394,6 +399,10 @@ struct Shared {
     osc: Option<OscOutput>,
     /// Reporting setup acknowledgements received, for the heartbeat.
     acks: u32,
+    /// Global MIDI channel the padKONTROL answered native mode on with.
+    detected_channel: Option<u8>,
+    /// Outside native mode: what the padKONTROL sends goes on to the DAW.
+    thru: bool,
 }
 
 impl Shared {
@@ -456,11 +465,13 @@ struct Connection {
 }
 
 impl Connection {
-    fn close(self) {
-        let writers = {
+    /// Closes everything and returns the engine, with nothing left on.
+    fn close(self) -> Option<Engine> {
+        let (writers, engine) = {
             let mut shared = self.shared.lock().unwrap();
             // Notes left on would keep sounding in the DAW.
-            if let Some(mut engine) = shared.engine.take() {
+            let mut engine = shared.engine.take();
+            if let Some(engine) = engine.as_mut() {
                 let released = engine.release_all();
                 shared.send_released(&released);
             }
@@ -468,12 +479,13 @@ impl Connection {
                 // Without this message the padKONTROL stays silent until it is power-cycled.
                 shared.send_pad(&[padkontrol::exit_native_mode()]);
             }
-            [shared.pad_out.take(), shared.daw_out.take()]
+            ([shared.pad_out.take(), shared.daw_out.take()], engine)
         };
         keys::release_all();
         for writer in writers.into_iter().flatten() {
             writer.close(CLOSE_TIMEOUT);
         }
+        engine
     }
 }
 
@@ -500,6 +512,8 @@ pub struct PadConnection {
     generation: AtomicU64,
     /// The app is closing: nothing connects any more.
     shutting_down: AtomicBool,
+    /// Engine of a lost connection, for the reconnection to go on with.
+    kept: Mutex<Option<Engine>>,
     /// Queue of the padKONTROL output, reachable without the other locks, so
     /// that a panic can still hand the padKONTROL back.
     emergency: Mutex<Option<mpsc::Sender<WriterCommand>>>,
@@ -515,6 +529,9 @@ pub struct ConnectionState {
 }
 
 pub const CONNECTION_EVENT: &str = "connection-state";
+/// Sent when an automatic reconnection worked around a problem, such as a
+/// profile that no longer loads.
+pub const CONNECTION_PROBLEM_EVENT: &str = "connection-problem";
 
 impl PadConnection {
     pub fn waiting(&self) -> bool {
@@ -592,7 +609,9 @@ impl PadConnection {
         if self.generation() != generation || self.info().is_none_or(|info| info.input != input) {
             return;
         }
-        self.close_current();
+        // Bank, roll and flam, encoder positions: the reconnection goes on
+        // where the padKONTROL left off.
+        *self.kept.lock().unwrap() = self.close_current();
         let remembered = self.remembered.lock().unwrap().is_some();
         self.waiting.store(remembered, Ordering::SeqCst);
         self.changed(app);
@@ -613,11 +632,31 @@ impl PadConnection {
         let Some(remembered) = self.remembered.lock().unwrap().clone() else {
             return;
         };
-        let profile = remembered
-            .profile
-            .and_then(|file| app.state::<ProfileStore>().load(&file).ok().map(|p| (file, p)));
-        // A failed attempt keeps waiting: the next round tries again.
-        if self.connect_locked(app, remembered.options, profile).is_err() {
+        // The profile as saved now, on the engine kept from before.
+        let kept = self.kept.lock().unwrap().clone();
+        let mut problem = None;
+        let engine = match remembered.profile {
+            Some(file) => match app.state::<ProfileStore>().load(&file) {
+                Ok(profile) => Some(match kept {
+                    Some(mut engine) if engine.file() == file => {
+                        // Its notes were released when the connection went.
+                        let _ = engine.reload(profile);
+                        engine
+                    }
+                    _ => Engine::new(profile).with_file(file),
+                }),
+                Err(errors) => {
+                    let errors = errors.join("\n");
+                    problem = Some(t!("core.app.invalidProfile", file, errors));
+                    // Carries on with the version in memory, if any.
+                    kept
+                }
+            },
+            None => None,
+        };
+        // A failed attempt keeps waiting, and the kept engine: the next round
+        // tries again.
+        if self.connect_locked(app, remembered.options, engine).is_err() {
             return;
         }
         // Ports still listed but nobody behind them.
@@ -626,7 +665,11 @@ impl PadConnection {
             self.waiting.store(true, Ordering::SeqCst);
             return;
         }
+        self.kept.lock().unwrap().take();
         self.changed(app);
+        if let Some(problem) = problem {
+            let _ = app.emit(CONNECTION_PROBLEM_EVENT, problem);
+        }
     }
 
     pub fn info(&self) -> Option<ConnectionInfo> {
@@ -651,8 +694,10 @@ impl PadConnection {
         if self.shutting_down.load(Ordering::SeqCst) {
             return Err(t!("core.connection.shuttingDown"));
         }
-        let result = self.connect_locked(app, options, profile);
+        let engine = profile.map(|(file, profile)| Engine::new(profile).with_file(file));
+        let result = self.connect_locked(app, options, engine);
         if result.is_ok() {
+            self.kept.lock().unwrap().take();
             self.changed(app);
         }
         result
@@ -664,7 +709,7 @@ impl PadConnection {
         &self,
         app: &AppHandle,
         options: ConnectOptions,
-        profile: Option<(String, Profile)>,
+        engine: Option<Engine>,
     ) -> Result<ConnectionInfo, String> {
         if options.native_mode && options.output.is_none() {
             return Err(t!("core.connection.nativeModeNeedsOutput"));
@@ -673,7 +718,7 @@ impl PadConnection {
         self.close_current();
         let remembered = Remembered {
             options: options.clone(),
-            profile: profile.as_ref().map(|(file, _)| file.clone()),
+            profile: engine.as_ref().map(|engine| engine.file().to_string()),
         };
 
         let shared = Arc::new(Mutex::new(Shared::default()));
@@ -719,19 +764,33 @@ impl PadConnection {
 
         // The engine only runs in native mode: outside of it, the padKONTROL
         // already sends its own MIDI messages.
-        let mut engine = profile
-            .filter(|_| options.native_mode)
-            .map(|(file, profile)| Engine::new(profile).with_file(file));
+        let mut engine = engine.filter(|_| options.native_mode);
 
+        // Global MIDI channel of the padKONTROL (0 to 15), set in its own
+        // settings: its native messages carry it.
+        let mut channel = 0;
         if options.native_mode {
             let out = pad_out.as_mut().expect("output port checked above");
+            let send_failed = |e: midir::SendError| t!("core.connection.nativeModeSendFailed", error = e);
+            for message in padkontrol::native_mode_on_all_channels() {
+                out.send(&message).map_err(send_failed)?;
+            }
+            // Without an answer (slow or unusual device), assume channel 1.
+            let deadline = std::time::Instant::now() + CHANNEL_DETECTION_TIMEOUT;
+            while std::time::Instant::now() < deadline {
+                if let Some(detected) = shared.lock().unwrap().detected_channel {
+                    channel = detected;
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
             let mut init = padkontrol::enter_native_mode(DISPLAY_TEXT);
             if let Some(engine) = &mut engine {
                 init.extend(engine.refresh());
             }
-            for message in init {
-                out.send(&message)
-                    .map_err(|e| t!("core.connection.nativeModeSendFailed", error = e))?;
+            for mut message in init {
+                padkontrol::for_channel(&mut message, channel);
+                out.send(&message).map_err(send_failed)?;
             }
         }
 
@@ -741,7 +800,9 @@ impl PadConnection {
         // From here on, the padKONTROL output only sends from its writer.
         let pad_out = pad_out.map(|mut out| {
             Writer::spawn(move |message| {
-                let _ = out.send(message);
+                let mut message = message.to_vec();
+                padkontrol::for_channel(&mut message, channel);
+                let _ = out.send(&message);
             })
         });
         let emergency = pad_out.as_ref().filter(|_| options.native_mode).map(|w| w.tx.clone());
@@ -751,6 +812,8 @@ impl PadConnection {
             daw_out,
             osc: osc_out,
             acks: 0,
+            detected_channel: Some(channel),
+            thru: !options.native_mode,
         };
         // A profile can also be picked later, while connected.
         if options.native_mode {
@@ -768,6 +831,7 @@ impl PadConnection {
             feedback_input: feedback_name,
             osc: osc_name,
             osc_listen,
+            global_channel: options.native_mode.then_some(channel + 1),
         };
         *self.current.lock().unwrap() = Some(Connection {
             _pad_in: pad_in,
@@ -785,6 +849,7 @@ impl PadConnection {
     pub fn disconnect(&self, app: &AppHandle) {
         let _operation = self.operations.lock().unwrap();
         self.close_current();
+        self.kept.lock().unwrap().take();
         *self.remembered.lock().unwrap() = None;
         self.waiting.store(false, Ordering::SeqCst);
         self.changed(app);
@@ -797,13 +862,12 @@ impl PadConnection {
         self.disconnect(app);
     }
 
-    fn close_current(&self) {
+    /// Closes the connection and returns its engine, with nothing left on.
+    fn close_current(&self) -> Option<Engine> {
         // The writer only closes once every queue to it is gone.
         self.emergency.lock().unwrap().take();
         let connection = self.current.lock().unwrap().take();
-        if let Some(connection) = connection {
-            connection.close();
-        }
+        connection.and_then(Connection::close)
     }
 
     /// Last resort while the app goes down after a panic: ends the notes and
@@ -1007,7 +1071,24 @@ fn pad_input_handler(app: AppHandle, shared: Arc<Mutex<Shared>>) -> Handler {
             shared.acks = shared.acks.wrapping_add(1);
             return;
         }
+        if let Some(channel) = padkontrol::native_mode_ack_channel(bytes) {
+            shared.lock().unwrap().detected_channel.get_or_insert(channel);
+            return;
+        }
         let mut incoming = MidiMessage::new(Direction::In, bytes);
+        // Outside native mode the padKONTROL plays its own scenes: they go
+        // on to the DAW as they are.
+        if incoming.event.is_none() {
+            let thru = {
+                let shared = shared.lock().unwrap();
+                shared.thru.then(|| shared.send_daw(&[bytes.to_vec()]))
+            };
+            let _ = app.emit(MESSAGE_EVENT, incoming);
+            for message in thru.into_iter().flatten() {
+                let _ = app.emit(MESSAGE_EVENT, message);
+            }
+            return;
+        }
         let mut sent = vec![];
         let mut state = None;
         if let Some(event) = &incoming.event {

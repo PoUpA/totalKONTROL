@@ -21,6 +21,7 @@
   "connection.title": "Conexión",
   "connection.noDaw": "sin DAW",
   "connection.statusNative": "Conectado · modo nativo",
+  "connection.globalChannel": "canal global {channel}",
   "connection.statusConnected": "Conectado",
   "connection.statusDisconnected": "Desconectado",
   "connection.input": "Entrada (desde el padKONTROL)",

@@ -256,7 +256,11 @@ function ConnectionPanelView({
         <span className={connected ? "status ok" : waiting ? "status waiting" : "status"}>
           {connected
             ? connection.nativeMode
-              ? t("connection.statusNative")
+              ? t("connection.statusNative") +
+                // Channel 1 is the factory setting: only another one is worth a mention.
+                (connection.globalChannel && connection.globalChannel !== 1
+                  ? ` · ${t("connection.globalChannel", { channel: connection.globalChannel })}`
+                  : "")
               : t("connection.statusConnected")
             : waiting
               ? t("connection.statusWaiting")

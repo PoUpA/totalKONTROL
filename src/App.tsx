@@ -134,8 +134,12 @@ function App() {
       setEngine(e.payload.engine);
       if (e.payload.connection) setControls(initialControlState());
     });
+    // A reconnection that worked around a problem, such as a profile that
+    // no longer loads.
+    const unlistenProblem = listen<string>("connection-problem", (e) => setError(e.payload));
     return () => {
       unlisten.then((stop) => stop());
+      unlistenProblem.then((stop) => stop());
     };
   }, []);
 

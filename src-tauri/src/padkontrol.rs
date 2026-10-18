@@ -6,7 +6,9 @@ use serde::Serialize;
 
 use crate::config::ButtonId;
 
-/// Header shared by all native SysEx messages: Korg, padKONTROL.
+/// Header shared by all native SysEx messages: Korg, global MIDI channel
+/// (0x40 + channel, here channel 1), padKONTROL. Messages are built for
+/// channel 1 and readdressed on the way out (see `for_channel`).
 const HEADER: [u8; 5] = [0xF0, 0x42, 0x40, 0x6E, 0x08];
 const SYSEX_END: u8 = 0xF7;
 
@@ -70,7 +72,40 @@ pub fn report_all_controls() -> Vec<u8> {
 
 /// The padKONTROL's acknowledgement of `report_all_controls`.
 pub fn is_report_ack(message: &[u8]) -> bool {
-    message.strip_prefix(&HEADER) == Some(&[0x5F, 0x00, 0x00, SYSEX_END])
+    body(message) == Some(&[0x5F, 0x00, 0x00])
+}
+
+/// "Native mode on" for each of the 16 global MIDI channels: only the
+/// padKONTROL's own channel answers (see `native_mode_ack_channel`).
+pub fn native_mode_on_all_channels() -> Vec<Vec<u8>> {
+    (0..16)
+        .map(|channel| {
+            let mut message = sysex(&[0x00, 0x00, 0x01]);
+            for_channel(&mut message, channel);
+            message
+        })
+        .collect()
+}
+
+/// Global MIDI channel (0 to 15) of a padKONTROL acknowledging native mode on.
+pub fn native_mode_ack_channel(message: &[u8]) -> Option<u8> {
+    (body(message) == Some(&[0x40, 0x00, 0x03])).then(|| message[2] & 0x0F)
+}
+
+/// Readdresses a native message built for channel 1 to the padKONTROL's
+/// global MIDI channel (0 to 15). Other messages are left alone.
+pub fn for_channel(message: &mut [u8], channel: u8) {
+    if message.starts_with(&HEADER[..3]) {
+        message[2] = 0x40 | (channel & 0x0F);
+    }
+}
+
+/// Body of a native message, whatever the padKONTROL's global channel.
+fn body(message: &[u8]) -> Option<&[u8]> {
+    match message {
+        [0xF0, 0x42, channel, 0x6E, 0x08, body @ .., SYSEX_END] if channel & 0xF0 == 0x40 => Some(body),
+        _ => None,
+    }
 }
 
 /// Message to send to leave native mode and hand control back to the
@@ -166,8 +201,7 @@ pub enum ControlEvent {
 }
 
 pub fn decode(message: &[u8]) -> Option<ControlEvent> {
-    let body = message.strip_prefix(&HEADER)?.strip_suffix(&[SYSEX_END])?;
-    match *body {
+    match *body(message)? {
         [0x45, pad, velocity] => Some(ControlEvent::Pad {
             pad: (pad & 0x0F) + 1,
             pressed: pad & 0x40 != 0,
@@ -372,6 +406,35 @@ mod tests {
                 .all(|m| m.len() >= 6 && m[..5] == HEADER && m.last() == Some(&SYSEX_END))
         );
         assert_eq!(exit_native_mode(), hex("f042406e08000000f7"));
+    }
+
+    #[test]
+    fn works_on_any_global_channel() {
+        // A padKONTROL on global channel 3 (0x42) answers and reports with it.
+        assert_eq!(native_mode_ack_channel(&hex("f042426e08400003f7")), Some(2));
+        assert_eq!(native_mode_ack_channel(&hex("f042406e08400003f7")), Some(0));
+        assert_eq!(native_mode_ack_channel(&hex("f042426e08400002f7")), None);
+        assert!(is_report_ack(&hex("f042426e085f0000f7")));
+        assert_eq!(
+            decode(&hex("f042426e08454f40f7")),
+            Some(ControlEvent::Pad {
+                pad: 16,
+                pressed: true,
+                velocity: 0x40
+            })
+        );
+        assert_eq!(decode(&hex("f042306e08450f40f7")), None, "not a channel byte");
+
+        let mut led = led(Control::Pad(1), true);
+        for_channel(&mut led, 2);
+        assert_eq!(led, hex("f042426e08010020f7"));
+        let mut note = vec![0x90, 60, 100];
+        for_channel(&mut note, 2);
+        assert_eq!(note, vec![0x90, 60, 100], "only native messages");
+
+        let all = native_mode_on_all_channels();
+        assert_eq!(all.len(), 16);
+        assert_eq!(all[15], hex("f0424f6e08000001f7"));
     }
 
     #[test]

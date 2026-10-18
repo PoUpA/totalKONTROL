@@ -109,6 +109,7 @@ enum FollowKey {
     Cc { channel: u8, cc: u8 },
 }
 
+#[derive(Clone)]
 pub struct Engine {
     profile: Profile,
     file: String,
@@ -181,7 +182,8 @@ impl Engine {
     }
 
     /// Swaps in an edited version of the same profile. Stays on the current
-    /// bank when it still exists, and keeps the DAW feedback state. Returns
+    /// bank when it still exists, and keeps the DAW feedback state, the
+    /// encoder positions and the roll and flam settings. Returns
     /// what ends the notes the previous version left on (see `release_all`).
     pub fn reload(&mut self, profile: Profile) -> Output {
         let out = self.release_all();
@@ -192,13 +194,18 @@ impl Engine {
         };
         let follow = std::mem::take(&mut self.follow);
         let osc_follow = std::mem::take(&mut self.osc_follow);
+        let encoder = std::mem::take(&mut self.encoder);
         let (roll_on, flam_on, clock) = (self.roll_on, self.flam_on, self.clock);
+        let (roll_override, flam_override) = (self.roll_override, self.flam_override);
         *self = Engine::new(profile).with_file(std::mem::take(&mut self.file));
         self.bank = bank;
         self.follow = follow;
         self.osc_follow = osc_follow;
+        self.encoder = encoder;
         self.roll_on = roll_on;
         self.flam_on = flam_on;
+        self.roll_override = roll_override;
+        self.flam_override = flam_override;
         self.clock = clock;
         out
     }
@@ -1473,7 +1480,8 @@ mod tests {
                 "pads": {{ "1": {{ "type": "note", "channel": 1, "note": 36 }},
                            "2": {{ "type": "note", "channel": 1, "note": 37, "mode": "toggle" }} }},
                 "buttons": {{ "roll": {{ "type": "roll" }}, "flam": {{ "type": "flam" }} }},
-                "xy": {{ "type": "xy", "channel": 1, "ccX": 3, "ccY": 4 }} }}] }}"#
+                "xy": {{ "type": "xy", "channel": 1, "ccX": 3, "ccY": 4 }},
+                "encoder": {{ "type": "cc", "channel": 1, "cc": 10 }} }}] }}"#
         ))
     }
 
@@ -1593,6 +1601,21 @@ mod tests {
         assert!((e.roll_interval(now).as_secs_f32() - 0.25).abs() < 0.01);
         // The clock stopped: back to the profile's tempo.
         assert_eq!(e.bpm(now + Duration::from_secs(1)), 120.0);
+    }
+
+    #[test]
+    fn reload_keeps_the_encoder_and_the_roll_settings() {
+        let mut e = repeat_engine("");
+        let t0 = Instant::now();
+        e.handle_at(&button(ButtonId::Roll, true), t0);
+        e.handle_at(&ControlEvent::Xy { x: 127, y: 0 }, t0);
+        e.handle_at(&ControlEvent::Encoder { delta: 5 }, t0);
+        let before = e.roll_interval(t0);
+        let profile = e.profile.clone();
+        e.reload(profile);
+        assert!(e.roll_on);
+        assert_eq!(e.roll_interval(t0), before, "the 1/32 set with the XY pad stays");
+        assert_eq!(e.state().encoder, 5);
     }
 
     #[test]

@@ -33,7 +33,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: System dependencies (Ubuntu)
         if: runner.os == 'Linux'
@@ -49,14 +49,16 @@ jobs:
             libssl-dev \
             libasound2-dev
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: lts/*
           cache: npm
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: src-tauri
           key: ${{ matrix.variant }}
@@ -74,7 +76,7 @@ jobs:
       # The plain Windows installers are built without the
       # windows-midi-services feature and rely on loopMIDI (see
       # docs/windows-midi-services.md).
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -89,4 +91,3 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
           assetNamePattern: ${{ matrix.assetNamePattern }}
-          includeUpdaterJson: ${{ matrix.variant != 'winmidi' }}
