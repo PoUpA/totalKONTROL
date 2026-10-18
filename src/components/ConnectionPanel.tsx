@@ -153,6 +153,8 @@ type Props = {
   onRefresh: () => void;
   onConnect: (options: ConnectOptions, profile: string | null) => void;
   onDisconnect: () => void;
+  /** All notes off. */
+  onPanic: () => void;
   /** One-line version, with the port settings folded away. */
   compact?: boolean;
   /** The padKONTROL was unplugged: the app reconnects when it comes back. */
@@ -168,6 +170,7 @@ function ConnectionPanelView({
   onRefresh,
   onConnect,
   onDisconnect,
+  onPanic,
   compact = false,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
@@ -440,9 +443,14 @@ function ConnectionPanelView({
 
       <div className="actions">
         {connected ? (
-          <button className="primary" onClick={onDisconnect} disabled={busy}>
-            {t("connection.disconnect")}
-          </button>
+          <>
+            <button className="primary" onClick={onDisconnect} disabled={busy}>
+              {t("connection.disconnect")}
+            </button>
+            <button onClick={onPanic} disabled={busy} title={t("connection.panicHint")}>
+              {t("connection.panic")}
+            </button>
+          </>
         ) : waiting ? (
           <button onClick={onDisconnect} disabled={busy}>
             {t("connection.stopWaiting")}

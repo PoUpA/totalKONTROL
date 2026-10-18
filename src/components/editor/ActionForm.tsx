@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type {
   Bank,
+  ProfileSummary,
   ButtonAction,
   ControlRef,
   EncoderAction,
@@ -19,6 +20,8 @@ type Props = {
   control: ControlRef;
   action: AnyAction | undefined;
   banks: Bank[];
+  /** Profiles a switchProfile action can pick. */
+  profiles: ProfileSummary[];
   errors: string[];
   onChange: (action: AnyAction | undefined) => void;
 };
@@ -220,6 +223,8 @@ function newButtonAction(type: ButtonType, control: ControlRef, previous?: Butto
       return { type, channel, program: 0 };
     case "switchBank":
       return { type, bank: 0 };
+    case "switchProfile":
+      return { type, profile: "" };
     case "key":
       return { type, keys: "space" };
     case "roll":
@@ -242,11 +247,13 @@ function ButtonFields({
   control,
   action,
   banks,
+  profiles,
   onChange,
 }: {
   control: ControlRef;
   action: ButtonAction | undefined;
   banks: Bank[];
+  profiles: ProfileSummary[];
   onChange: (action: ButtonAction | undefined) => void;
 }) {
   const { t } = useI18n();
@@ -264,6 +271,7 @@ function ButtonFields({
           ["cc", t("action.cc")],
           ["programChange", t("action.programChange")],
           ["switchBank", t("action.switchBank")],
+          ["switchProfile", t("action.switchProfile")],
           ["osc", t("action.osc")],
           ["key", t("action.key")],
           ["roll", t("action.roll")],
@@ -370,6 +378,18 @@ function ButtonFields({
         </>
       )}
 
+      {action?.type === "switchProfile" && (
+        <SelectField
+          label={t("action.profile")}
+          value={action.profile}
+          options={[
+            ["", t("action.pickProfile")],
+            ...profiles.map((p): [string, string] => [p.file, p.name ?? p.file]),
+          ]}
+          onChange={(profile) => onChange({ ...action, profile })}
+        />
+      )}
+
       {action?.type === "key" && (
         <>
           <KeysField label={t("action.keys")} value={action.keys} onChange={(keys) => onChange({ ...action, keys })} />
@@ -433,6 +453,7 @@ function ButtonFields({
       {/* The XY pad has no LED. */}
       {action &&
         action.type !== "switchBank" &&
+        action.type !== "switchProfile" &&
         action.type !== "roll" &&
         action.type !== "flam" &&
         control.kind !== "xyTouch" && (
@@ -536,6 +557,16 @@ function KnobFields({
             {t("action.oscFloat")}
           </label>
         </>
+      )}
+      {action && (
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={action.pickup ?? false}
+            onChange={(e) => onChange(withField(action, "pickup", e.target.checked, false))}
+          />
+          {t("action.pickup")}
+        </label>
       )}
     </>
   );
@@ -670,18 +701,28 @@ function EncoderFields({
         </>
       )}
       {action && action.type !== "key" && (
-        <SelectField
-          label={t("action.encoding")}
-          value={action.encoding ?? "relative"}
-          options={encodingOptions(t)}
-          onChange={(encoding) => onChange(withField(action, "encoding", encoding, "relative"))}
-        />
+        <>
+          <SelectField
+            label={t("action.encoding")}
+            value={action.encoding ?? "relative"}
+            options={encodingOptions(t)}
+            onChange={(encoding) => onChange(withField(action, "encoding", encoding, "relative"))}
+          />
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={action.acceleration ?? false}
+              onChange={(e) => onChange(withField(action, "acceleration", e.target.checked, false))}
+            />
+            {t("action.acceleration")}
+          </label>
+        </>
       )}
     </>
   );
 }
 
-export function ActionForm({ control, action, banks, errors, onChange }: Props) {
+export function ActionForm({ control, action, banks, profiles, errors, onChange }: Props) {
   const { t } = useI18n();
   return (
     <div className="action-form">
@@ -692,6 +733,7 @@ export function ActionForm({ control, action, banks, errors, onChange }: Props) 
             control={control}
             action={action as ButtonAction | undefined}
             banks={banks}
+            profiles={profiles}
             onChange={onChange}
           />
         )}

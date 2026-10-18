@@ -44,7 +44,8 @@ function seenKey(control: ControlRef): string {
   }
 }
 
-export function ControlView({ state, display }: { state: ControlState; display: string }) {
+/** `leds`: keys (as in `ControlState.seen`) of the LEDs lit on the padKONTROL. */
+export function ControlView({ state, display, leds }: { state: ControlState; display: string; leds: Set<string> }) {
   const { t, tn } = useI18n();
   return (
     <section className="card">
@@ -56,7 +57,7 @@ export function ControlView({ state, display }: { state: ControlState; display: 
       <PadLayout
         display={display}
         render={(control, label, className) => {
-          const seen = state.seen.has(seenKey(control)) ? " seen" : "";
+          const seen = (state.seen.has(seenKey(control)) ? " seen" : "") + (leds.has(seenKey(control)) ? " lit" : "");
           switch (control.kind) {
             case "pad": {
               const velocity = state.pads[control.pad];

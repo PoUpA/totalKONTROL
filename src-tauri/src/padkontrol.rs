@@ -155,6 +155,18 @@ pub fn led(control: Control, on: bool) -> Vec<u8> {
     sysex(&[0x01, code, if on { 0x20 } else { 0x00 }])
 }
 
+/// Control and state of an LED message, as `led` builds them.
+pub fn decode_led(message: &[u8]) -> Option<(Control, bool)> {
+    let [0x01, code, value] = *body(message)? else {
+        return None;
+    };
+    let control = match code {
+        0x00..=0x0F => Control::Pad(code + 1),
+        _ => Control::Button(*BUTTONS.get(usize::from(code.checked_sub(0x10)?))?),
+    };
+    Some((control, value != 0))
+}
+
 /// Text on the 3-character display, in uppercase. Spaces are kept, so values
 /// can be right-aligned.
 pub fn display(text: &str) -> Vec<u8> {
@@ -406,6 +418,16 @@ mod tests {
                 .all(|m| m.len() >= 6 && m[..5] == HEADER && m.last() == Some(&SYSEX_END))
         );
         assert_eq!(exit_native_mode(), hex("f042406e08000000f7"));
+    }
+
+    #[test]
+    fn decodes_led_messages() {
+        for control in Control::all() {
+            assert_eq!(decode_led(&led(control, true)), Some((control, true)));
+            assert_eq!(decode_led(&led(control, false)), Some((control, false)));
+        }
+        assert_eq!(decode_led(&hex("f042406e08017f20f7")), None, "unknown LED code");
+        assert_eq!(decode_led(&display("ABC")), None);
     }
 
     #[test]

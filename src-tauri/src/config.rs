@@ -277,6 +277,8 @@ pub enum ButtonAction {
         #[serde(default, skip_serializing_if = "is_default")]
         momentary: bool,
     },
+    /// Makes another profile, by its file name, the active one.
+    SwitchProfile { profile: String },
     /// OSC message to the connection's OSC destination: `args` on press
     /// (or when a toggle turns on), `release_args` on release (or when it
     /// turns off), if set.
@@ -424,6 +426,9 @@ pub enum KnobAction {
         min: u8,
         #[serde(default = "max_value", skip_serializing_if = "is_max_value")]
         max: u8,
+        /// See `KnobAction::pickup`.
+        #[serde(default, skip_serializing_if = "is_default")]
+        pickup: bool,
     },
     /// Sends the knob position scaled from `min` to `max`, as a float when
     /// `float` is set, else rounded to an integer.
@@ -435,7 +440,19 @@ pub enum KnobAction {
         max: f32,
         #[serde(default, skip_serializing_if = "is_default")]
         float: bool,
+        #[serde(default, skip_serializing_if = "is_default")]
+        pickup: bool,
     },
+}
+
+impl KnobAction {
+    /// After a bank change, the knob sends nothing until it reaches the value
+    /// it had in this bank, so the target does not jump.
+    pub fn pickup(&self) -> bool {
+        match self {
+            KnobAction::Cc { pickup, .. } | KnobAction::Osc { pickup, .. } => *pickup,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -470,12 +487,17 @@ pub enum EncoderAction {
         cc: u8,
         #[serde(default, skip_serializing_if = "is_default")]
         encoding: Encoding,
+        /// See `EncoderAction::acceleration`.
+        #[serde(default, skip_serializing_if = "is_default")]
+        acceleration: bool,
     },
     /// Sends the step (relative) or the position (absolute) as an integer.
     Osc {
         address: String,
         #[serde(default, skip_serializing_if = "is_default")]
         encoding: Encoding,
+        #[serde(default, skip_serializing_if = "is_default")]
+        acceleration: bool,
     },
     /// Types a keyboard shortcut for each step to the left or to the right.
     Key { left: String, right: String },
@@ -486,6 +508,14 @@ impl EncoderAction {
         match self {
             EncoderAction::Cc { encoding, .. } | EncoderAction::Osc { encoding, .. } => *encoding,
             EncoderAction::Key { .. } => Encoding::Relative,
+        }
+    }
+
+    /// Turned fast, the encoder moves several steps per detent.
+    pub fn acceleration(&self) -> bool {
+        match self {
+            EncoderAction::Cc { acceleration, .. } | EncoderAction::Osc { acceleration, .. } => *acceleration,
+            EncoderAction::Key { .. } => false,
         }
     }
 }
@@ -658,7 +688,9 @@ pub fn validate(profile: &Profile) -> Vec<String> {
                 v.error(&p, t!("core.validation.unknownKnob", count = KNOB_COUNT));
             }
             match action {
-                KnobAction::Cc { channel, cc, min, max } => {
+                KnobAction::Cc {
+                    channel, cc, min, max, ..
+                } => {
                     v.channel(&p, *channel);
                     v.midi_value(&p, "cc", *cc);
                     v.midi_value(&p, "min", *min);
@@ -777,6 +809,15 @@ impl Validator {
             }
             ButtonAction::Osc { address, .. } => self.osc_address(path, address),
             ButtonAction::Key { keys, .. } => self.keys(&format!("{path}.keys"), keys),
+            ButtonAction::SwitchProfile { profile } => {
+                // A file name from the profiles folder.
+                if !profile.ends_with(".json") || profile.contains(['/', '\\']) || profile == SCHEMA_FILE {
+                    self.error(
+                        format!("{path}.profile"),
+                        t!("core.validation.invalidProfileFile", profile),
+                    );
+                }
+            }
             ButtonAction::Roll {} | ButtonAction::Flam {} => {}
         }
     }
@@ -1104,6 +1145,8 @@ mod tests {
             r#"{ "version": 1, "name": "T", "repeat": { "swing": 1 }, "banks": [{ "name": "A" }] }"#.to_string(),
             minimal(r#"{ "name": "A", "pads": { "1": { "type": "key", "keys": "ctrl+s", "channel": 1 } } }"#),
             minimal(r#"{ "name": "A", "encoder": { "type": "key", "left": "left" } }"#),
+            minimal(r#"{ "name": "A", "pads": { "1": { "type": "switchProfile", "profile": "../live.json" } } }"#),
+            minimal(r#"{ "name": "A", "pads": { "1": { "type": "switchProfile", "profile": "live" } } }"#),
         ];
         for json in invalid {
             assert!(!schema_errors(&json).is_empty(), "the schema accepts: {json}");
@@ -1145,6 +1188,22 @@ mod tests {
         // Defaults are left out when saving.
         let plain = parse_profile(&minimal(r#"{ "name": "A" }"#)).unwrap();
         assert!(!serde_json::to_string(&plain).unwrap().contains("repeat"));
+    }
+
+    #[test]
+    fn performance_options_parse_and_match_schema() {
+        let json = minimal(
+            r#"{ "name": "A", "pads": { "1": { "type": "switchProfile", "profile": "live.json" } },
+                             "knobs": { "1": { "type": "cc", "channel": 1, "cc": 7, "pickup": true },
+                                        "2": { "type": "osc", "address": "/v", "pickup": true } },
+                             "encoder": { "type": "cc", "channel": 1, "cc": 10, "acceleration": true } }"#,
+        );
+        assert_eq!(schema_errors(&json), Vec::<String>::new());
+        let profile = parse_profile(&json).unwrap();
+        assert!(profile.banks[0].knobs[&1].pickup());
+        assert!(profile.banks[0].encoder.as_ref().unwrap().acceleration());
+        let saved = serde_json::to_string(&profile).unwrap();
+        assert_eq!(parse_profile(&saved).unwrap(), profile);
     }
 
     #[test]

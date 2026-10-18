@@ -340,21 +340,45 @@ struct Writer {
     closed: mpsc::Receiver<()>,
 }
 
+/// What a writer sends to.
+trait Sink: Send + 'static {
+    fn send(&mut self, message: &[u8]);
+    /// Called once the queue is empty, after a burst of messages.
+    fn idle(&mut self) {}
+}
+
+/// A sink that only sends, through `send`.
+fn sink<F: FnMut(&[u8]) + Send + 'static>(send: F) -> impl Sink {
+    struct FnSink<F>(F);
+    impl<F: FnMut(&[u8]) + Send + 'static> Sink for FnSink<F> {
+        fn send(&mut self, message: &[u8]) {
+            (self.0)(message)
+        }
+    }
+    FnSink(send)
+}
+
 impl Writer {
-    fn spawn(mut send: impl FnMut(&[u8]) + Send + 'static) -> Self {
+    fn spawn(mut sink: impl Sink) -> Self {
         let (tx, rx) = mpsc::channel();
         let (closed_tx, closed) = mpsc::channel();
         std::thread::spawn(move || {
-            for command in rx {
-                match command {
-                    WriterCommand::Send(message) => send(&message),
-                    WriterCommand::Flush(done) => {
-                        let _ = done.send(());
+            sink.idle();
+            while let Ok(command) = rx.recv() {
+                let mut next = Some(command);
+                while let Some(command) = next {
+                    match command {
+                        WriterCommand::Send(message) => sink.send(&message),
+                        WriterCommand::Flush(done) => {
+                            let _ = done.send(());
+                        }
                     }
+                    next = rx.try_recv().ok();
                 }
+                sink.idle();
             }
             // Closes the port before telling.
-            drop(send);
+            drop(sink);
             let _ = closed_tx.send(());
         });
         Self { tx, closed }
@@ -374,6 +398,56 @@ impl Writer {
         let Writer { tx, closed } = self;
         drop(tx);
         let _ = closed.recv_timeout(timeout);
+    }
+}
+
+/// The padKONTROL output: readdresses native messages to its global channel,
+/// and tells the UI which LEDs are lit.
+struct PadSink {
+    out: MidiOutputConnection,
+    channel: u8,
+    app: AppHandle,
+    lit: std::collections::BTreeSet<LedId>,
+    changed: bool,
+}
+
+/// An LED, as the UI names it.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum LedId {
+    Pad { pad: u8 },
+    Button { button: crate::config::ButtonId },
+}
+
+pub const LEDS_EVENT: &str = "leds";
+
+impl PadSink {
+    fn observe(&mut self, message: &[u8]) {
+        let Some((control, on)) = padkontrol::decode_led(message) else {
+            return;
+        };
+        let id = match control {
+            padkontrol::Control::Pad(pad) => LedId::Pad { pad },
+            padkontrol::Control::Button(button) => LedId::Button { button },
+            padkontrol::Control::XyTouch => return,
+        };
+        self.changed |= if on { self.lit.insert(id) } else { self.lit.remove(&id) };
+    }
+}
+
+impl Sink for PadSink {
+    fn send(&mut self, message: &[u8]) {
+        self.observe(message);
+        let mut message = message.to_vec();
+        padkontrol::for_channel(&mut message, self.channel);
+        let _ = self.out.send(&message);
+    }
+
+    fn idle(&mut self) {
+        if std::mem::take(&mut self.changed) {
+            let lit: Vec<&LedId> = self.lit.iter().collect();
+            let _ = self.app.emit(LEDS_EVENT, lit);
+        }
     }
 }
 
@@ -726,9 +800,9 @@ impl PadConnection {
         let (daw_out, daw_name) = match &options.daw_output {
             Some(choice) => {
                 let (mut output, name) = open_daw_output(choice)?;
-                let writer = Writer::spawn(move |message| {
+                let writer = Writer::spawn(sink(move |message| {
                     output.send(message);
-                });
+                }));
                 (Some(writer), Some(name))
             }
             None => (None, None),
@@ -769,6 +843,7 @@ impl PadConnection {
         // Global MIDI channel of the padKONTROL (0 to 15), set in its own
         // settings: its native messages carry it.
         let mut channel = 0;
+        let mut init = vec![];
         if options.native_mode {
             let out = pad_out.as_mut().expect("output port checked above");
             let send_failed = |e: midir::SendError| t!("core.connection.nativeModeSendFailed", error = e);
@@ -784,11 +859,12 @@ impl PadConnection {
                 }
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
-            let mut init = padkontrol::enter_native_mode(DISPLAY_TEXT);
+            init = padkontrol::enter_native_mode(DISPLAY_TEXT);
             if let Some(engine) = &mut engine {
                 init.extend(engine.refresh());
             }
-            for mut message in init {
+            for message in &init {
+                let mut message = message.clone();
                 padkontrol::for_channel(&mut message, channel);
                 out.send(&message).map_err(send_failed)?;
             }
@@ -798,12 +874,19 @@ impl PadConnection {
             let _ = app.emit(ENGINE_EVENT, Some(engine.state()));
         }
         // From here on, the padKONTROL output only sends from its writer.
-        let pad_out = pad_out.map(|mut out| {
-            Writer::spawn(move |message| {
-                let mut message = message.to_vec();
-                padkontrol::for_channel(&mut message, channel);
-                let _ = out.send(&message);
-            })
+        let pad_out = pad_out.map(|out| {
+            let mut sink = PadSink {
+                out,
+                channel,
+                app: app.clone(),
+                lit: Default::default(),
+                // The UI starts from no LED lit, even outside native mode.
+                changed: true,
+            };
+            for message in &init {
+                sink.observe(message);
+            }
+            Writer::spawn(sink)
         });
         let emergency = pad_out.as_ref().filter(|_| options.native_mode).map(|w| w.tx.clone());
         *shared.lock().unwrap() = Shared {
@@ -919,6 +1002,27 @@ impl PadConnection {
             shared.send_pad(&refresh);
             Ok(state)
         })
+    }
+
+    /// All notes off: ends what the engine left on, then sends All Notes Off,
+    /// All Sound Off and sustain off on every channel of the DAW output, and
+    /// releases the held keys.
+    pub fn panic(&self) -> Result<(), String> {
+        let current = self.current.lock().unwrap();
+        let connection = current.as_ref().ok_or_else(|| t!("core.connection.notConnected"))?;
+        let mut shared = connection.shared.lock().unwrap();
+        if let Some(engine) = shared.engine.as_mut() {
+            let released = engine.release_all();
+            let leds = engine.refresh();
+            shared.send_released(&released);
+            shared.send_pad(&leds);
+        }
+        let all_off: Vec<Vec<u8>> = (0..16u8)
+            .flat_map(|channel| [123, 120, 64].map(|cc| vec![0xB0 | channel, cc, 0]))
+            .collect();
+        shared.send_daw(&all_off);
+        keys::release_all();
+        Ok(())
     }
 
     /// File of the profile the engine runs, if any.
@@ -1100,6 +1204,7 @@ fn pad_input_handler(app: AppHandle, shared: Arc<Mutex<Shared>>) -> Handler {
         }
         let mut sent = vec![];
         let mut state = None;
+        let mut switch_profile = None;
         if let Some(event) = &incoming.event {
             let mut shared = shared.lock().unwrap();
             let out = shared.engine.as_mut().map(|engine| {
@@ -1116,6 +1221,7 @@ fn pad_input_handler(app: AppHandle, shared: Arc<Mutex<Shared>>) -> Handler {
                     sent = shared.send_daw(&out.daw);
                     keys::send(&out.keys);
                     sent.extend(out.keys.iter().map(MidiMessage::key));
+                    switch_profile.clone_from(&out.switch_profile);
                     (out.osc.as_slice(), out.encoder_position)
                 }
                 None => (&[][..], None),
@@ -1131,7 +1237,32 @@ fn pad_input_handler(app: AppHandle, shared: Arc<Mutex<Shared>>) -> Handler {
         if let Some(state) = state {
             let _ = app.emit(ENGINE_EVENT, Some(state));
         }
+        if let Some(file) = switch_profile {
+            // Reads the file and takes the connection's locks: not from here.
+            let app = app.clone();
+            std::thread::spawn(move || switch_to_profile(&app, &file));
+        }
     })
+}
+
+/// A `switchProfile` action: makes `file` the active profile.
+fn switch_to_profile(app: &AppHandle, file: &str) {
+    let result = app
+        .state::<ProfileStore>()
+        .load(file)
+        .map_err(|errors| {
+            let errors = errors.join("\n");
+            t!("core.app.invalidProfile", file, errors)
+        })
+        .and_then(|profile| app.state::<PadConnection>().set_profile(file, profile));
+    match result {
+        Ok(state) => {
+            let _ = app.emit(ENGINE_EVENT, Some(state));
+        }
+        Err(problem) => {
+            let _ = app.emit(CONNECTION_PROBLEM_EVENT, problem);
+        }
+    }
 }
 
 /// Messages sent back by the DAW: LEDs in `follow` mode.
@@ -1315,11 +1446,11 @@ mod tests {
         }
         let port = Port(port_open.clone());
         let log = sent.clone();
-        let writer = Writer::spawn(move |message| {
+        let writer = Writer::spawn(sink(move |message| {
             let _keep = &port;
             std::thread::sleep(std::time::Duration::from_millis(5));
             log.lock().unwrap().push(message.to_vec());
-        });
+        }));
         for i in 0..10u8 {
             writer.send(vec![0x90, i, 100]);
         }
@@ -1339,7 +1470,7 @@ mod tests {
 
     #[test]
     fn writer_flush_gives_up_on_a_stalled_output() {
-        let writer = Writer::spawn(|_| std::thread::sleep(std::time::Duration::from_millis(500)));
+        let writer = Writer::spawn(sink(|_| std::thread::sleep(std::time::Duration::from_millis(500))));
         writer.send(vec![0xF0, 0xF7]);
         assert!(!writer.flush(std::time::Duration::from_millis(50)));
     }

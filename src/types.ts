@@ -81,6 +81,8 @@ export type ButtonAction =
   | { type: "cc"; channel: number; cc: number; onValue?: number; offValue?: number; mode?: Mode; led?: Led }
   | { type: "programChange"; channel: number; program: number; led?: Led }
   | { type: "switchBank"; bank: number; momentary?: boolean }
+  /** Makes another profile, by its file name, the active one. */
+  | { type: "switchProfile"; profile: string }
   | { type: "osc"; address: string; args?: OscValue[]; releaseArgs?: OscValue[]; mode?: Mode; led?: Led }
   /** Types a keyboard shortcut such as "ctrl+s"; with `hold`, keeps it down while held. */
   | { type: "key"; keys: string; hold?: boolean; led?: Led }
@@ -93,13 +95,15 @@ export type OscValue = number | boolean | string;
 
 export type Encoding = "relative" | "absolute";
 
+/** `pickup`: after a bank change, the knob waits to reach its value in this bank. */
 export type KnobAction =
-  | { type: "cc"; channel: number; cc: number; min?: number; max?: number }
-  | { type: "osc"; address: string; min?: number; max?: number; float?: boolean };
+  | { type: "cc"; channel: number; cc: number; min?: number; max?: number; pickup?: boolean }
+  | { type: "osc"; address: string; min?: number; max?: number; float?: boolean; pickup?: boolean };
 export type XyAction = { type: "xy"; channel: number; ccX: number; ccY: number } | { type: "osc"; address: string };
+/** `acceleration`: turned fast, the encoder moves several steps per detent. */
 export type EncoderAction =
-  | { type: "cc"; channel: number; cc: number; encoding?: Encoding }
-  | { type: "osc"; address: string; encoding?: Encoding }
+  | { type: "cc"; channel: number; cc: number; encoding?: Encoding; acceleration?: boolean }
+  | { type: "osc"; address: string; encoding?: Encoding; acceleration?: boolean }
   /** Types a shortcut for each step to the left or to the right. */
   | { type: "key"; left: string; right: string };
 
@@ -221,6 +225,9 @@ export type MidiMessage = {
   /** Encoder position kept by the engine, for encoder events it handled. */
   encoderPosition: number | null;
 };
+
+/** An LED of the padKONTROL. */
+export type LedId = { kind: "pad"; pad: number } | { kind: "button"; button: ButtonId };
 
 /** Monitor entry, with a stable id for React keys. */
 export type MonitorEntry = MidiMessage & { id: number };

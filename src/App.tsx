@@ -13,6 +13,7 @@ import type {
   ConnectOptions,
   ControlEvent,
   EngineState,
+  LedId,
   MidiMessage,
   MidiPorts,
   MonitorEntry,
@@ -80,6 +81,8 @@ function App() {
   const [engine, setEngine] = useState<EngineState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"control" | "profiles">("control");
+  // LEDs lit on the padKONTROL, keyed like ControlState.seen.
+  const [leds, setLeds] = useState<Set<string>>(() => new Set());
   const { lang, setLang, t } = useI18n();
 
   const pendingControls = useRef<MidiMessage[]>([]);
@@ -133,13 +136,18 @@ function App() {
       setWaiting(e.payload.waiting);
       setEngine(e.payload.engine);
       if (e.payload.connection) setControls(initialControlState());
+      else setLeds(new Set());
     });
+    const unlistenLeds = listen<LedId[]>("leds", (e) =>
+      setLeds(new Set(e.payload.map((led) => (led.kind === "pad" ? `pad${led.pad}` : led.button)))),
+    );
     // A reconnection that worked around a problem, such as a profile that
     // no longer loads.
     const unlistenProblem = listen<string>("connection-problem", (e) => setError(e.payload));
     return () => {
       unlisten.then((stop) => stop());
       unlistenProblem.then((stop) => stop());
+      unlistenLeds.then((stop) => stop());
     };
   }, []);
 
@@ -216,6 +224,8 @@ function App() {
     [run],
   );
 
+  const panic = useCallback(() => run(() => invoke("panic")), [run]);
+
   const disconnect = useCallback(
     () =>
       run(async () => {
@@ -285,6 +295,7 @@ function App() {
         onRefresh={refresh}
         onConnect={connect}
         onDisconnect={disconnect}
+        onPanic={panic}
         compact={tab === "profiles"}
       />
 
@@ -313,6 +324,7 @@ function App() {
         <ControlView
           state={controls}
           display={engine ? engine.display.toUpperCase() : connection?.nativeMode ? "TK" : "---"}
+          leds={leds}
         />
         <Monitor messages={messages} paused={paused} onTogglePause={togglePause} onClear={clearMonitor} />
       </div>

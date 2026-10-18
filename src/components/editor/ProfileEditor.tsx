@@ -379,6 +379,7 @@ function ProfileEditorView({ profiles, dir, engine, canLearn, onProfilesChanged,
                     control={selected}
                     action={getAction(currentBank, selected)}
                     banks={draft.banks}
+                    profiles={profiles}
                     errors={controlErrors}
                     onChange={(action) => updateBank((b) => setAction(b, selected, action))}
                   />

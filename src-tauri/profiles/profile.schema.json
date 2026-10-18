@@ -300,12 +300,37 @@
       "required": ["type"],
       "properties": { "type": { "const": "flam" } }
     },
+    "switchProfileAction": {
+      "description": "Makes another profile the active one.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "profile"],
+      "properties": {
+        "type": { "const": "switchProfile" },
+        "profile": {
+          "description": "File name of the profile, in the profiles folder, for example live.json.",
+          "type": "string",
+          "pattern": "^[^/\\\\]+\\.json$"
+        }
+      }
+    },
+    "pickup": {
+      "description": "true: after a bank change, the knob sends nothing until it reaches the value it had in this bank, so the target does not jump.",
+      "type": "boolean",
+      "default": false
+    },
+    "acceleration": {
+      "description": "true: turned fast, the encoder moves several steps per detent.",
+      "type": "boolean",
+      "default": false
+    },
     "padAction": {
       "oneOf": [
         { "$ref": "#/$defs/padNoteAction" },
         { "$ref": "#/$defs/ccButtonAction" },
         { "$ref": "#/$defs/programChangeAction" },
         { "$ref": "#/$defs/switchBankAction" },
+        { "$ref": "#/$defs/switchProfileAction" },
         { "$ref": "#/$defs/oscButtonAction" },
         { "$ref": "#/$defs/keyAction" },
         { "$ref": "#/$defs/rollAction" },
@@ -318,6 +343,7 @@
         { "$ref": "#/$defs/ccButtonAction" },
         { "$ref": "#/$defs/programChangeAction" },
         { "$ref": "#/$defs/switchBankAction" },
+        { "$ref": "#/$defs/switchProfileAction" },
         { "$ref": "#/$defs/oscButtonAction" },
         { "$ref": "#/$defs/keyAction" },
         { "$ref": "#/$defs/rollAction" },
@@ -365,7 +391,8 @@
             "channel": { "$ref": "#/$defs/channel" },
             "cc": { "$ref": "#/$defs/midiValue" },
             "min": { "$ref": "#/$defs/midiValue", "default": 0 },
-            "max": { "$ref": "#/$defs/midiValue", "default": 127 }
+            "max": { "$ref": "#/$defs/midiValue", "default": 127 },
+            "pickup": { "$ref": "#/$defs/pickup" }
           }
         },
         {
@@ -389,7 +416,8 @@
               "description": "true: sends a decimal. Otherwise, a rounded integer.",
               "type": "boolean",
               "default": false
-            }
+            },
+            "pickup": { "$ref": "#/$defs/pickup" }
           }
         }
       ]
@@ -434,7 +462,8 @@
             "type": { "const": "cc" },
             "channel": { "$ref": "#/$defs/channel" },
             "cc": { "$ref": "#/$defs/midiValue" },
-            "encoding": { "$ref": "#/$defs/encoding" }
+            "encoding": { "$ref": "#/$defs/encoding" },
+            "acceleration": { "$ref": "#/$defs/acceleration" }
           }
         },
         {
@@ -444,7 +473,8 @@
           "properties": {
             "type": { "const": "osc" },
             "address": { "$ref": "#/$defs/oscAddress" },
-            "encoding": { "$ref": "#/$defs/encoding" }
+            "encoding": { "$ref": "#/$defs/encoding" },
+            "acceleration": { "$ref": "#/$defs/acceleration" }
           }
         },
         {

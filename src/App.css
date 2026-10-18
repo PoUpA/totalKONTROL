@@ -8,6 +8,8 @@
   --border: #e5e7eb;
   --control: #eef0f3;
   --accent: #e8590c;
+  /* The padKONTROL's red LEDs. */
+  --led: #ff453a;
   --ok-bg: #d1fadf;
   --ok-fg: #05603a;
   --error: #b42318;
@@ -327,6 +329,7 @@ h3 {
 }
 
 .btn {
+  position: relative;
   padding: 4px 6px;
   border-radius: 4px;
   background: var(--control);
@@ -339,6 +342,19 @@ h3 {
 .btn.on {
   background: var(--accent);
   color: #fff;
+}
+
+/* LED lit on the padKONTROL. */
+.lit::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--led);
+  box-shadow: 0 0 6px var(--led);
 }
 
 /* A control that has been received at least once. */

@@ -123,6 +123,8 @@ export function summarize(action: AnyAction | undefined, banks: Bank[], t: Trans
       return `PC ${action.program} · ${channel}`;
     case "switchBank":
       return `→ ${banks[action.bank]?.name ?? t("summary.bank", { bank: action.bank })}`;
+    case "switchProfile":
+      return `⇄ ${action.profile.replace(/\.json$/, "")}`;
     case "xy":
       return `CC ${action.ccX}/${action.ccY} · ${channel}`;
     case "osc":

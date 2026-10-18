@@ -28,6 +28,8 @@ pub struct Output {
     pub osc: Vec<OscMessage>,
     /// Shortcuts from `key` actions, to type.
     pub keys: Vec<KeyEvent>,
+    /// Profile file a `switchProfile` action asks for.
+    pub switch_profile: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -46,6 +48,9 @@ pub struct EngineState {
 
 /// Range of the relative encoder counter: what the 3-character display can show.
 const RELATIVE_COUNTER: std::ops::RangeInclusive<i16> = -99..=999;
+/// How close a knob must come to its value to be picked up, for knobs that
+/// jump over values when turned fast.
+const PICKUP_TOLERANCE: u8 = 2;
 /// Most shortcuts typed for one encoder message, however fast it turns.
 const MAX_KEY_STEPS: u8 = 8;
 
@@ -143,6 +148,13 @@ pub struct Engine {
     /// MIDI messages to send later (flam notes), in time order.
     scheduled: Vec<(Instant, Vec<u8>)>,
     clock: Clock,
+    /// Knob pickup: last value sent per bank and knob, where each knob is,
+    /// and the knobs waiting to reach their value after a bank change.
+    knob_sent: HashMap<(usize, u8), u8>,
+    knob_physical: HashMap<u8, u8>,
+    knob_waiting: HashSet<(usize, u8)>,
+    /// Last encoder move, for its acceleration.
+    last_encoder: Option<Instant>,
 }
 
 impl Engine {
@@ -168,6 +180,10 @@ impl Engine {
             rolls: HashMap::new(),
             scheduled: Vec::new(),
             clock: Clock::default(),
+            knob_sent: HashMap::new(),
+            knob_physical: HashMap::new(),
+            knob_waiting: HashSet::new(),
+            last_encoder: None,
         }
     }
 
@@ -197,7 +213,13 @@ impl Engine {
         let encoder = std::mem::take(&mut self.encoder);
         let (roll_on, flam_on, clock) = (self.roll_on, self.flam_on, self.clock);
         let (roll_override, flam_override) = (self.roll_override, self.flam_override);
+        let knobs = (
+            std::mem::take(&mut self.knob_sent),
+            std::mem::take(&mut self.knob_physical),
+            std::mem::take(&mut self.knob_waiting),
+        );
         *self = Engine::new(profile).with_file(std::mem::take(&mut self.file));
+        (self.knob_sent, self.knob_physical, self.knob_waiting) = knobs;
         self.bank = bank;
         self.follow = follow;
         self.osc_follow = osc_follow;
@@ -394,8 +416,14 @@ impl Engine {
             ControlEvent::XyTouch { pressed: true } => self.press(Control::XyTouch, None, now, &mut out),
             ControlEvent::XyTouch { pressed: false } => self.release(Control::XyTouch, now, &mut out),
             ControlEvent::Knob { knob, value } => {
-                let shown = match self.bank().knobs.get(&knob).cloned() {
-                    Some(KnobAction::Cc { channel, cc, min, max }) => {
+                let action = self.bank().knobs.get(&knob).cloned();
+                if !self.picked_up(knob, value, action.as_ref().is_some_and(KnobAction::pickup)) {
+                    return out;
+                }
+                let shown = match action {
+                    Some(KnobAction::Cc {
+                        channel, cc, min, max, ..
+                    }) => {
                         let scaled = (min as u16 + value as u16 * max.saturating_sub(min) as u16 / 127) as u8;
                         out.daw.push(control_change(channel, cc, scaled));
                         Some(scaled)
@@ -405,6 +433,7 @@ impl Engine {
                         min,
                         max,
                         float,
+                        ..
                     }) => {
                         out.osc
                             .push(OscMessage::new(address, vec![scale_osc(value, min, max, float)]));
@@ -451,6 +480,7 @@ impl Engine {
             },
             ControlEvent::Encoder { delta } => {
                 if let Some(action) = self.bank().encoder.clone() {
+                    let delta = self.accelerate(delta, action.acceleration(), now);
                     let encoding = action.encoding();
                     // Position shown on the display. In absolute mode it is also
                     // the value sent, so it stays a MIDI value; in relative mode
@@ -605,6 +635,7 @@ impl Engine {
                 out.daw.push(vec![0xC0 | (channel - 1), program]);
             }
             ButtonAction::SwitchBank { bank: target, .. } => self.switch_bank(target, out),
+            ButtonAction::SwitchProfile { profile } => out.switch_profile = Some(profile),
             ButtonAction::Osc {
                 address,
                 args,
@@ -707,8 +738,48 @@ impl Engine {
         self.bank = bank;
         self.last_xy = None;
         self.led_override.clear();
+        // Knobs that moved since this bank last used them wait to be picked up.
+        for (&(knob_bank, knob), &sent) in &self.knob_sent {
+            if knob_bank == bank && self.knob_physical.get(&knob).is_some_and(|&now| now != sent) {
+                self.knob_waiting.insert((bank, knob));
+            }
+        }
         out.bank_changed = true;
         out.pad.extend(self.refresh());
+    }
+
+    /// Whether a knob move goes through. With `pickup`, after a bank change
+    /// the knob waits until it reaches, or crosses, the value it had in this
+    /// bank, so that the target does not jump.
+    fn picked_up(&mut self, knob: u8, value: u8, pickup: bool) -> bool {
+        let key = (self.bank, knob);
+        let previous = self.knob_physical.insert(knob, value);
+        if pickup && self.knob_waiting.contains(&key) {
+            let target = self.knob_sent[&key];
+            let from = previous.unwrap_or(value);
+            let reached =
+                (from.min(value)..=from.max(value)).contains(&target) || value.abs_diff(target) <= PICKUP_TOLERANCE;
+            if !reached {
+                return false;
+            }
+        }
+        self.knob_waiting.remove(&key);
+        self.knob_sent.insert(key, value);
+        true
+    }
+
+    /// Steps of an encoder move, more of them when turned fast.
+    fn accelerate(&mut self, delta: i8, acceleration: bool, now: Instant) -> i8 {
+        let previous = self.last_encoder.replace(now);
+        if !acceleration {
+            return delta;
+        }
+        let factor = match previous.map(|at| now.saturating_duration_since(at)) {
+            Some(gap) if gap < Duration::from_millis(20) => 4,
+            Some(gap) if gap < Duration::from_millis(50) => 2,
+            _ => 1,
+        };
+        delta.saturating_mul(factor)
     }
 
     fn update_led(&self, control: Control, out: &mut Output) {
@@ -827,7 +898,7 @@ fn led_mode(action: &ButtonAction) -> Led {
             Mode::Toggle => Led::Toggle,
         }),
         ButtonAction::ProgramChange { led, .. } | ButtonAction::Key { led, .. } => led.unwrap_or(Led::Press),
-        ButtonAction::SwitchBank { .. } => Led::Press,
+        ButtonAction::SwitchBank { .. } | ButtonAction::SwitchProfile { .. } => Led::Press,
         // Lit while the mode is on (see `led_state`).
         ButtonAction::Roll {} | ButtonAction::Flam {} => Led::Toggle,
     }
@@ -1601,6 +1672,81 @@ mod tests {
         assert!((e.roll_interval(now).as_secs_f32() - 0.25).abs() < 0.01);
         // The clock stopped: back to the profile's tempo.
         assert_eq!(e.bpm(now + Duration::from_secs(1)), 120.0);
+    }
+
+    #[test]
+    fn knob_pickup_waits_for_the_value_of_the_bank() {
+        let mut e = engine(
+            r#"{ "name": "A", "knobs": { "1": { "type": "cc", "channel": 1, "cc": 7, "pickup": true } },
+                 "buttons": { "setting": { "type": "switchBank", "bank": 1 } } },
+               { "name": "B", "knobs": { "1": { "type": "cc", "channel": 1, "cc": 8, "pickup": true } },
+                 "buttons": { "setting": { "type": "switchBank", "bank": 0 } } }"#,
+        );
+        let knob = |value| ControlEvent::Knob { knob: 1, value };
+        assert_eq!(
+            e.handle(&knob(100)).daw,
+            vec![vec![0xB0, 7, 100]],
+            "first use: no pickup"
+        );
+        e.handle(&button(ButtonId::Setting, true));
+        // Bank B never saw this knob: it follows at once.
+        assert_eq!(e.handle(&knob(20)).daw, vec![vec![0xB0, 8, 20]]);
+        e.handle(&button(ButtonId::Setting, false));
+        e.handle(&button(ButtonId::Setting, true));
+        // Back in A, the knob is at 20 but A last sent 100.
+        assert_eq!(e.state().bank, 0);
+        assert!(e.handle(&knob(40)).daw.is_empty());
+        assert!(e.handle(&knob(90)).daw.is_empty());
+        assert_eq!(
+            e.handle(&knob(105)).daw,
+            vec![vec![0xB0, 7, 105]],
+            "crossed 100: picked up"
+        );
+        assert_eq!(e.handle(&knob(60)).daw, vec![vec![0xB0, 7, 60]], "then follows");
+    }
+
+    #[test]
+    fn knobs_without_pickup_jump() {
+        let mut e = engine(
+            r#"{ "name": "A", "knobs": { "1": { "type": "cc", "channel": 1, "cc": 7 } },
+                 "buttons": { "setting": { "type": "switchBank", "bank": 1 } } },
+               { "name": "B", "buttons": { "setting": { "type": "switchBank", "bank": 0 } } }"#,
+        );
+        let knob = |value| ControlEvent::Knob { knob: 1, value };
+        e.handle(&knob(100));
+        e.handle(&button(ButtonId::Setting, true));
+        e.handle(&knob(20));
+        e.handle(&button(ButtonId::Setting, false));
+        e.handle(&button(ButtonId::Setting, true));
+        assert_eq!(e.handle(&knob(25)).daw, vec![vec![0xB0, 7, 25]]);
+    }
+
+    #[test]
+    fn encoder_accelerates_when_turned_fast() {
+        let mut e =
+            engine(r#"{ "name": "A", "encoder": { "type": "cc", "channel": 1, "cc": 10, "acceleration": true } }"#);
+        let t0 = Instant::now();
+        let turn = |e: &mut Engine, at| {
+            e.handle_at(&ControlEvent::Encoder { delta: 1 }, t0 + at)
+                .encoder_position
+        };
+        assert_eq!(turn(&mut e, Duration::ZERO), Some(1));
+        assert_eq!(turn(&mut e, Duration::from_millis(500)), Some(2), "slow: one step");
+        assert_eq!(turn(&mut e, Duration::from_millis(530)), Some(4), "faster: two");
+        assert_eq!(turn(&mut e, Duration::from_millis(540)), Some(8), "fast: four");
+
+        let mut plain = engine(r#"{ "name": "A", "encoder": { "type": "cc", "channel": 1, "cc": 10 } }"#);
+        plain.handle_at(&ControlEvent::Encoder { delta: 1 }, t0);
+        let out = plain.handle_at(&ControlEvent::Encoder { delta: 1 }, t0 + Duration::from_millis(5));
+        assert_eq!(out.encoder_position, Some(2));
+    }
+
+    #[test]
+    fn switch_profile_asks_for_the_file() {
+        let mut e = engine(r#"{ "name": "A", "pads": { "1": { "type": "switchProfile", "profile": "live.json" } } }"#);
+        let out = e.handle(&pad(1, true, 100));
+        assert_eq!(out.switch_profile.as_deref(), Some("live.json"));
+        assert_eq!(led_on(&out, Control::Pad(1)), Some(true));
     }
 
     #[test]

@@ -80,6 +80,12 @@ fn disconnect_pad(app: AppHandle, connection: State<PadConnection>) {
     connection.disconnect(&app);
 }
 
+/// All notes off, in the DAW and on the keyboard.
+#[tauri::command(async)]
+fn panic(connection: State<PadConnection>) -> Result<(), String> {
+    connection.panic()
+}
+
 #[tauri::command(async)]
 fn connection_status(connection: State<PadConnection>) -> midi::ConnectionState {
     connection.state()
@@ -196,6 +202,7 @@ pub fn run() {
             list_midi_ports,
             connect_pad,
             disconnect_pad,
+            panic,
             connection_status,
             engine_state,
             set_profile,

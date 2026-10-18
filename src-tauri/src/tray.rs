@@ -7,12 +7,16 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, Runtime, Window, WindowEvent};
 
+use crate::midi::PadConnection;
+
 const SHOW: &str = "show";
+const PANIC: &str = "panic";
 const QUIT: &str = "quit";
 
 /// Tray menu items, kept to relabel them when the language changes.
 pub struct Tray<R: Runtime> {
     show: MenuItem<R>,
+    panic: MenuItem<R>,
     quit: MenuItem<R>,
 }
 
@@ -33,14 +37,19 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) {
 
 fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Tray<R>> {
     let show = MenuItem::with_id(app, SHOW, t!("core.tray.show"), true, None::<&str>)?;
+    let panic = MenuItem::with_id(app, PANIC, t!("core.tray.panic"), true, None::<&str>)?;
     let quit = MenuItem::with_id(app, QUIT, t!("core.tray.quit"), true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show, &quit])?;
+    let menu = Menu::with_items(app, &[&show, &panic, &quit])?;
     let mut builder = TrayIconBuilder::with_id("main")
         .tooltip("totalKONTROL")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
             SHOW => show_window(app),
+            // Nothing to stop when not connected.
+            PANIC => {
+                let _ = app.state::<PadConnection>().panic();
+            }
             // Exits through RunEvent::Exit, which returns the padKONTROL to normal mode.
             QUIT => app.exit(0),
             _ => {}
@@ -59,13 +68,14 @@ fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Tray<R>> {
         builder = builder.icon(icon.clone());
     }
     builder.build(app)?;
-    Ok(Tray { show, quit })
+    Ok(Tray { show, panic, quit })
 }
 
 /// Menu texts in the current language.
 pub fn relabel<R: Runtime>(app: &AppHandle<R>) {
     if let Some(tray) = app.try_state::<Tray<R>>() {
         let _ = tray.show.set_text(t!("core.tray.show"));
+        let _ = tray.panic.set_text(t!("core.tray.panic"));
         let _ = tray.quit.set_text(t!("core.tray.quit"));
     }
 }
