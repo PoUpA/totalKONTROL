@@ -45,7 +45,7 @@ tauri-plugin-opener = "2"
 
 [target.'cfg(windows)'.dependencies]
 windows-core = { version = "0.62", optional = true }
-windows-collections = { version = "0.3", optional = true }
+windows-collections = { version = "0.100", optional = true }
 windows-future = { version = "0.3", optional = true }
 windows = { version = "0.62", optional = true, features = [
     "Foundation",
