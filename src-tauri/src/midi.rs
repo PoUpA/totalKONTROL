@@ -515,6 +515,16 @@ struct Shared {
     thru: bool,
     /// An exchange waiting for an answer of the padKONTROL (see `exchange`).
     waiter: Option<Waiter>,
+    /// The engine ticker, woken when the engine has something new to time.
+    ticker: Option<std::thread::Thread>,
+}
+
+impl Shared {
+    fn wake_ticker(&self) {
+        if let Some(ticker) = &self.ticker {
+            ticker.unpark();
+        }
+    }
 }
 
 /// The answer an exchange waits for, and where it goes.
@@ -534,13 +544,20 @@ impl Shared {
         bank: Option<usize>,
     ) -> Vec<MidiMessage> {
         let Some(out) = self.osc.as_ref() else { return vec![] };
-        let mut all = messages.to_vec();
-        if out.mirror {
-            all.extend(event.map(|e| osc::mirror(&out.prefix, e, encoder_position)));
-            all.extend(bank.map(|b| osc::mirror_bank(&out.prefix, b)));
-        }
-        all.iter()
-            .filter(|m| out.sender.send(m))
+        let mirror: Vec<OscMessage> = if out.mirror {
+            let control = event.map(|e| osc::mirror(&out.prefix, e, encoder_position));
+            control
+                .into_iter()
+                .chain(bank.map(|b| osc::mirror_bank(&out.prefix, b)))
+                .collect()
+        } else {
+            vec![]
+        };
+        let shown = ui_visible();
+        messages
+            .iter()
+            .chain(&mirror)
+            .filter(|m| out.sender.send(m) && shown)
             .map(|m| MidiMessage::osc(Direction::Osc, m))
             .collect()
     }
@@ -565,11 +582,12 @@ impl Shared {
         let Some(out) = &self.daw_out else {
             return vec![];
         };
+        let shown = ui_visible();
         messages
             .iter()
-            .map(|m| {
+            .filter_map(|m| {
                 out.send(m.clone());
-                MidiMessage::new(Direction::Out, m)
+                shown.then(|| MidiMessage::new(Direction::Out, m))
             })
             .collect()
     }
@@ -652,6 +670,27 @@ pub struct ConnectionState {
 }
 
 pub const CONNECTION_EVENT: &str = "connection-state";
+
+/// Whether the window shows: hidden in the tray, the monitor and the live
+/// view get nothing, and the messages for them are not even described.
+static UI_VISIBLE: AtomicBool = AtomicBool::new(true);
+
+pub fn set_ui_visible(visible: bool) {
+    UI_VISIBLE.store(visible, Ordering::Relaxed);
+}
+
+fn ui_visible() -> bool {
+    UI_VISIBLE.load(Ordering::Relaxed)
+}
+
+/// Shows messages in the monitor and the live view, when the window shows.
+fn emit_messages(app: &AppHandle, messages: impl IntoIterator<Item = MidiMessage>) {
+    if ui_visible() {
+        for message in messages {
+            let _ = app.emit(MESSAGE_EVENT, message);
+        }
+    }
+}
 /// Sent when an automatic reconnection worked around a problem, such as a
 /// profile that no longer loads.
 pub const CONNECTION_PROBLEM_EVENT: &str = "connection-problem";
@@ -687,11 +726,14 @@ impl PadConnection {
         let _ = app.emit(CONNECTION_EVENT, self.state());
     }
 
+    /// The connection and its engine, read together.
     pub fn state(&self) -> ConnectionState {
+        let current = self.current.lock().unwrap();
+        let connection = current.as_ref();
         ConnectionState {
-            connection: self.info(),
+            connection: connection.map(|c| c.info.clone()),
             waiting: self.waiting(),
-            engine: self.engine_state(),
+            engine: connection.and_then(|c| c.shared.lock().unwrap().engine.as_ref().map(Engine::state)),
         }
     }
 
@@ -983,10 +1025,12 @@ impl PadConnection {
             detected_channel: Some(channel),
             thru: !options.native_mode,
             waiter: None,
+            ticker: None,
         };
         // A profile can also be picked later, while connected.
         if options.native_mode {
-            spawn_engine_ticker(app.clone(), Arc::downgrade(&shared));
+            let ticker = spawn_engine_ticker(app.clone(), Arc::downgrade(&shared));
+            shared.lock().unwrap().ticker = Some(ticker);
         }
         if let Some((socket, prefix)) = osc_listener {
             spawn_osc_listener(app.clone(), Arc::downgrade(&shared), socket, prefix);
@@ -1298,33 +1342,44 @@ fn check_no_loop(options: &ConnectOptions) -> Result<(), String> {
 
 pub type Handler = Box<dyn FnMut(&[u8]) + Send + 'static>;
 
-/// Engine clock: rolls, flam notes and the display need a tick this often.
-const ENGINE_TICK: std::time::Duration = std::time::Duration::from_millis(5);
+/// Shortest sleep of the engine ticker, so that a deadline already passed
+/// does not make it spin.
+const ENGINE_TICK_MIN: std::time::Duration = std::time::Duration::from_millis(1);
+/// Longest sleep, with nothing to time.
+const TICKER_IDLE: std::time::Duration = std::time::Duration::from_millis(250);
 
 /// Ticks the engine: plays rolls and flam notes on time, and brings the bank
 /// back on the display after a value. Stops on its own once the connection
 /// is gone.
-fn spawn_engine_ticker(app: AppHandle, shared: std::sync::Weak<Mutex<Shared>>) {
+fn spawn_engine_ticker(app: AppHandle, shared: std::sync::Weak<Mutex<Shared>>) -> std::thread::Thread {
     std::thread::spawn(move || {
         while let Some(shared) = shared.upgrade() {
-            let sent = {
+            let now = std::time::Instant::now();
+            let (sent, next) = {
                 let mut shared = shared.lock().unwrap();
                 match shared.engine.as_mut() {
                     Some(engine) => {
-                        let out = engine.tick(std::time::Instant::now());
+                        let out = engine.tick(now);
+                        let next = engine.next_deadline();
                         shared.send_pad(&out.pad);
-                        shared.send_daw(&out.daw)
+                        (shared.send_daw(&out.daw), next)
                     }
-                    None => vec![],
+                    None => (vec![], None),
                 }
             };
             drop(shared);
-            for message in sent {
-                let _ = app.emit(MESSAGE_EVENT, message);
-            }
-            std::thread::sleep(ENGINE_TICK);
+            emit_messages(&app, sent);
+            // Until the next roll, flam note or display change, or until
+            // woken by an event that may bring one; checks the connection
+            // is still there now and then.
+            let wait = next.map_or(TICKER_IDLE, |at| {
+                at.saturating_duration_since(std::time::Instant::now())
+            });
+            std::thread::park_timeout(wait.clamp(ENGINE_TICK_MIN, TICKER_IDLE));
         }
-    });
+    })
+    .thread()
+    .clone()
 }
 
 /// How often the OSC listener checks that its connection is still there.
@@ -1381,7 +1436,9 @@ fn spawn_osc_listener(
                         shared.send_pad(&out.pad);
                     }
                 }
-                let _ = app.emit(MESSAGE_EVENT, MidiMessage::osc(Direction::OscIn, &message));
+                if ui_visible() {
+                    let _ = app.emit(MESSAGE_EVENT, MidiMessage::osc(Direction::OscIn, &message));
+                }
                 if let Some(state) = state {
                     let _ = app.emit(ENGINE_EVENT, Some(state));
                 }
@@ -1410,10 +1467,12 @@ fn pad_input_handler(app: AppHandle, shared: Arc<Mutex<Shared>>) -> Handler {
                 let _ = waiter.answer.send(bytes.to_vec());
             }
         }
-        let mut incoming = MidiMessage::new(Direction::In, bytes);
+        let event = padkontrol::decode(bytes);
+        // Described for the monitor only when the window shows.
+        let incoming = || MidiMessage::new(Direction::In, bytes);
         // Outside native mode the padKONTROL plays its own scenes: they go
         // on to the DAW as they are, and their notes and CCs to the OSC mirror.
-        if incoming.event.is_none() {
+        if event.is_none() {
             let mut sent = vec![];
             {
                 let mut shared = shared.lock().unwrap();
@@ -1427,16 +1486,14 @@ fn pad_input_handler(app: AppHandle, shared: Arc<Mutex<Shared>>) -> Handler {
                     sent.extend(shared.send_osc(&Vec::from_iter(mirrored), None, None, None));
                 }
             }
-            let _ = app.emit(MESSAGE_EVENT, incoming);
-            for message in sent {
-                let _ = app.emit(MESSAGE_EVENT, message);
-            }
+            emit_messages(&app, ui_visible().then(incoming).into_iter().chain(sent));
             return;
         }
         let mut sent = vec![];
         let mut state = None;
         let mut switch_profile = None;
-        if let Some(event) = &incoming.event {
+        let mut position = None;
+        if let Some(event) = &event {
             let mut shared = shared.lock().unwrap();
             let out = shared.engine.as_mut().map(|engine| {
                 let out = engine.handle(event);
@@ -1447,11 +1504,13 @@ fn pad_input_handler(app: AppHandle, shared: Arc<Mutex<Shared>>) -> Handler {
             });
             let (osc_messages, encoder_position) = match &out {
                 Some(out) => {
-                    incoming.encoder_position = out.encoder_position;
+                    position = out.encoder_position;
                     shared.send_pad(&out.pad);
                     sent = shared.send_daw(&out.daw);
                     keys::send(&out.keys);
-                    sent.extend(out.keys.iter().map(MidiMessage::key));
+                    if ui_visible() {
+                        sent.extend(out.keys.iter().map(MidiMessage::key));
+                    }
                     switch_profile.clone_from(&out.switch_profile);
                     (out.osc.as_slice(), out.encoder_position)
                 }
@@ -1460,10 +1519,13 @@ fn pad_input_handler(app: AppHandle, shared: Arc<Mutex<Shared>>) -> Handler {
             // The mirror runs with or without a profile.
             let bank = state.as_ref().map(|s: &EngineState| s.bank);
             sent.extend(shared.send_osc(osc_messages, Some(event), encoder_position, bank));
+            // A roll or a flam may have started.
+            shared.wake_ticker();
         }
-        let _ = app.emit(MESSAGE_EVENT, incoming);
-        for message in sent {
-            let _ = app.emit(MESSAGE_EVENT, message);
+        if ui_visible() {
+            let mut incoming = incoming();
+            incoming.encoder_position = position;
+            emit_messages(&app, std::iter::once(incoming).chain(sent));
         }
         if let Some(state) = state {
             let _ = app.emit(ENGINE_EVENT, Some(state));
@@ -1504,10 +1566,12 @@ fn feedback_handler(app: AppHandle, shared: Arc<Mutex<Shared>>) -> Handler {
             if let Some(engine) = shared.engine.as_mut() {
                 let leds = engine.feedback(bytes);
                 shared.send_pad(&leds);
+                // The clock may change the roll's pace.
+                shared.wake_ticker();
             }
         }
         // Clock pulses and active sensing would flood the monitor.
-        if !matches!(bytes, [0xF8] | [0xFE]) {
+        if !matches!(bytes, [0xF8] | [0xFE]) && ui_visible() {
             let _ = app.emit(MESSAGE_EVENT, MidiMessage::new(Direction::Feedback, bytes));
         }
     })

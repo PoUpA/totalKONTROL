@@ -34,7 +34,11 @@ const MAX_PENDING_CONTROLS = 500;
 /** Without a profile, the live view counts like a relative encoder: -99 to 999. */
 const clampCounter = (value: number) => Math.min(999, Math.max(-99, value));
 
-/** `encoderPosition`: the engine's position, so the view matches the display. */
+/**
+ * `encoderPosition`: the engine's position, so the view matches the display.
+ * Adds to `state.seen` in place: callers pass a set copied for the batch,
+ * so the state React holds is never changed.
+ */
 function applyEvent(state: ControlState, event: ControlEvent, encoderPosition: number | null): ControlState {
   switch (event.kind) {
     case "pad": {
@@ -109,7 +113,9 @@ function App() {
   const pendingMonitor = useRef<MonitorEntry[]>([]);
   const nextId = useRef(0);
   const pausedRef = useRef(paused);
-  pausedRef.current = paused;
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
 
   const refresh = useCallback(async () => {
     // Profiles first: they do not depend on the MIDI service, which can hang.
@@ -197,11 +203,17 @@ function App() {
       }
     });
 
+    // One frame at a time while the window shows; none while it is hidden,
+    // where the core sends nothing anyway.
     let frame = 0;
     const flushControls = () => {
       applyControls();
-      frame = requestAnimationFrame(flushControls);
+      frame = document.hidden ? 0 : requestAnimationFrame(flushControls);
     };
+    const onVisibility = () => {
+      if (!document.hidden && frame === 0) frame = requestAnimationFrame(flushControls);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     frame = requestAnimationFrame(flushControls);
 
     const timer = setInterval(() => {
@@ -213,6 +225,7 @@ function App() {
 
     return () => {
       cancelAnimationFrame(frame);
+      document.removeEventListener("visibilitychange", onVisibility);
       clearInterval(timer);
       unlisten.then((stop) => stop());
     };

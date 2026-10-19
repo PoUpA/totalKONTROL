@@ -237,6 +237,14 @@ impl Engine {
         out
     }
 
+    /// When `tick` has something to do next: a roll repeat, a flam note,
+    /// the display coming back to the bank.
+    pub fn next_deadline(&self) -> Option<Instant> {
+        let rolls = self.rolls.values().map(|roll| roll.next);
+        let scheduled = self.scheduled.first().map(|(at, _)| *at);
+        rolls.chain(scheduled).chain(self.display_until).min()
+    }
+
     /// Ends what this engine left on in the DAW and the OSC software, before
     /// it goes (disconnection, profile change): held notes and CCs as if
     /// released, toggles turned off, and the note offs of pending flams.
@@ -249,27 +257,8 @@ impl Engine {
             .map(|(control, bank)| (bank, control, Mode::Momentary))
             .chain(toggled.into_iter().map(|(bank, control)| (bank, control, Mode::Toggle)));
         for (bank, control, state) in controls {
-            match self.action(bank, control).cloned() {
-                Some(ButtonAction::Note {
-                    channel, note, mode, ..
-                }) if mode == state => out.daw.push(note_off(channel, note)),
-                Some(ButtonAction::Cc {
-                    channel,
-                    cc,
-                    off_value,
-                    mode,
-                    ..
-                }) if mode == state => out.daw.push(control_change(channel, cc, off_value)),
-                Some(ButtonAction::Osc {
-                    address,
-                    release_args: Some(args),
-                    mode,
-                    ..
-                }) if mode == state => out.osc.push(OscMessage::new(address, osc::resolve(&args, 0))),
-                Some(ButtonAction::Key { keys, hold: true, .. }) if state == Mode::Momentary => {
-                    out.keys.push(KeyEvent::new(&keys, KeyDirection::Release))
-                }
-                _ => {}
+            if let Some(action) = self.action(bank, control) {
+                end_action(action, state, &mut out);
             }
         }
         // Grace notes of pending flams end; their main notes never start.
@@ -704,27 +693,11 @@ impl Engine {
                     None => out.daw.push(note_off(channel, note)),
                 }
             }
-            ButtonAction::Cc {
-                channel,
-                cc,
-                off_value,
-                mode: Mode::Momentary,
-                ..
-            } => out.daw.push(control_change(channel, cc, off_value)),
             ButtonAction::SwitchBank {
                 bank: target,
                 momentary: true,
             } if self.bank == target => self.switch_bank(pressed_in, out),
-            ButtonAction::Osc {
-                address,
-                release_args: Some(release_args),
-                mode: Mode::Momentary,
-                ..
-            } => {
-                out.osc.push(OscMessage::new(address, osc::resolve(&release_args, 0)));
-            }
-            ButtonAction::Key { keys, hold: true, .. } => out.keys.push(KeyEvent::new(&keys, KeyDirection::Release)),
-            _ => {}
+            action => end_action(&action, Mode::Momentary, out),
         }
         self.update_led(control, out);
     }
@@ -896,6 +869,34 @@ impl Engine {
     fn set_led_override(&mut self, control: Control, on: bool, out: &mut Output) {
         self.led_override.insert(control, on);
         self.update_led(control, out);
+    }
+}
+
+/// What ends an action left on: a held control (`Momentary`) released, or a
+/// toggle (`Toggle`) turned off. Shared by releases and `release_all`, so
+/// that both end things the same way.
+fn end_action(action: &ButtonAction, state: Mode, out: &mut Output) {
+    match action {
+        ButtonAction::Note {
+            channel, note, mode, ..
+        } if *mode == state => out.daw.push(note_off(*channel, *note)),
+        ButtonAction::Cc {
+            channel,
+            cc,
+            off_value,
+            mode,
+            ..
+        } if *mode == state => out.daw.push(control_change(*channel, *cc, *off_value)),
+        ButtonAction::Osc {
+            address,
+            release_args: Some(args),
+            mode,
+            ..
+        } if *mode == state => out.osc.push(OscMessage::new(address.clone(), osc::resolve(args, 0))),
+        ButtonAction::Key { keys, hold: true, .. } if state == Mode::Momentary => {
+            out.keys.push(KeyEvent::new(keys, KeyDirection::Release));
+        }
+        _ => {}
     }
 }
 
@@ -1683,6 +1684,23 @@ mod tests {
         assert!((e.roll_interval(now).as_secs_f32() - 0.25).abs() < 0.01);
         // The clock stopped: back to the profile's tempo.
         assert_eq!(e.bpm(now + Duration::from_secs(1)), 120.0);
+    }
+
+    #[test]
+    fn next_deadline_is_the_next_thing_to_time() {
+        let mut e = repeat_engine("");
+        let t0 = Instant::now();
+        assert_eq!(e.next_deadline(), None, "nothing to time");
+        e.handle_at(&button(ButtonId::Roll, true), t0);
+        e.handle_at(&pad(1, true, 100), t0);
+        let next = e.next_deadline().expect("the roll's next repeat");
+        assert_eq!(next, t0 + e.roll_interval(t0));
+        e.handle_at(&pad(1, false, 0), t0);
+        e.handle_at(&button(ButtonId::Roll, true), t0);
+        assert_eq!(e.next_deadline(), None);
+        // A value on the display comes back to the bank later.
+        e.handle_at(&ControlEvent::Encoder { delta: 1 }, t0);
+        assert!(e.next_deadline().is_some_and(|at| at > t0));
     }
 
     #[test]

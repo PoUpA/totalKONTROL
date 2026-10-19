@@ -106,6 +106,7 @@ fn show_window<R: Runtime>(app: &AppHandle<R>) {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
+        crate::midi::set_ui_visible(true);
     }
 }
 
@@ -116,5 +117,6 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
     {
         api.prevent_close();
         let _ = window.hide();
+        crate::midi::set_ui_visible(false);
     }
 }
