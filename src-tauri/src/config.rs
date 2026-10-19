@@ -15,6 +15,26 @@ pub const SCHEMA_JSON: &str = include_str!("../profiles/profile.schema.json");
 pub const DEFAULT_PROFILE_FILE: &str = "default.json";
 pub const DEFAULT_PROFILE_JSON: &str = include_str!("../profiles/default.json");
 
+/// Profiles to start from, bundled with the app: id and JSON.
+pub const PRESETS: [(&str, &str); 3] = [
+    ("drums-gm", include_str!("../profiles/presets/drums-gm.json")),
+    ("mixer-cc", include_str!("../profiles/presets/mixer-cc.json")),
+    ("shortcuts", include_str!("../profiles/presets/shortcuts.json")),
+];
+
+#[derive(Debug, Serialize)]
+pub struct PresetSummary {
+    pub id: &'static str,
+    pub name: String,
+}
+
+pub fn presets() -> Vec<PresetSummary> {
+    PRESETS
+        .iter()
+        .filter_map(|(id, json)| parse_profile(json).ok().map(|p| PresetSummary { id, name: p.name }))
+        .collect()
+}
+
 const PAD_COUNT: u8 = 16;
 const KNOB_COUNT: u8 = 2;
 
@@ -1021,6 +1041,45 @@ impl ProfileStore {
         self.add(profile)
     }
 
+    /// Creates a profile with these banks and returns its file name.
+    pub fn create_with_banks(&self, name: &str, banks: Vec<Bank>) -> Result<String, String> {
+        let mut profile = parse_profile(DEFAULT_PROFILE_JSON).map_err(|errors| errors.join("\n"))?;
+        profile.name = name.trim().to_string();
+        profile.start_bank = 0;
+        profile.banks = banks;
+        self.add(profile)
+    }
+
+    /// Creates a profile from a bundled preset and returns its file name.
+    pub fn create_from_preset(&self, id: &str) -> Result<String, String> {
+        let (_, json) = PRESETS
+            .iter()
+            .find(|(preset, _)| *preset == id)
+            .ok_or_else(|| t!("core.profiles.noSuchPreset", id))?;
+        let mut profile = parse_profile(json).map_err(|errors| errors.join("\n"))?;
+        profile.schema = None;
+        self.add(profile)
+    }
+
+    /// Adds a profile from a file elsewhere, checked first; returns its new
+    /// file name in the store.
+    pub fn import(&self, path: &Path) -> Result<String, String> {
+        let json = fs::read_to_string(path).map_err(|e| format!("{} : {e}", path.display()))?;
+        let mut profile = parse_profile(&json).map_err(|errors| errors.join("\n"))?;
+        profile.schema = None;
+        self.add(profile)
+    }
+
+    /// Copies a profile out of the store.
+    pub fn export(&self, file: &str, path: &Path) -> Result<(), String> {
+        let profile = self.load(file).map_err(|errors| errors.join("\n"))?;
+        let mut profile = profile;
+        // The schema stays behind: point editors at none rather than a missing file.
+        profile.schema = None;
+        let json = to_saved_json(profile).map_err(|e| e.to_string())?;
+        write_atomically(path, &json).map_err(|e| format!("{} : {e}", path.display()))
+    }
+
     /// Copies a profile under a new name and returns the new file name.
     pub fn duplicate(&self, file: &str) -> Result<String, String> {
         let mut profile = self.load(file).map_err(|errors| errors.join("\n"))?;
@@ -1034,7 +1093,7 @@ impl ProfileStore {
         fs::remove_file(path).map_err(|e| format!("{file} : {e}"))
     }
 
-    fn add(&self, profile: Profile) -> Result<String, String> {
+    pub fn add(&self, profile: Profile) -> Result<String, String> {
         let file = self.free_file_name(&slug(&profile.name)).map_err(|e| e.to_string())?;
         self.save(&file, profile).map_err(|errors| errors.join("\n"))?;
         Ok(file)
@@ -1515,6 +1574,37 @@ mod tests {
                 output: None
             }
         );
+    }
+
+    #[test]
+    fn presets_are_valid_and_match_the_schema() {
+        assert_eq!(presets().len(), PRESETS.len());
+        for (id, json) in PRESETS {
+            assert_eq!(schema_errors(json), Vec::<String>::new(), "{id}");
+        }
+    }
+
+    #[test]
+    fn imports_and_exports_profiles() {
+        let root = std::env::temp_dir().join(format!("totalkontrol-import-{}", std::process::id()));
+        let store = ProfileStore::open(root.join("profiles")).unwrap();
+        let outside = root.join("mine.json");
+        fs::write(&outside, PRESETS[0].1).unwrap();
+        let file = store.import(&outside).unwrap();
+        assert_eq!(store.load(&file).unwrap().name, "General MIDI drums");
+        fs::write(&outside, "{ \"version\": 1 }").unwrap();
+        assert!(store.import(&outside).is_err(), "checked before it is added");
+
+        let exported = root.join("out.json");
+        store.export(&file, &exported).unwrap();
+        assert_eq!(
+            parse_profile(&fs::read_to_string(&exported).unwrap()).unwrap().name,
+            "General MIDI drums"
+        );
+        let from_preset = store.create_from_preset("shortcuts").unwrap();
+        assert_eq!(store.load(&from_preset).unwrap().name, "Transport shortcuts");
+        assert!(store.create_from_preset("nope").is_err());
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]

@@ -1,0 +1,35 @@
+{
+  "$schema": "../profile.schema.json",
+  "version": 1,
+  "name": "CC toggles mixer",
+  "banks": [
+    {
+      "name": "Mixer",
+      "display": "MIX",
+      "pads": {
+        "1": { "type": "cc", "channel": 1, "cc": 20, "mode": "toggle" },
+        "2": { "type": "cc", "channel": 1, "cc": 21, "mode": "toggle" },
+        "3": { "type": "cc", "channel": 1, "cc": 22, "mode": "toggle" },
+        "4": { "type": "cc", "channel": 1, "cc": 23, "mode": "toggle" },
+        "5": { "type": "cc", "channel": 1, "cc": 24, "mode": "toggle" },
+        "6": { "type": "cc", "channel": 1, "cc": 25, "mode": "toggle" },
+        "7": { "type": "cc", "channel": 1, "cc": 26, "mode": "toggle" },
+        "8": { "type": "cc", "channel": 1, "cc": 27, "mode": "toggle" },
+        "9": { "type": "cc", "channel": 1, "cc": 28, "mode": "toggle" },
+        "10": { "type": "cc", "channel": 1, "cc": 29, "mode": "toggle" },
+        "11": { "type": "cc", "channel": 1, "cc": 30, "mode": "toggle" },
+        "12": { "type": "cc", "channel": 1, "cc": 31, "mode": "toggle" },
+        "13": { "type": "cc", "channel": 1, "cc": 102, "mode": "toggle" },
+        "14": { "type": "cc", "channel": 1, "cc": 103, "mode": "toggle" },
+        "15": { "type": "cc", "channel": 1, "cc": 104, "mode": "toggle" },
+        "16": { "type": "cc", "channel": 1, "cc": 105, "mode": "toggle" }
+      },
+      "knobs": {
+        "1": { "type": "cc", "channel": 1, "cc": 7, "pickup": true },
+        "2": { "type": "cc", "channel": 1, "cc": 10, "pickup": true }
+      },
+      "xy": { "type": "xy", "channel": 1, "ccX": 16, "ccY": 17 },
+      "encoder": { "type": "cc", "channel": 1, "cc": 18, "acceleration": true }
+    }
+  ]
+}

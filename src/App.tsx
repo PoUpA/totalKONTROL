@@ -7,6 +7,7 @@ import { ControlView, initialControlState, type ControlState } from "./component
 import { ProfileEditor } from "./components/editor/ProfileEditor";
 import { LANGUAGES, sendLangToCore, useI18n, type Lang } from "./i18n";
 import { Monitor } from "./components/Monitor";
+import { UpdateNotice } from "./components/UpdateNotice";
 import type {
   ConnectionInfo,
   ConnectionState,
@@ -91,12 +92,15 @@ function App() {
   }, []);
 
   useEffect(() => {
+    // Problems the core met on its own: the keyboard out of reach, say.
+    const unlistenProblem = listen<string>("problem", (e) => setError(e.payload));
     const unlisten = listen("quit-requested", () => {
       if (editorDirty.current) setQuitAsked(true);
       else invoke("quit");
     });
     return () => {
       unlisten.then((stop) => stop());
+      unlistenProblem.then((stop) => stop());
     };
   }, []);
   const { lang, setLang, t } = useI18n();
@@ -285,6 +289,17 @@ function App() {
               {t("app.tabs.profiles")}
             </button>
           </nav>
+          <button
+            onClick={() =>
+              run(async () => {
+                const path = await invoke<string | null>("export_diagnostics");
+                if (path) setError(null);
+              })
+            }
+            title={t("app.diagnosticsHint")}
+          >
+            {t("app.diagnostics")}
+          </button>
           <select
             className="language"
             value={lang}
@@ -299,6 +314,7 @@ function App() {
           </select>
         </div>
       </header>
+      <UpdateNotice />
       {error && <p className="error banner">{error}</p>}
       {quitAsked && (
         <div className="banner warn" role="alert">
@@ -341,6 +357,7 @@ function App() {
           dir={profilesDir}
           engine={engine}
           canLearn={connection?.nativeMode ?? false}
+          canUseScenes={connection?.output != null}
           onProfilesChanged={refreshProfiles}
           onEngineState={setEngine}
         />

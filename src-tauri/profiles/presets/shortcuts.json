@@ -1,0 +1,30 @@
+{
+  "$schema": "../profile.schema.json",
+  "version": 1,
+  "name": "Transport shortcuts",
+  "banks": [
+    {
+      "name": "Transport",
+      "display": "KEY",
+      "pads": {
+        "1": { "type": "key", "keys": "ctrl+z" },
+        "2": { "type": "key", "keys": "ctrl+shift+z" },
+        "3": { "type": "key", "keys": "ctrl+c" },
+        "4": { "type": "key", "keys": "ctrl+v" },
+        "5": { "type": "key", "keys": "ctrl+x" },
+        "6": { "type": "key", "keys": "delete" },
+        "7": { "type": "key", "keys": "ctrl+a" },
+        "8": { "type": "key", "keys": "ctrl+s" },
+        "9": { "type": "key", "keys": "home" },
+        "10": { "type": "key", "keys": "left" },
+        "11": { "type": "key", "keys": "right" },
+        "12": { "type": "key", "keys": "end" },
+        "13": { "type": "key", "keys": "space" },
+        "14": { "type": "key", "keys": "enter" },
+        "15": { "type": "key", "keys": "shift", "hold": true },
+        "16": { "type": "key", "keys": "esc" }
+      },
+      "encoder": { "type": "key", "left": "left", "right": "right" }
+    }
+  ]
+}

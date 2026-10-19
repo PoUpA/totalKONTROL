@@ -15,6 +15,7 @@ totalKONTROL puts the padKONTROL in its native mode and takes over every control
 - **Live view and monitor**: see every control move, which LEDs are lit, and every message in and out.
 - **OSC**: mirror every control to fixed addresses, send custom OSC messages, and receive OSC to drive the LEDs, the display and the banks.
 - **Stays out of the way**: lives in the system tray, connects at startup, and reconnects when the padKONTROL is plugged back in.
+- **The padKONTROL's own scenes**: back up its 16 scenes, make a profile from them, or write a bank into one so it plays without the app.
 - **English, French and Spanish**.
 
 ## Getting started
@@ -65,7 +66,18 @@ A profile describes, bank by bank, what each control does:
 
 ![Profile editor: banks, profile settings, the front panel and the form of the selected pad](docs/screenshot-profiles.png)
 
-Edit profiles in the **Profiles** tab, or by hand: they live in the app's config folder, under `profiles/`, next to a copy of the [JSON Schema](src-tauri/profiles/profile.schema.json), so an editor such as VS Code offers completion and flags errors. See the [default profile](src-tauri/profiles/default.json) for an example.
+Edit profiles in the **Profiles** tab, or by hand: they live in the app's config folder, under `profiles/` (**Open the folder**), next to a copy of the [JSON Schema](src-tauri/profiles/profile.schema.json), so an editor such as VS Code offers completion and flags errors. See the [default profile](src-tauri/profiles/default.json) for an example.
+
+The Profiles tab also starts a profile from a preset ([General MIDI drums, CC toggles mixer, transport shortcuts](src-tauri/profiles/presets)), and imports or exports profile files, checked before they are added.
+
+### The padKONTROL's scenes
+
+Outside native mode, the padKONTROL plays one of the 16 scenes stored in it. Under **padKONTROL scenes**, in the Profiles tab, with the padKONTROL connected:
+
+- **Read the 16 scenes**, then **Back up to a file** (under `scene-backups/` in the app's config folder) or make a **New profile from these scenes**, one bank per scene. **Restore** writes a backup's 16 scenes back.
+- **Write** the bank on screen into a scene, so the padKONTROL plays it on its own. A scene holds the pads (note or CC, channel, momentary or toggle, fixed velocity, CC values), the knobs and the XY pad (CC numbers); what it cannot hold is listed after writing, and the rest of the scene (pedal, roll and flam settings, ports) is kept.
+
+Writing replaces the scene in the padKONTROL's memory: back the scenes up first. The data format follows Korg's _padKONTROL MIDI Implementation_; the app refuses a scene it cannot decode rather than guess.
 
 ### OSC
 
@@ -97,6 +109,12 @@ npm run demo:osc
 ```
 
 Ctrl+C turns the LEDs off; switch bank to hand them back to the profile. Options: `--host`, `--port`, `--listen` (0 turns the ripples off), `--prefix`, `--fps`, `--seconds`.
+
+### Diagnostics and updates
+
+- **Diagnostics…**, in the header, saves the versions, the MIDI ports, the connection and the app's log to a text file, to attach to a bug report. The log itself lives in the app's log folder.
+- Problems the app meets on its own, such as keyboard shortcuts that cannot reach the system, show in a banner.
+- At most once a day, the app checks GitHub for a newer release and offers to download it; **Never check** turns that off. See [docs/updates.md](docs/updates.md) for installing updates automatically.
 
 ## Windows MIDI Services
 

@@ -344,6 +344,27 @@ h3 {
   color: #fff;
 }
 
+.scenes {
+  margin-top: 16px;
+}
+
+.scene-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 4px 16px;
+  margin: 8px 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.scene-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 /* LED lit on the padKONTROL. */
 .lit::after {
   content: "";
@@ -546,6 +567,15 @@ input[type="checkbox"] {
 .new-profile {
   display: flex;
   gap: 6px;
+}
+
+.profile-list .actions {
+  flex-wrap: wrap;
+}
+
+.new-profile select {
+  flex: 1;
+  min-width: 0;
 }
 
 .new-profile input {

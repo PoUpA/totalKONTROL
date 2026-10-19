@@ -251,11 +251,27 @@ impl Typist {
             };
             match enigo::Enigo::new(&settings) {
                 Ok(enigo) => self.enigo = Some(enigo),
-                Err(e) => {
-                    eprintln!("keyboard unavailable: {e}");
+                Err(error) => {
+                    // Reported once per failure streak, not at every retry.
+                    if self.failed_at.is_none() {
+                        crate::diag::report(t!("core.keys.unavailable", error));
+                    }
                     self.failed_at = Some(Instant::now());
                 }
             }
+        }
+    }
+}
+
+/// The first key the system refused, reported; later ones only logged.
+static KEY_REFUSED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+fn checked(result: Result<(), enigo::InputError>) {
+    if let Err(error) = result {
+        if KEY_REFUSED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+            crate::diag::log(format!("key refused: {error}"));
+        } else {
+            crate::diag::report(t!("core.keys.refused", error));
         }
     }
 }
@@ -268,22 +284,22 @@ fn type_keys(enigo: &mut enigo::Enigo, keys: &[enigo::Key], direction: KeyDirect
                 return;
             };
             for &key in modifiers {
-                let _ = enigo.key(key, Direction::Press);
+                checked(enigo.key(key, Direction::Press));
             }
-            let _ = enigo.key(*last, Direction::Click);
+            checked(enigo.key(*last, Direction::Click));
             for &key in modifiers.iter().rev() {
-                let _ = enigo.key(key, Direction::Release);
+                checked(enigo.key(key, Direction::Release));
             }
         }
         KeyDirection::Press => {
             for &key in keys {
-                let _ = enigo.key(key, Direction::Press);
+                checked(enigo.key(key, Direction::Press));
                 held.push(key);
             }
         }
         KeyDirection::Release => {
             for &key in keys.iter().rev() {
-                let _ = enigo.key(key, Direction::Release);
+                checked(enigo.key(key, Direction::Release));
                 if let Some(i) = held.iter().rposition(|&k| k == key) {
                     held.remove(i);
                 }
@@ -305,10 +321,23 @@ fn system_keys(combo: &Combo) -> Vec<enigo::Key> {
     modifiers.chain(combo.key.and_then(system_key)).collect()
 }
 
+/// Windows virtual keys of the "=+" and "-_" keys.
+#[cfg(windows)]
+const VK_OEM_PLUS: u32 = 0xBB;
+#[cfg(windows)]
+const VK_OEM_MINUS: u32 = 0xBD;
+
 /// The system's name of a key, if it has one.
 fn system_key(key: Key) -> Option<enigo::Key> {
     use enigo::Key as K;
     Some(match key {
+        // On Windows, enigo maps '+' and '-' with the Shift state of the
+        // layout's key, so ctrl+plus would arrive as ctrl+shift+=: the keys
+        // themselves go instead, which is what shortcuts mean.
+        #[cfg(windows)]
+        Key::Char('+') => K::Other(VK_OEM_PLUS),
+        #[cfg(windows)]
+        Key::Char('-') => K::Other(VK_OEM_MINUS),
         Key::Char(c) => K::Unicode(c),
         Key::Space => K::Space,
         Key::Enter => K::Return,
@@ -423,5 +452,10 @@ mod tests {
         let combo = parse("ctrl+alt+f20").unwrap();
         assert_eq!(system_keys(&combo).len(), 3);
         assert_eq!(system_keys(&parse("num0").unwrap()), vec![enigo::Key::Numpad0]);
+        #[cfg(windows)]
+        assert_eq!(
+            system_keys(&parse("ctrl+plus").unwrap()),
+            vec![enigo::Key::Control, enigo::Key::Other(VK_OEM_PLUS)]
+        );
     }
 }

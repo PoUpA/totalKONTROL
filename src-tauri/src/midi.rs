@@ -6,11 +6,12 @@ use midir::{Ignore, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnec
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::config::{Profile, ProfileStore};
+use crate::config::{Bank, Profile, ProfileStore};
 use crate::engine::{Engine, EngineState, Output};
 use crate::keys::{self, KeyEvent};
 use crate::osc::{self, OscMessage, OscSender};
 use crate::padkontrol::{self, ControlEvent};
+use crate::scenes;
 #[cfg(all(windows, feature = "windows-midi-services"))]
 use crate::winmidi;
 
@@ -345,6 +346,8 @@ impl DawOutput {
     }
 }
 
+/// How long the padKONTROL has to answer a data dump or a request.
+const EXCHANGE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
 /// How long connecting and disconnecting wait for an operation under way.
 const OPERATION_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
 /// How long the padKONTROL has to answer native mode on, telling its global
@@ -510,6 +513,14 @@ struct Shared {
     detected_channel: Option<u8>,
     /// Outside native mode: what the padKONTROL sends goes on to the DAW.
     thru: bool,
+    /// An exchange waiting for an answer of the padKONTROL (see `exchange`).
+    waiter: Option<Waiter>,
+}
+
+/// The answer an exchange waits for, and where it goes.
+struct Waiter {
+    accepts: fn(&[u8]) -> bool,
+    answer: mpsc::Sender<Vec<u8>>,
 }
 
 impl Shared {
@@ -739,6 +750,7 @@ impl PadConnection {
         if self.generation() != generation || self.info().is_none_or(|info| info.input != input) {
             return;
         }
+        crate::diag::log(format!("lost the padKONTROL on {input}"));
         // Bank, roll and flam, encoder positions: the reconnection goes on
         // where the padKONTROL left off.
         *self.kept.lock().unwrap() = self.close_current();
@@ -801,6 +813,7 @@ impl PadConnection {
             return;
         }
         self.kept.lock().unwrap().take();
+        crate::diag::log("reconnected");
         self.changed(app);
         if let Some(problem) = problem {
             let _ = app.emit(CONNECTION_PROBLEM_EVENT, problem);
@@ -832,7 +845,12 @@ impl PadConnection {
             return Err(t!("core.connection.shuttingDown"));
         }
         let engine = profile.map(|(file, profile)| Engine::new(profile).with_file(file));
+        let input = options.input.clone();
         let result = self.connect_locked(app, options, engine, self.generation());
+        match &result {
+            Ok(info) => crate::diag::log(format!("connected: {info:?}")),
+            Err(error) => crate::diag::log(format!("connecting to {input} failed: {error}")),
+        }
         if result.is_ok() {
             self.kept.lock().unwrap().take();
             self.changed(app);
@@ -964,6 +982,7 @@ impl PadConnection {
             acks: 0,
             detected_channel: Some(channel),
             thru: !options.native_mode,
+            waiter: None,
         };
         // A profile can also be picked later, while connected.
         if options.native_mode {
@@ -1116,6 +1135,118 @@ impl PadConnection {
         shared.send_daw(&all_off);
         keys::release_all();
         Ok(())
+    }
+
+    /// Sends a message to the padKONTROL and waits for its answer, the first
+    /// message `accepts` takes.
+    fn exchange(&self, message: Vec<u8>, accepts: fn(&[u8]) -> bool) -> Result<Vec<u8>, String> {
+        let shared = {
+            let current = self.current.lock().unwrap();
+            let connection = current.as_ref().ok_or_else(|| t!("core.connection.notConnected"))?;
+            if connection.info.output.is_none() {
+                return Err(t!("core.scenes.needsOutput"));
+            }
+            connection.shared.clone()
+        };
+        let (answer, wait) = mpsc::channel();
+        {
+            let mut shared = shared.lock().unwrap();
+            shared.waiter = Some(Waiter { accepts, answer });
+            shared.send_pad(&[message]);
+        }
+        let result = wait.recv_timeout(EXCHANGE_TIMEOUT);
+        shared.lock().unwrap().waiter = None;
+        result.map_err(|_| t!("core.scenes.noAnswer"))
+    }
+
+    /// Recalls a scene into the padKONTROL's edit buffer.
+    fn change_scene(&self, scene: u8) -> Result<(), String> {
+        let accepts = |m: &[u8]| {
+            matches!(
+                scenes::reply(m),
+                Some(scenes::Reply::LoadCompleted | scenes::Reply::LoadError)
+            )
+        };
+        match scenes::reply(&self.exchange(scenes::scene_change_request(scene), accepts)?) {
+            Some(scenes::Reply::LoadCompleted) => Ok(()),
+            _ => Err(t!("core.scenes.loadError")),
+        }
+    }
+
+    /// Reads one of the padKONTROL's 16 scenes (0 to 15).
+    fn read_scene(&self, scene: u8) -> Result<scenes::Scene, String> {
+        self.change_scene(scene)?;
+        let dump = self.exchange(scenes::current_scene_request(), scenes::is_scene_dump)?;
+        scenes::Scene::from_dump(&dump).ok_or_else(|| t!("core.scenes.unreadable"))
+    }
+
+    /// Stores a scene into the padKONTROL's memory, for good.
+    fn store_scene(&self, index: u8, scene: &scenes::Scene) -> Result<(), String> {
+        let loaded = |m: &[u8]| {
+            matches!(
+                scenes::reply(m),
+                Some(scenes::Reply::LoadCompleted | scenes::Reply::LoadError | scenes::Reply::FormatError)
+            )
+        };
+        if scenes::reply(&self.exchange(scene.dump(), loaded)?) != Some(scenes::Reply::LoadCompleted) {
+            return Err(t!("core.scenes.loadError"));
+        }
+        let written = |m: &[u8]| {
+            matches!(
+                scenes::reply(m),
+                Some(scenes::Reply::WriteCompleted | scenes::Reply::WriteError)
+            )
+        };
+        match scenes::reply(&self.exchange(scenes::scene_write_request(index), written)?) {
+            Some(scenes::Reply::WriteCompleted) => Ok(()),
+            _ => Err(t!("core.scenes.writeError")),
+        }
+    }
+
+    /// Runs scene work with no connect or disconnect meanwhile, then puts
+    /// the padKONTROL back on scene 1 and the engine's LEDs and display.
+    fn with_scenes<T>(&self, work: impl FnOnce(&Self) -> Result<T, String>) -> Result<T, String> {
+        let Some(_operation) = self.operations(OPERATION_WAIT) else {
+            return Err(midi_service_frozen());
+        };
+        let result = work(self);
+        let _ = self.change_scene(0);
+        if let Some(connection) = self.current.lock().unwrap().as_ref() {
+            let mut shared = connection.shared.lock().unwrap();
+            if let Some(refresh) = shared.engine.as_mut().map(Engine::refresh) {
+                shared.send_pad(&refresh);
+            }
+        }
+        result
+    }
+
+    /// The padKONTROL's 16 scenes. It ends on scene 1.
+    pub fn read_scenes(&self) -> Result<Vec<scenes::Scene>, String> {
+        self.with_scenes(|this| (0..scenes::SCENE_COUNT).map(|scene| this.read_scene(scene)).collect())
+    }
+
+    /// Stores 16 scenes, from a backup, into the padKONTROL's memory.
+    pub fn restore_scenes(&self, backup: &scenes::Backup) -> Result<(), String> {
+        if backup.scenes.len() != usize::from(scenes::SCENE_COUNT) {
+            return Err(t!("core.scenes.badBackup"));
+        }
+        self.with_scenes(|this| {
+            for (index, scene) in (0..).zip(&backup.scenes) {
+                this.store_scene(index, scene)?;
+            }
+            Ok(())
+        })
+    }
+
+    /// Writes a profile bank into one of the padKONTROL's scenes, keeping
+    /// what a bank does not set. Returns what the scene could not take.
+    pub fn write_bank_to_scene(&self, bank: &Bank, index: u8) -> Result<Vec<scenes::Left>, String> {
+        self.with_scenes(|this| {
+            let mut scene = this.read_scene(index)?;
+            let left = scenes::apply_bank(&mut scene.data, bank);
+            this.store_scene(index, &scene)?;
+            Ok(left)
+        })
     }
 
     /// File of the profile the engine runs, if any.
@@ -1271,6 +1402,13 @@ fn pad_input_handler(app: AppHandle, shared: Arc<Mutex<Shared>>) -> Handler {
         if let Some(channel) = padkontrol::native_mode_ack_channel(bytes) {
             shared.lock().unwrap().detected_channel.get_or_insert(channel);
             return;
+        }
+        {
+            let mut shared = shared.lock().unwrap();
+            if shared.waiter.as_ref().is_some_and(|waiter| (waiter.accepts)(bytes)) {
+                let waiter = shared.waiter.take().expect("checked just above");
+                let _ = waiter.answer.send(bytes.to_vec());
+            }
         }
         let mut incoming = MidiMessage::new(Direction::In, bytes);
         // Outside native mode the padKONTROL plays its own scenes: they go

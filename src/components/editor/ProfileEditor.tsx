@@ -15,6 +15,7 @@ import { DisplaySettingsForm, withDisplay } from "./DisplaySettingsForm";
 import { RepeatSettingsForm, withRepeat } from "./RepeatSettingsForm";
 import { VelocitySettingsForm, withVelocity } from "./VelocitySettingsForm";
 import { FrontPanel } from "./FrontPanel";
+import { ScenesPanel } from "./ScenesPanel";
 import { addBank, controlPath, getAction, removeBank, setAction, swapBanks } from "./profile";
 
 type Props = {
@@ -23,6 +24,8 @@ type Props = {
   engine: EngineState | null;
   /** True when connected in native mode: the padKONTROL can pick controls. */
   canLearn: boolean;
+  /** True when connected with an output to the padKONTROL: its scenes can be read and written. */
+  canUseScenes: boolean;
   onProfilesChanged: () => Promise<void>;
   onEngineState: (state: EngineState) => void;
   /** Whether the open profile has unsaved changes, for quitting. */
@@ -36,6 +39,7 @@ function ProfileEditorView({
   dir,
   engine,
   canLearn,
+  canUseScenes,
   onProfilesChanged,
   onEngineState,
   onDirtyChange,
@@ -57,6 +61,8 @@ function ProfileEditorView({
   const openRequest = useRef(0);
   const validationRequest = useRef(0);
   const [newName, setNewName] = useState("");
+  const [presets, setPresets] = useState<{ id: string; name: string }[]>([]);
+  const [preset, setPreset] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
   const { t, lang } = useI18n();
@@ -85,6 +91,15 @@ function ProfileEditorView({
       setSaved("");
       setLoadErrors(Array.isArray(e) ? e.map(String) : [String(e)]);
     }
+  }, []);
+
+  useEffect(() => {
+    invoke<{ id: string; name: string }[]>("list_presets")
+      .then((list) => {
+        setPresets(list);
+        setPreset(list[0]?.id ?? "");
+      })
+      .catch(() => {});
   }, []);
 
   // Opens the running profile, or the first one, when nothing is open yet.
@@ -175,6 +190,27 @@ function ProfileEditorView({
       }),
     );
 
+  /** Adds a profile (`add` returns its file name, or null when cancelled) and opens it. */
+  const addAndOpen = (add: () => Promise<string | null>) =>
+    guarded(() =>
+      run(async () => {
+        const added = await add();
+        if (!added) return;
+        await onProfilesChanged();
+        await open(added);
+      }),
+    );
+
+  const fromPreset = () => addAndOpen(() => invoke<string>("create_from_preset", { id: preset }));
+  const importProfile = () => addAndOpen(() => invoke<string | null>("import_profile"));
+
+  const exportProfile = () =>
+    run(async () => {
+      if (!file) return;
+      const path = await invoke<string | null>("export_profile", { file });
+      if (path) setMessage({ error: false, text: t("editor.exported", { path }) });
+    });
+
   const duplicate = () =>
     run(async () => {
       if (!file) return;
@@ -234,6 +270,29 @@ function ProfileEditorView({
           />
           <button onClick={create} disabled={busy}>
             {t("editor.create")}
+          </button>
+        </div>
+        <div className="new-profile">
+          <select value={preset} onChange={(e) => setPreset(e.target.value)} aria-label={t("editor.preset")}>
+            {presets.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <button onClick={fromPreset} disabled={busy || preset === ""}>
+            {t("editor.fromPreset")}
+          </button>
+        </div>
+        <div className="actions">
+          <button onClick={importProfile} disabled={busy}>
+            {t("editor.import")}
+          </button>
+          <button onClick={exportProfile} disabled={busy || !file} title={dirty ? t("editor.exportSaved") : undefined}>
+            {t("editor.export")}
+          </button>
+          <button onClick={() => run(() => invoke("open_profiles_dir"))} disabled={busy}>
+            {t("editor.openFolder")}
           </button>
         </div>
         <p className="muted path">{dir}</p>
@@ -463,6 +522,18 @@ function ProfileEditorView({
                 ))}
               </ul>
             )}
+
+            <ScenesPanel
+              available={canUseScenes}
+              file={file}
+              bank={bank}
+              bankName={currentBank.name}
+              dirty={dirty}
+              onProfileCreated={async (created) => {
+                await onProfilesChanged();
+                await open(created);
+              }}
+            />
           </>
         )}
       </section>

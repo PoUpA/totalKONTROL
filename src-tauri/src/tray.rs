@@ -31,7 +31,7 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) {
             app.manage(tray);
             ACTIVE.store(true, Ordering::Relaxed);
         }
-        Err(e) => eprintln!("tray icon unavailable: {e}"),
+        Err(e) => crate::diag::log(format!("tray icon unavailable: {e}")),
     }
 }
 

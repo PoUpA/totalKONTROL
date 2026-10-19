@@ -1,0 +1,37 @@
+{
+  "$schema": "../profile.schema.json",
+  "version": 1,
+  "name": "General MIDI drums",
+  "banks": [
+    {
+      "name": "GM drums",
+      "display": "GM",
+      "pads": {
+        "1": { "type": "note", "channel": 10, "note": 49 },
+        "2": { "type": "note", "channel": 10, "note": 57 },
+        "3": { "type": "note", "channel": 10, "note": 51 },
+        "4": { "type": "note", "channel": 10, "note": 53 },
+        "5": { "type": "note", "channel": 10, "note": 50 },
+        "6": { "type": "note", "channel": 10, "note": 48 },
+        "7": { "type": "note", "channel": 10, "note": 47 },
+        "8": { "type": "note", "channel": 10, "note": 45 },
+        "9": { "type": "note", "channel": 10, "note": 42 },
+        "10": { "type": "note", "channel": 10, "note": 44 },
+        "11": { "type": "note", "channel": 10, "note": 46 },
+        "12": { "type": "note", "channel": 10, "note": 39 },
+        "13": { "type": "note", "channel": 10, "note": 36 },
+        "14": { "type": "note", "channel": 10, "note": 38 },
+        "15": { "type": "note", "channel": 10, "note": 37 },
+        "16": { "type": "note", "channel": 10, "note": 40 }
+      },
+      "buttons": {
+        "roll": { "type": "roll" },
+        "flam": { "type": "flam" }
+      },
+      "knobs": {
+        "1": { "type": "cc", "channel": 10, "cc": 7, "pickup": true },
+        "2": { "type": "cc", "channel": 10, "cc": 10, "pickup": true }
+      }
+    }
+  ]
+}

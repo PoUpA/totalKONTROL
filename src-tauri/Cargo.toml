@@ -40,6 +40,8 @@ midir = "0.10"
 sys-locale = "0.3.2"
 rosc = "0.11.4"
 enigo = "0.6.1"
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
 
 [target.'cfg(windows)'.dependencies]
 windows-core = { version = "0.62", optional = true }
