@@ -1,4 +1,5 @@
 import { useI18n } from "../../i18n";
+import { NumberInput } from "../NumberInput";
 import type { DisplaySettings, Profile } from "../../types";
 
 const DEFAULT_DURATION = 1000;
@@ -54,16 +55,12 @@ export function DisplaySettingsForm({ settings, onChange }: Props) {
       </label>
       <label>
         {t("display.duration")}
-        <input
-          type="number"
+        <NumberInput
           min={200}
           max={10000}
           step={100}
           value={settings.duration ?? DEFAULT_DURATION}
-          onChange={(e) => {
-            const duration = Number.parseInt(e.target.value, 10);
-            if (!Number.isNaN(duration)) onChange({ ...settings, duration });
-          }}
+          onChange={(duration) => onChange({ ...settings, duration })}
         />
       </label>
     </fieldset>

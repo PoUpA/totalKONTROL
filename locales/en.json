@@ -251,5 +251,20 @@
   "core.winmidi.openFailed": "could not open the virtual device",
   "core.tray.show": "Show totalKONTROL",
   "core.tray.panic": "All notes off",
-  "core.tray.quit": "Quit"
+  "core.tray.quit": "Quit",
+  "editor.moveBankLeft": "Move the bank left",
+  "editor.moveBankRight": "Move the bank right",
+  "editor.confirmDeleteBank": "Delete « {bank} »",
+  "editor.quitUnsaved": "The open profile has unsaved changes.",
+  "editor.quitAnyway": "Quit anyway",
+  "controls.ledOn": "LED on",
+  "monitor.fromPad": "padKONTROL",
+  "monitor.toDaw": "→ DAW",
+  "monitor.fromDaw": "← DAW",
+  "monitor.toOsc": "→ OSC",
+  "monitor.fromOsc": "← OSC",
+  "monitor.keys": "⌨ Keys",
+  "event.xy": "XY  x {x}  y {y}",
+  "error.title": "Something went wrong",
+  "error.reload": "Reload the window"
 }

@@ -83,6 +83,22 @@ function App() {
   const [tab, setTab] = useState<"control" | "profiles">("control");
   // LEDs lit on the padKONTROL, keyed like ControlState.seen.
   const [leds, setLeds] = useState<Set<string>>(() => new Set());
+  // Quitting from the tray while the editor has unsaved changes.
+  const [quitAsked, setQuitAsked] = useState(false);
+  const editorDirty = useRef(false);
+  const setEditorDirty = useCallback((dirty: boolean) => {
+    editorDirty.current = dirty;
+  }, []);
+
+  useEffect(() => {
+    const unlisten = listen("quit-requested", () => {
+      if (editorDirty.current) setQuitAsked(true);
+      else invoke("quit");
+    });
+    return () => {
+      unlisten.then((stop) => stop());
+    };
+  }, []);
   const { lang, setLang, t } = useI18n();
 
   const pendingControls = useRef<MidiMessage[]>([]);
@@ -284,6 +300,24 @@ function App() {
         </div>
       </header>
       {error && <p className="error banner">{error}</p>}
+      {quitAsked && (
+        <div className="banner warn" role="alert">
+          {t("editor.quitUnsaved")}
+          <div className="actions">
+            <button className="danger" onClick={() => invoke("quit")}>
+              {t("editor.quitAnyway")}
+            </button>
+            <button
+              onClick={() => {
+                setQuitAsked(false);
+                invoke("cancel_quit");
+              }}
+            >
+              {t("common.cancel")}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Shared by both tabs: the editor's learn mode needs a connection too. */}
       <ConnectionPanel
@@ -302,6 +336,7 @@ function App() {
       {/* Both tabs stay mounted, so an unsaved profile survives a tab switch. */}
       <div className="tab-panel" hidden={tab !== "profiles"}>
         <ProfileEditor
+          onDirtyChange={setEditorDirty}
           profiles={profiles}
           dir={profilesDir}
           engine={engine}

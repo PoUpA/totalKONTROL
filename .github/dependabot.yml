@@ -1,0 +1,16 @@
+# Weekly pull requests for outdated dependencies and GitHub Actions (the
+# actions are pinned by commit: Dependabot updates the pins).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

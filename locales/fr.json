@@ -251,5 +251,20 @@
   "core.winmidi.openFailed": "ouverture de l'appareil virtuel impossible",
   "core.tray.show": "Afficher totalKONTROL",
   "core.tray.panic": "Couper toutes les notes",
-  "core.tray.quit": "Quitter"
+  "core.tray.quit": "Quitter",
+  "editor.moveBankLeft": "Déplacer la banque à gauche",
+  "editor.moveBankRight": "Déplacer la banque à droite",
+  "editor.confirmDeleteBank": "Supprimer « {bank} »",
+  "editor.quitUnsaved": "Le profil ouvert a des modifications non enregistrées.",
+  "editor.quitAnyway": "Quitter quand même",
+  "controls.ledOn": "LED allumée",
+  "monitor.fromPad": "padKONTROL",
+  "monitor.toDaw": "→ DAW",
+  "monitor.fromDaw": "← DAW",
+  "monitor.toOsc": "→ OSC",
+  "monitor.fromOsc": "← OSC",
+  "monitor.keys": "⌨ Touches",
+  "event.xy": "XY  x {x}  y {y}",
+  "error.title": "Un problème est survenu",
+  "error.reload": "Recharger la fenêtre"
 }

@@ -1,4 +1,5 @@
 import { useI18n } from "../../i18n";
+import { NumberInput } from "../NumberInput";
 import type { Profile, VelocitySettings } from "../../types";
 
 type Curve = NonNullable<VelocitySettings["curve"]>;
@@ -53,16 +54,7 @@ export function VelocitySettingsForm({ settings, onChange }: Props) {
   const number = (key: "min" | "max", label: string) => (
     <label>
       {label}
-      <input
-        type="number"
-        min={1}
-        max={127}
-        value={full[key]}
-        onChange={(e) => {
-          const value = Number.parseInt(e.target.value, 10);
-          if (value >= 1 && value <= 127) onChange({ ...settings, [key]: value });
-        }}
-      />
+      <NumberInput min={1} max={127} value={full[key]} onChange={(value) => onChange({ ...settings, [key]: value })} />
     </label>
   );
 

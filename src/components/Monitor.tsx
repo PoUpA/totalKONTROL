@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { useI18n } from "../i18n";
+import { useI18n, type MessageKey } from "../i18n";
 import { describeEvent, type MidiMessage, type MonitorEntry } from "../types";
 
 type Props = {
@@ -9,13 +9,13 @@ type Props = {
   onClear: () => void;
 };
 
-const DIRECTIONS: Record<MidiMessage["direction"], string> = {
-  in: "padKONTROL",
-  out: "→ DAW",
-  feedback: "← DAW",
-  osc: "→ OSC",
-  oscIn: "← OSC",
-  key: "⌨",
+const DIRECTIONS: Record<MidiMessage["direction"], MessageKey> = {
+  in: "monitor.fromPad",
+  out: "monitor.toDaw",
+  feedback: "monitor.fromDaw",
+  osc: "monitor.toOsc",
+  oscIn: "monitor.fromOsc",
+  key: "monitor.keys",
 };
 
 const time = (ms: number, locale: string) =>
@@ -27,7 +27,7 @@ const MonitorRow = memo(function MonitorRow({ entry }: { entry: MonitorEntry }) 
   return (
     <tr className={`dir-${entry.direction}${entry.direction === "in" && !entry.event ? " unknown" : ""}`}>
       <td>{time(entry.receivedAt, locale)}</td>
-      <td className="dir">{DIRECTIONS[entry.direction]}</td>
+      <td className="dir">{t(DIRECTIONS[entry.direction])}</td>
       <td>{entry.event ? describeEvent(entry.event, t) : "–"}</td>
       <td>{entry.description}</td>
       <td className="hex">{entry.hex}</td>

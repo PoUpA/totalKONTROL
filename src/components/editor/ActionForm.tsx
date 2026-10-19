@@ -13,6 +13,7 @@ import type {
   XyAction,
 } from "../../types";
 import { useI18n, type Translate } from "../../i18n";
+import { NumberInput } from "../NumberInput";
 import { KeysField } from "./KeysField";
 import { controlLabel, noteName, type AnyAction } from "./profile";
 
@@ -46,16 +47,7 @@ function NumberField({
     <label>
       {label}
       <span className="field-row">
-        <input
-          type="number"
-          min={min}
-          max={max}
-          value={value}
-          onChange={(e) => {
-            const parsed = Number.parseInt(e.target.value, 10);
-            if (!Number.isNaN(parsed)) onChange(parsed);
-          }}
-        />
+        <NumberInput min={min} max={max} value={value} onChange={onChange} />
         {hint && <span className="muted">{hint}</span>}
       </span>
     </label>
@@ -68,15 +60,7 @@ function DecimalField({ label, value, onChange }: { label: string; value: number
     <label>
       {label}
       <span className="field-row">
-        <input
-          type="number"
-          step="any"
-          value={value}
-          onChange={(e) => {
-            const parsed = Number.parseFloat(e.target.value);
-            if (Number.isFinite(parsed)) onChange(parsed);
-          }}
-        />
+        <NumberInput decimal value={value} onChange={onChange} />
       </span>
     </label>
   );

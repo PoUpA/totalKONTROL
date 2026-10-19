@@ -29,7 +29,14 @@ export function FrontPanel({ banks, bankIndex, selected, errors, onSelect }: Pro
           hasError(errors, bankIndex, control) ? "invalid" : "",
         ].join(" ");
         return (
-          <button key={label} type="button" className={classes} onClick={() => onSelect(control)} title={summary}>
+          <button
+            key={label}
+            type="button"
+            className={classes}
+            onClick={() => onSelect(control)}
+            title={summary}
+            aria-pressed={sameControl(control, selected)}
+          >
             <span>{label}</span>
             {summary && <small>{summary}</small>}
           </button>

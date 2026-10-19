@@ -251,5 +251,20 @@
   "core.winmidi.openFailed": "no se pudo abrir el dispositivo virtual",
   "core.tray.show": "Mostrar totalKONTROL",
   "core.tray.panic": "Silenciar todas las notas",
-  "core.tray.quit": "Salir"
+  "core.tray.quit": "Salir",
+  "editor.moveBankLeft": "Mover el banco a la izquierda",
+  "editor.moveBankRight": "Mover el banco a la derecha",
+  "editor.confirmDeleteBank": "Eliminar «{bank}»",
+  "editor.quitUnsaved": "El perfil abierto tiene cambios sin guardar.",
+  "editor.quitAnyway": "Salir de todos modos",
+  "controls.ledOn": "LED encendido",
+  "monitor.fromPad": "padKONTROL",
+  "monitor.toDaw": "→ DAW",
+  "monitor.fromDaw": "← DAW",
+  "monitor.toOsc": "→ OSC",
+  "monitor.fromOsc": "← OSC",
+  "monitor.keys": "⌨ Teclas",
+  "event.xy": "XY  x {x}  y {y}",
+  "error.title": "Algo salió mal",
+  "error.reload": "Recargar la ventana"
 }

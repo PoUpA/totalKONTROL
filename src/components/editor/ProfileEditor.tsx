@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
@@ -25,11 +25,21 @@ type Props = {
   canLearn: boolean;
   onProfilesChanged: () => Promise<void>;
   onEngineState: (state: EngineState) => void;
+  /** Whether the open profile has unsaved changes, for quitting. */
+  onDirtyChange: (dirty: boolean) => void;
 };
 
 const VALIDATION_DELAY_MS = 250;
 
-function ProfileEditorView({ profiles, dir, engine, canLearn, onProfilesChanged, onEngineState }: Props) {
+function ProfileEditorView({
+  profiles,
+  dir,
+  engine,
+  canLearn,
+  onProfilesChanged,
+  onEngineState,
+  onDirtyChange,
+}: Props) {
   const [file, setFile] = useState<string | null>(null);
   const [draft, setDraft] = useState<Profile | null>(null);
   const [saved, setSaved] = useState("");
@@ -38,28 +48,39 @@ function ProfileEditorView({ profiles, dir, engine, canLearn, onProfilesChanged,
   const [bank, setBank] = useState(0);
   const [selected, setSelected] = useState<ControlRef | null>(null);
   const [learn, setLearn] = useState(false);
-  const [pendingFile, setPendingFile] = useState<string | null>(null);
+  // What to do once the unsaved changes are discarded: open or create a profile.
+  const [pending, setPending] = useState<(() => void) | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDeleteBank, setConfirmDeleteBank] = useState(false);
+  const [validating, setValidating] = useState(false);
+  // Latest load and validation asked for: older answers are dropped.
+  const openRequest = useRef(0);
+  const validationRequest = useRef(0);
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
   const { t, lang } = useI18n();
 
   const dirty = draft !== null && JSON.stringify(draft) !== saved;
+  useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
 
   const open = useCallback(async (next: string) => {
+    const request = ++openRequest.current;
     setFile(next);
-    setPendingFile(null);
+    setPending(null);
     setConfirmDelete(false);
+    setConfirmDeleteBank(false);
     setSelected(null);
     setBank(0);
     setMessage(null);
     try {
       const profile = await invoke<Profile>("load_profile", { file: next });
+      if (request !== openRequest.current) return;
       setDraft(profile);
       setSaved(JSON.stringify(profile));
       setLoadErrors([]);
     } catch (e) {
+      if (request !== openRequest.current) return;
       setDraft(null);
       setSaved("");
       setLoadErrors(Array.isArray(e) ? e.map(String) : [String(e)]);
@@ -80,10 +101,21 @@ function ProfileEditorView({ profiles, dir, engine, canLearn, onProfilesChanged,
   // Live validation by the Rust core, the same rules as on save. Runs again
   // when the language changes, since the core writes the messages. The delay
   // also lets the core learn the new language first.
+  // Saving waits for the result: the errors shown may be those of an older draft.
   useEffect(() => {
     if (!draft) return;
+    const request = ++validationRequest.current;
+    setValidating(true);
     const timer = setTimeout(async () => {
-      setErrors(await invoke<string[]>("validate_profile", { profile: draft }));
+      let result: string[];
+      try {
+        result = await invoke<string[]>("validate_profile", { profile: draft });
+      } catch (e) {
+        result = [String(e)];
+      }
+      if (request !== validationRequest.current) return;
+      setErrors(result);
+      setValidating(false);
     }, VALIDATION_DELAY_MS);
     return () => clearTimeout(timer);
   }, [draft, lang]);
@@ -111,10 +143,14 @@ function ProfileEditorView({ profiles, dir, engine, canLearn, onProfilesChanged,
     }
   };
 
+  /** Runs `action` at once, or after the user agrees to drop the unsaved changes. */
+  const guarded = (action: () => void) => {
+    if (dirty) setPending(() => action);
+    else action();
+  };
+
   const requestOpen = (next: string) => {
-    if (next === file) return;
-    if (dirty) setPendingFile(next);
-    else open(next);
+    if (next !== file) guarded(() => open(next));
   };
 
   const save = () =>
@@ -128,14 +164,16 @@ function ProfileEditorView({ profiles, dir, engine, canLearn, onProfilesChanged,
     });
 
   const create = () =>
-    run(async () => {
-      const created = await invoke<string>("create_profile", {
-        name: newName.trim() || t("editor.defaultProfileName"),
-      });
-      setNewName("");
-      await onProfilesChanged();
-      await open(created);
-    });
+    guarded(() =>
+      run(async () => {
+        const created = await invoke<string>("create_profile", {
+          name: newName.trim() || t("editor.defaultProfileName"),
+        });
+        setNewName("");
+        await onProfilesChanged();
+        await open(created);
+      }),
+    );
 
   const duplicate = () =>
     run(async () => {
@@ -202,12 +240,19 @@ function ProfileEditorView({ profiles, dir, engine, canLearn, onProfilesChanged,
       </aside>
 
       <section className="card editor-main">
-        {pendingFile && (
-          <div className="banner warn">
+        {pending && (
+          <div className="banner warn" role="alert">
             {t("editor.unsaved")}
             <div className="actions">
-              <button onClick={() => open(pendingFile)}>{t("editor.discard")}</button>
-              <button onClick={() => setPendingFile(null)}>{t("common.cancel")}</button>
+              <button
+                onClick={() => {
+                  setPending(null);
+                  pending();
+                }}
+              >
+                {t("editor.discard")}
+              </button>
+              <button onClick={() => setPending(null)}>{t("common.cancel")}</button>
             </div>
           </div>
         )}
@@ -234,7 +279,7 @@ function ProfileEditorView({ profiles, dir, engine, canLearn, onProfilesChanged,
                 aria-label={t("editor.profileName")}
               />
               <div className="actions">
-                <button className="primary" onClick={save} disabled={busy || !dirty || errors.length > 0}>
+                <button className="primary" onClick={save} disabled={busy || !dirty || validating || errors.length > 0}>
                   {t("editor.save")}
                 </button>
                 <button onClick={() => setDraft(JSON.parse(saved))} disabled={busy || !dirty}>
@@ -262,7 +307,15 @@ function ProfileEditorView({ profiles, dir, engine, canLearn, onProfilesChanged,
 
             <div className="banks">
               {draft.banks.map((b, i) => (
-                <button key={i} className={i === bank ? "bank active" : "bank"} onClick={() => setBank(i)}>
+                <button
+                  key={i}
+                  className={i === bank ? "bank active" : "bank"}
+                  aria-pressed={i === bank}
+                  onClick={() => {
+                    setBank(i);
+                    setConfirmDeleteBank(false);
+                  }}
+                >
                   <small>{i}</small> {b.name}
                   {(draft.startBank ?? 0) === i && " ★"}
                 </button>
@@ -313,6 +366,8 @@ function ProfileEditorView({ profiles, dir, engine, canLearn, onProfilesChanged,
                     setBank(bank - 1);
                   }}
                   disabled={bank === 0}
+                  aria-label={t("editor.moveBankLeft")}
+                  title={t("editor.moveBankLeft")}
                 >
                   ←
                 </button>
@@ -322,19 +377,31 @@ function ProfileEditorView({ profiles, dir, engine, canLearn, onProfilesChanged,
                     setBank(bank + 1);
                   }}
                   disabled={bank === draft.banks.length - 1}
+                  aria-label={t("editor.moveBankRight")}
+                  title={t("editor.moveBankRight")}
                 >
                   →
                 </button>
-                <button
-                  onClick={() => {
-                    update((p) => removeBank(p, bank));
-                    setBank(Math.max(0, bank - 1));
-                    setSelected(null);
-                  }}
-                  disabled={draft.banks.length === 1}
-                >
-                  {t("editor.deleteBank")}
-                </button>
+                {confirmDeleteBank ? (
+                  <>
+                    <button
+                      className="danger"
+                      onClick={() => {
+                        update((p) => removeBank(p, bank));
+                        setBank(Math.max(0, bank - 1));
+                        setSelected(null);
+                        setConfirmDeleteBank(false);
+                      }}
+                    >
+                      {t("editor.confirmDeleteBank", { bank: currentBank.name })}
+                    </button>
+                    <button onClick={() => setConfirmDeleteBank(false)}>{t("common.cancel")}</button>
+                  </>
+                ) : (
+                  <button onClick={() => setConfirmDeleteBank(true)} disabled={draft.banks.length === 1}>
+                    {t("editor.deleteBank")}
+                  </button>
+                )}
               </div>
             </div>
 

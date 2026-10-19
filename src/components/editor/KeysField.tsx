@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
 
 // Key names of the Rust core (src-tauri/src/keys.rs), by KeyboardEvent.key.
@@ -63,6 +63,9 @@ export function KeysField({
 }) {
   const { t } = useI18n();
   const [recording, setRecording] = useState(false);
+  // The latest onChange, so the listeners below stay put while recording.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   useEffect(() => {
     if (!recording) return;
@@ -73,7 +76,7 @@ export function KeysField({
       e.stopPropagation();
       const key = keyName(e);
       if (key) {
-        onChange([...modifiers(e), key].join("+"));
+        onChangeRef.current([...modifiers(e), key].join("+"));
         setRecording(false);
       } else if (MODIFIER_KEYS.has(e.key)) {
         held = modifiers(e);
@@ -82,7 +85,7 @@ export function KeysField({
     const up = (e: KeyboardEvent) => {
       e.preventDefault();
       if (MODIFIER_KEYS.has(e.key) && held.length > 0) {
-        onChange(held.join("+"));
+        onChangeRef.current(held.join("+"));
         setRecording(false);
       }
     };
@@ -92,7 +95,7 @@ export function KeysField({
       window.removeEventListener("keydown", down, true);
       window.removeEventListener("keyup", up, true);
     };
-  }, [recording, onChange]);
+  }, [recording]);
 
   return (
     <label>

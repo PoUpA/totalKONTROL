@@ -58,12 +58,32 @@ jobs:
         if: runner.os == 'Linux'
         run: npm run format:check
 
+      - name: Frontend tests (vitest)
+        run: npm test
+
       # Must run before cargo: generate_context! needs dist/.
       - name: Build the frontend (tsc + vite)
         run: npm run build
 
+      # --locked: Cargo.lock is versioned and must not drift.
       - name: Rust tests
-        run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml --all-targets
 
       - name: Clippy
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+        run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+
+      # The winmidi installers are only built on a release tag: check this
+      # variant on every push too, or a regression shows only at release.
+      - name: Cache the Windows MIDI Services package
+        if: runner.os == 'Windows'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: src-tauri/vendor/windows-midi2
+          key: windows-midi2-${{ hashFiles('scripts/fetch-windows-midi.ps1') }}
+
+      - name: Clippy (Windows MIDI Services)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./scripts/fetch-windows-midi.ps1
+          cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets --features windows-midi-services -- -D warnings

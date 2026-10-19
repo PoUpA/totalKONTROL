@@ -75,6 +75,18 @@ fn disconnect_pad(app: AppHandle, connection: State<PadConnection>) {
     connection.disconnect(&app);
 }
 
+/// Quits, from the window once it agreed (see `tray::request_quit`). Exits
+/// through RunEvent::Exit, which returns the padKONTROL to normal mode.
+#[tauri::command]
+fn quit(app: AppHandle) {
+    app.exit(0);
+}
+
+#[tauri::command]
+fn cancel_quit() {
+    tray::cancel_quit();
+}
+
 /// All notes off, in the DAW and on the keyboard.
 #[tauri::command(async)]
 fn panic(connection: State<PadConnection>) -> Result<(), String> {
@@ -198,6 +210,8 @@ pub fn run() {
             connect_pad,
             disconnect_pad,
             panic,
+            quit,
+            cancel_quit,
             connection_status,
             engine_state,
             set_profile,

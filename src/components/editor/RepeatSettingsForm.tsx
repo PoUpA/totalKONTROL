@@ -1,4 +1,5 @@
 import { useI18n } from "../../i18n";
+import { NumberInput } from "../NumberInput";
 import type { Profile, RepeatSettings } from "../../types";
 
 // Same ranges and defaults as RepeatSettings in the Rust core.
@@ -30,17 +31,7 @@ export function RepeatSettingsForm({ settings, onChange }: Props) {
       <legend>{t("repeat.title")}</legend>
       <label>
         {t("repeat.bpm")}
-        <input
-          type="number"
-          min={20}
-          max={300}
-          step="any"
-          value={full.bpm}
-          onChange={(e) => {
-            const bpm = Number.parseFloat(e.target.value);
-            if (bpm >= 20 && bpm <= 300) onChange({ ...settings, bpm });
-          }}
-        />
+        <NumberInput min={20} max={300} decimal value={full.bpm} onChange={(bpm) => onChange({ ...settings, bpm })} />
       </label>
       <label>
         {t("repeat.roll")}
@@ -55,16 +46,7 @@ export function RepeatSettingsForm({ settings, onChange }: Props) {
       </label>
       <label>
         {t("repeat.flam")}
-        <input
-          type="number"
-          min={5}
-          max={200}
-          value={full.flam}
-          onChange={(e) => {
-            const flam = Number.parseInt(e.target.value, 10);
-            if (flam >= 5 && flam <= 200) onChange({ ...settings, flam });
-          }}
-        />
+        <NumberInput min={5} max={200} value={full.flam} onChange={(flam) => onChange({ ...settings, flam })} />
       </label>
       <label className="checkbox">
         <input

@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, Runtime, Window, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, Runtime, Window, WindowEvent};
 
 use crate::midi::PadConnection;
 
@@ -50,8 +50,7 @@ fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Tray<R>> {
             PANIC => {
                 let _ = app.state::<PadConnection>().panic();
             }
-            // Exits through RunEvent::Exit, which returns the padKONTROL to normal mode.
-            QUIT => app.exit(0),
+            QUIT => request_quit(app),
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
@@ -78,6 +77,28 @@ pub fn relabel<R: Runtime>(app: &AppHandle<R>) {
         let _ = tray.panic.set_text(t!("core.tray.panic"));
         let _ = tray.quit.set_text(t!("core.tray.quit"));
     }
+}
+
+/// Quit asked from the tray, not answered yet by the window.
+static QUIT_ASKED: AtomicBool = AtomicBool::new(false);
+
+/// Asks the window first, which may hold unsaved profile changes: it quits
+/// (`quit`) or not (`cancel_quit`). Asked again before it answered, as when
+/// the window does not respond, the app quits.
+fn request_quit<R: Runtime>(app: &AppHandle<R>) {
+    if QUIT_ASKED.swap(true, Ordering::SeqCst) {
+        app.exit(0);
+        return;
+    }
+    show_window(app);
+    if app.emit("quit-requested", ()).is_err() {
+        app.exit(0);
+    }
+}
+
+/// The user kept the app open after all.
+pub fn cancel_quit() {
+    QUIT_ASKED.store(false, Ordering::SeqCst);
 }
 
 fn show_window<R: Runtime>(app: &AppHandle<R>) {

@@ -272,7 +272,7 @@ export function describeEvent(event: ControlEvent, t: Translate): string {
     case "knob":
       return t("event.knob", { knob: event.knob, value: event.value });
     case "xy":
-      return `XY  x ${event.x}  y ${event.y}`;
+      return t("event.xy", { x: event.x, y: event.y });
     case "xyTouch":
       return `${t("control.xyTouch")} ${event.pressed ? "↓" : "↑"}`;
     case "encoder":

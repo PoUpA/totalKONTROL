@@ -57,7 +57,8 @@ export function ControlView({ state, display, leds }: { state: ControlState; dis
       <PadLayout
         display={display}
         render={(control, label, className) => {
-          const seen = (state.seen.has(seenKey(control)) ? " seen" : "") + (leds.has(seenKey(control)) ? " lit" : "");
+          const lit = leds.has(seenKey(control));
+          const seen = (state.seen.has(seenKey(control)) ? " seen" : "") + (lit ? " lit" : "");
           switch (control.kind) {
             case "pad": {
               const velocity = state.pads[control.pad];
@@ -67,6 +68,8 @@ export function ControlView({ state, display, leds }: { state: ControlState; dis
                   key={label}
                   className={`${className}${on ? " on" : ""}${seen}`}
                   style={on ? { opacity: 0.4 + (velocity / 127) * 0.6 } : undefined}
+                  title={lit ? t("controls.ledOn") : undefined}
+                  aria-label={lit ? `${label}, ${t("controls.ledOn")}` : undefined}
                 >
                   <span>{label}</span>
                   {on && <small>{velocity}</small>}
@@ -75,7 +78,12 @@ export function ControlView({ state, display, leds }: { state: ControlState; dis
             }
             case "button":
               return (
-                <span key={label} className={`${className}${state.buttons[control.button] ? " on" : ""}${seen}`}>
+                <span
+                  key={label}
+                  className={`${className}${state.buttons[control.button] ? " on" : ""}${seen}`}
+                  title={lit ? t("controls.ledOn") : undefined}
+                  aria-label={lit ? `${label}, ${t("controls.ledOn")}` : undefined}
+                >
                   {label}
                 </span>
               );

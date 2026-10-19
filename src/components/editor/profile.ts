@@ -151,6 +151,7 @@ function remapBanks(profile: Profile, f: (bank: number) => number): Profile {
       ...bank,
       pads: remapAll(bank.pads),
       buttons: remapAll(bank.buttons as Record<string, ButtonAction> | undefined),
+      xyTouch: bank.xyTouch && remap(bank.xyTouch),
     })),
   };
 }

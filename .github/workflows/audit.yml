@@ -1,0 +1,33 @@
+name: Audit
+
+# Known vulnerabilities in the dependencies: weekly, and when a lockfile
+# changes.
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  push:
+    paths:
+      - package-lock.json
+      - src-tauri/Cargo.lock
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: lts/*
+
+      # Only what ships: the frontend bundle's dependencies.
+      - name: npm audit
+        run: npm audit --omit=dev --audit-level=high
+
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        with:
+          tool: cargo-audit
+
+      - name: cargo audit
+        run: cargo audit --file src-tauri/Cargo.lock

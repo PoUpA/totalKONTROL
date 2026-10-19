@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { useI18n } from "../i18n";
+import { NumberInput } from "./NumberInput";
 import type {
   ConnectionInfo,
   ConnectOptions,
@@ -199,9 +200,12 @@ function ConnectionPanelView({
   }, [ports]);
 
   useEffect(() => {
-    const remembered = loadSelection().profile;
     const files = validProfiles.map((p) => p.file);
-    setProfile(isValid(remembered, files) ? remembered! : (files[0] ?? ""));
+    setProfile((current) => {
+      if (isValid(current, files)) return current;
+      const remembered = loadSelection().profile;
+      return isValid(remembered, files) ? remembered! : (files[0] ?? "");
+    });
   }, [profiles]);
 
   const connected = connection !== null;
@@ -374,15 +378,11 @@ function ConnectionPanelView({
                 </label>
                 <label>
                   {t("connection.oscPort")}
-                  <input
-                    type="number"
+                  <NumberInput
                     min={1}
                     max={65535}
                     value={osc.port}
-                    onChange={(e) => {
-                      const port = Number.parseInt(e.target.value, 10);
-                      if (port >= 1 && port <= 65535) editOsc({ port });
-                    }}
+                    onChange={(port) => editOsc({ port })}
                     disabled={connected}
                   />
                 </label>
@@ -414,16 +414,12 @@ function ConnectionPanelView({
                   />
                   {t("connection.oscListen")}
                 </label>
-                <input
-                  type="number"
+                <NumberInput
                   min={1}
                   max={65535}
                   value={osc.listenPort}
                   aria-label={t("connection.oscListenPort")}
-                  onChange={(e) => {
-                    const listenPort = Number.parseInt(e.target.value, 10);
-                    if (listenPort >= 1 && listenPort <= 65535) editOsc({ listenPort });
-                  }}
+                  onChange={(listenPort) => editOsc({ listenPort })}
                   disabled={connected || !osc.listen}
                 />
               </div>

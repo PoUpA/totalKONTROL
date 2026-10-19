@@ -13,7 +13,8 @@
     "demo:osc": "node tools/osc-led-demo.mjs",
     "format": "prettier --write . && cargo fmt --manifest-path src-tauri/Cargo.toml",
     "format:check": "prettier --check . && cargo fmt --manifest-path src-tauri/Cargo.toml --check",
-    "build:winmidi": "tauri build --config src-tauri/tauri.windows-midi.conf.json --features windows-midi-services"
+    "build:winmidi": "tauri build --config src-tauri/tauri.windows-midi.conf.json --features windows-midi-services",
+    "test": "vitest run"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -27,6 +28,7 @@
     "@vitejs/plugin-react": "^6.0.2",
     "prettier": "3.9.10",
     "typescript": "~6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "vitest": "5.0.3"
   }
 }
