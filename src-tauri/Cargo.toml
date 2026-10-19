@@ -30,7 +30,7 @@ windows-midi-services = [
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
-windows-bindgen = { version = "0.66", optional = true }
+windows-bindgen = { version = "0.100", optional = true }
 
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
