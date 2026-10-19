@@ -158,8 +158,13 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(profile: Profile) -> Self {
-        let bank = profile.start_bank.min(profile.banks.len().saturating_sub(1));
+    pub fn new(mut profile: Profile) -> Self {
+        // Validation refuses a profile without banks; the engine still
+        // needs one to index.
+        if profile.banks.is_empty() {
+            profile.banks.push(crate::config::Bank::default());
+        }
+        let bank = profile.start_bank.min(profile.banks.len() - 1);
         Self {
             profile,
             file: String::new(),
@@ -398,9 +403,11 @@ impl Engine {
             } => {
                 // Shaped by the profile's velocity curve, for notes, OSC and the display.
                 let velocity = self.profile.velocity.apply(velocity);
+                // The action hit, before a switchBank action changes the bank.
+                let action = self.action(self.bank, Control::Pad(pad)).cloned();
                 self.press(Control::Pad(pad), Some(velocity), now, &mut out);
-                let text = match (display.pads, self.action(self.bank, Control::Pad(pad))) {
-                    (PadDisplay::Note, Some(ButtonAction::Note { note, .. })) => Some(note_name(*note)),
+                let text = match (display.pads, action) {
+                    (PadDisplay::Note, Some(ButtonAction::Note { note, .. })) => Some(note_name(note)),
                     (PadDisplay::Velocity, Some(_)) => Some(format!("{velocity:>DISPLAY_LENGTH$}")),
                     _ => None,
                 };
@@ -424,7 +431,9 @@ impl Engine {
                     Some(KnobAction::Cc {
                         channel, cc, min, max, ..
                     }) => {
-                        let scaled = (min as u16 + value as u16 * max.saturating_sub(min) as u16 / 127) as u8;
+                        let scaled = (u16::from(min)
+                            + u16::from(value.min(127)) * u16::from(max.saturating_sub(min)) / 127)
+                            .min(127) as u8;
                         out.daw.push(control_change(channel, cc, scaled));
                         Some(scaled)
                     }
@@ -738,6 +747,8 @@ impl Engine {
         self.bank = bank;
         self.last_xy = None;
         self.led_override.clear();
+        // Toggles stay on in the bank they belong to, like the hardware's:
+        // switching back finds them as left. Panic or disconnecting ends them.
         // Knobs that moved since this bank last used them wait to be picked up.
         for (&(knob_bank, knob), &sent) in &self.knob_sent {
             if knob_bank == bank && self.knob_physical.get(&knob).is_some_and(|&now| now != sent) {
@@ -1672,6 +1683,56 @@ mod tests {
         assert!((e.roll_interval(now).as_secs_f32() - 0.25).abs() < 0.01);
         // The clock stopped: back to the profile's tempo.
         assert_eq!(e.bpm(now + Duration::from_secs(1)), 120.0);
+    }
+
+    #[test]
+    fn pad_display_shows_the_hit_even_when_it_switches_banks() {
+        let mut e = engine_with(
+            r#"{ "version": 1, "name": "T", "display": { "pads": "note" }, "banks": [
+                { "name": "A", "pads": { "1": { "type": "switchBank", "bank": 1 },
+                                         "2": { "type": "note", "channel": 1, "note": 60 } } },
+                { "name": "B", "pads": { "1": { "type": "note", "channel": 1, "note": 36 } } }] }"#,
+        );
+        let out = e.handle(&pad(1, true, 100));
+        assert!(out.bank_changed);
+        assert!(
+            !out.pad.contains(&padkontrol::display(&note_name(36))),
+            "not the note of the new bank's pad"
+        );
+    }
+
+    #[test]
+    fn toggles_stay_on_across_banks_until_released() {
+        let mut e = engine(
+            r#"{ "name": "A", "pads": { "1": { "type": "note", "channel": 1, "note": 36, "mode": "toggle" } },
+                 "buttons": { "setting": { "type": "switchBank", "bank": 1 } } },
+               { "name": "B", "buttons": { "setting": { "type": "switchBank", "bank": 0 } } }"#,
+        );
+        e.handle(&pad(1, true, 100));
+        e.handle(&pad(1, false, 0));
+        let switched = e.handle(&button(ButtonId::Setting, true));
+        assert!(switched.daw.is_empty(), "the toggled note keeps sounding");
+        e.handle(&button(ButtonId::Setting, false));
+        let back = e.handle(&button(ButtonId::Setting, true));
+        assert_eq!(led_on(&back, Control::Pad(1)), Some(true), "found as left");
+        assert_eq!(e.release_all().daw, vec![vec![0x80, 36, 0]]);
+    }
+
+    #[test]
+    fn knob_scaling_stays_in_the_midi_range() {
+        let mut e = engine(r#"{ "name": "A", "knobs": { "1": { "type": "cc", "channel": 1, "cc": 7, "min": 10 } } }"#);
+        assert_eq!(
+            e.handle(&ControlEvent::Knob { knob: 1, value: 255 }).daw,
+            vec![vec![0xB0, 7, 127]]
+        );
+    }
+
+    #[test]
+    fn an_empty_profile_does_not_panic() {
+        let mut profile = parse_profile(DEFAULT_PROFILE_JSON).unwrap();
+        profile.banks.clear();
+        let mut e = Engine::new(profile);
+        assert!(e.handle(&pad(1, true, 100)).daw.is_empty());
     }
 
     #[test]

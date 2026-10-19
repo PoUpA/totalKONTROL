@@ -209,6 +209,8 @@
   "core.connection.noActiveProfile": "no active profile",
   "core.connection.notConnected": "not connected",
   "core.connection.shuttingDown": "The app is closing",
+  "core.connection.cancelled": "Connection cancelled: the app disconnected or closed meanwhile",
+  "core.connection.portsStillClosing": "The previous connection's MIDI ports are still closing: try again in a few seconds",
   "core.connection.engineNeedsNativeMode": "the engine needs native mode",
   "core.connection.feedbackLoop": "the feedback port must differ from the port to the DAW, otherwise messages loop",
   "core.midi.serviceFrozen": "the Windows MIDI service stopped responding: close the MIDI apps and the DAW, run scripts/restart-midisrv.ps1 as administrator, then click Refresh",

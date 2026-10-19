@@ -217,15 +217,23 @@ pub fn decode(message: &[u8]) -> Option<ControlEvent> {
         [0x45, pad, velocity] => Some(ControlEvent::Pad {
             pad: (pad & 0x0F) + 1,
             pressed: pad & 0x40 != 0,
-            velocity,
+            velocity: velocity & 0x7F,
         }),
         [0x48, XY_TOUCH_CODE, state] => Some(ControlEvent::XyTouch { pressed: state != 0 }),
         [0x48, code, state] => BUTTONS.get(code as usize).map(|&button| ControlEvent::Button {
             button,
             pressed: state != 0,
         }),
-        [0x49, knob @ (0 | 1), value] => Some(ControlEvent::Knob { knob: knob + 1, value }),
-        [0x4B, x, y] => Some(ControlEvent::Xy { x, y }),
+        // Data bytes are 7-bit: masked, so a malformed message cannot give
+        // values out of range further on.
+        [0x49, knob @ (0 | 1), value] => Some(ControlEvent::Knob {
+            knob: knob + 1,
+            value: value & 0x7F,
+        }),
+        [0x4B, x, y] => Some(ControlEvent::Xy {
+            x: x & 0x7F,
+            y: y & 0x7F,
+        }),
         // Signed 7-bit step: 0x01 = one click right, 0x7F = one click left.
         [0x43, 0x00, step] => Some(ControlEvent::Encoder {
             delta: ((step << 1) as i8) >> 1,
@@ -418,6 +426,18 @@ mod tests {
                 .all(|m| m.len() >= 6 && m[..5] == HEADER && m.last() == Some(&SYSEX_END))
         );
         assert_eq!(exit_native_mode(), hex("f042406e08000000f7"));
+    }
+
+    #[test]
+    fn data_bytes_stay_7_bit() {
+        assert_eq!(
+            decode(&hex("f042406e084900fff7")),
+            Some(ControlEvent::Knob { knob: 1, value: 0x7F })
+        );
+        assert_eq!(
+            decode(&hex("f042406e084bff80f7")),
+            Some(ControlEvent::Xy { x: 0x7F, y: 0 })
+        );
     }
 
     #[test]

@@ -187,7 +187,7 @@ fn default_output_port() -> String {
     "totalKONTROL".into()
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Bank {
     pub name: String,
@@ -593,7 +593,22 @@ fn slug(name: &str) -> String {
         }
     }
     let slug = slug.trim_end_matches('-');
-    if slug.is_empty() { "profil".into() } else { slug.into() }
+    if slug.is_empty() {
+        "profile".into()
+    } else if is_reserved_on_windows(slug) {
+        format!("profile-{slug}")
+    } else {
+        slug.into()
+    }
+}
+
+/// Device names Windows reserves: `con.json` cannot be created.
+fn is_reserved_on_windows(name: &str) -> bool {
+    matches!(name, "con" | "prn" | "aux" | "nul")
+        || ["com", "lpt"].iter().any(|prefix| {
+            name.strip_prefix(prefix)
+                .is_some_and(|n| n.len() == 1 && n.chars().all(|c| c.is_ascii_digit()))
+        })
 }
 
 pub fn validate(profile: &Profile) -> Vec<String> {
@@ -863,6 +878,25 @@ pub struct ProfileSummary {
     pub name: Option<String>,
     pub bank_count: usize,
     pub errors: Vec<String>,
+    /// Ports the profile asks for, when they differ from the default ones:
+    /// the connection card preselects them when the profile is picked.
+    pub ports: PortHints,
+}
+
+#[derive(Debug, Default, PartialEq, Serialize)]
+pub struct PortHints {
+    pub input: Option<String>,
+    pub output: Option<String>,
+}
+
+impl From<&Ports> for PortHints {
+    fn from(ports: &Ports) -> Self {
+        let defaults = Ports::default();
+        Self {
+            input: (ports.input != defaults.input).then(|| ports.input.clone()),
+            output: (ports.output != defaults.output).then(|| ports.output.clone()),
+        }
+    }
 }
 
 /// Profile file names in a directory, sorted. A missing directory has none.
@@ -933,12 +967,14 @@ impl ProfileStore {
             .map(|file| match self.load(&file) {
                 Ok(p) => ProfileSummary {
                     file,
+                    ports: PortHints::from(&p.ports),
                     name: Some(p.name),
                     bank_count: p.banks.len(),
                     errors: vec![],
                 },
                 Err(errors) => ProfileSummary {
                     file,
+                    ports: PortHints::default(),
                     name: None,
                     bank_count: 0,
                     errors,
@@ -1466,10 +1502,29 @@ mod tests {
     }
 
     #[test]
+    fn port_hints_leave_out_the_defaults() {
+        assert_eq!(PortHints::from(&Ports::default()), PortHints::default());
+        let ports = Ports {
+            input: "padKONTROL 2".into(),
+            output: Ports::default().output,
+        };
+        assert_eq!(
+            PortHints::from(&ports),
+            PortHints {
+                input: Some("padKONTROL 2".into()),
+                output: None
+            }
+        );
+    }
+
+    #[test]
     fn slugs_file_names() {
         assert_eq!(slug("Batterie électro #2"), "batterie-electro-2");
-        assert_eq!(slug("  --  "), "profil");
+        assert_eq!(slug("  --  "), "profile");
         assert_eq!(slug("Ça va"), "ca-va");
+        assert_eq!(slug("Con"), "profile-con");
+        assert_eq!(slug("COM1"), "profile-com1");
+        assert_eq!(slug("console"), "console");
     }
 
     #[test]

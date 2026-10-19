@@ -18,7 +18,7 @@
       "minLength": 1
     },
     "ports": {
-      "description": "MIDI ports to use. Each value is part of the port name, ignoring case.",
+      "description": "MIDI ports this profile is meant for, preselected in the connection card when the profile is picked. Each value is part of the port name, ignoring case.",
       "type": "object",
       "additionalProperties": false,
       "properties": {

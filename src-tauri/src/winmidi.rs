@@ -127,14 +127,10 @@ pub fn availability() -> Availability {
             Some(version) if version <= LAST_BUGGY_TRANSPORT => return Availability::NeedsWindowsUpdate,
             Some(_) => {}
         }
-        let ready = in_mta(|| {
-            std::panic::catch_unwind(|| {
-                MidiApi::EnsureServiceAvailable() && MidiVirtualDeviceManager::IsTransportAvailable()
-            })
-            .unwrap_or(false)
-        })
-        .recv_timeout(CREATION_TIMEOUT)
-        .unwrap_or(false);
+        // Both are false when the service cannot be reached (see build.rs).
+        let ready = in_mta(|| MidiApi::EnsureServiceAvailable() && MidiVirtualDeviceManager::IsTransportAvailable())
+            .recv_timeout(CREATION_TIMEOUT)
+            .unwrap_or(false);
         if ready {
             Availability::Ready
         } else {

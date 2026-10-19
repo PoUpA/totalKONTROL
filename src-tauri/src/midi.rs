@@ -75,28 +75,55 @@ fn virtual_support() -> (bool, Option<String>) {
 
 /// Lists the MIDI ports, giving up if the system MIDI service hangs.
 pub fn list_ports() -> Result<MidiPorts, String> {
-    let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
-        let _ = tx.send(enumerate_ports());
-    });
-    rx.recv_timeout(ENUMERATION_TIMEOUT)
-        .unwrap_or_else(|_| Err(midi_service_frozen()))
+    with_timeout(ENUMERATION_TIMEOUT, enumerate_ports).unwrap_or_else(|| Err(midi_service_frozen()))
 }
 
 /// Names of the MIDI inputs, or `None` if the system MIDI service hangs.
 fn input_port_names() -> Option<Vec<String>> {
-    let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
-        let names = MidiInput::new(CLIENT_NAME).map(|midi_in| {
+    with_timeout(ENUMERATION_TIMEOUT, || {
+        MidiInput::new(CLIENT_NAME).map(|midi_in| {
             midi_in
                 .ports()
                 .iter()
                 .filter_map(|p| midi_in.port_name(p).ok())
                 .collect()
-        });
-        let _ = tx.send(names);
+        })
+    })?
+    .ok()
+}
+
+/// MIDI work that outlived its timeout and still runs: most likely stuck in
+/// a frozen system MIDI service, for good.
+static STUCK: Mutex<Vec<Arc<AtomicBool>>> = Mutex::new(Vec::new());
+
+/// Runs MIDI work on its own thread and gives up after `timeout`, as the
+/// system MIDI service can hang. While earlier work is still stuck, new work
+/// is refused at once (`None`) instead of piling up threads stuck too.
+pub fn with_timeout<T: Send + 'static>(
+    timeout: std::time::Duration,
+    work: impl FnOnce() -> T + Send + 'static,
+) -> Option<T> {
+    {
+        let mut stuck = STUCK.lock().unwrap_or_else(|e| e.into_inner());
+        stuck.retain(|done| !done.load(Ordering::SeqCst));
+        if !stuck.is_empty() {
+            return None;
+        }
+    }
+    let done = Arc::new(AtomicBool::new(false));
+    let finished = done.clone();
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(work());
+        finished.store(true, Ordering::SeqCst);
     });
-    rx.recv_timeout(ENUMERATION_TIMEOUT).ok()?.ok()
+    match rx.recv_timeout(timeout) {
+        Ok(result) => Some(result),
+        Err(_) => {
+            STUCK.lock().unwrap_or_else(|e| e.into_inner()).push(done);
+            None
+        }
+    }
 }
 
 const WATCH_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
@@ -318,6 +345,8 @@ impl DawOutput {
     }
 }
 
+/// How long connecting and disconnecting wait for an operation under way.
+const OPERATION_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
 /// How long the padKONTROL has to answer native mode on, telling its global
 /// MIDI channel.
 const CHANNEL_DETECTION_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(500);
@@ -393,11 +422,15 @@ impl Writer {
     }
 
     /// Sends what is queued and closes the port, waiting at most `timeout`:
-    /// a port reopened right after must be free.
-    fn close(self, timeout: std::time::Duration) {
+    /// a port reopened right after must be free. Returns what tells when a
+    /// port still closing is done.
+    fn close(self, timeout: std::time::Duration) -> Option<mpsc::Receiver<()>> {
         let Writer { tx, closed } = self;
         drop(tx);
-        let _ = closed.recv_timeout(timeout);
+        match closed.recv_timeout(timeout) {
+            Err(mpsc::RecvTimeoutError::Timeout) => Some(closed),
+            _ => None,
+        }
     }
 }
 
@@ -540,7 +573,8 @@ struct Connection {
 
 impl Connection {
     /// Closes everything and returns the engine, with nothing left on.
-    fn close(self) -> Option<Engine> {
+    /// `closing`: where to leave the ports the driver is slow to close.
+    fn close(self, closing: &Mutex<Vec<mpsc::Receiver<()>>>) -> Option<Engine> {
         let (writers, engine) = {
             let mut shared = self.shared.lock().unwrap();
             // Notes left on would keep sounding in the DAW.
@@ -556,9 +590,11 @@ impl Connection {
             ([shared.pad_out.take(), shared.daw_out.take()], engine)
         };
         keys::release_all();
-        for writer in writers.into_iter().flatten() {
-            writer.close(CLOSE_TIMEOUT);
-        }
+        let slow = writers
+            .into_iter()
+            .flatten()
+            .filter_map(|writer| writer.close(CLOSE_TIMEOUT));
+        closing.lock().unwrap().extend(slow);
         engine
     }
 }
@@ -586,6 +622,8 @@ pub struct PadConnection {
     generation: AtomicU64,
     /// The app is closing: nothing connects any more.
     shutting_down: AtomicBool,
+    /// Ports of closed connections the driver has not finished closing.
+    closing: Mutex<Vec<mpsc::Receiver<()>>>,
     /// Engine of a lost connection, for the reconnection to go on with.
     kept: Mutex<Option<Engine>>,
     /// Queue of the padKONTROL output, reachable without the other locks, so
@@ -614,6 +652,22 @@ impl PadConnection {
 
     fn generation(&self) -> u64 {
         self.generation.load(Ordering::SeqCst)
+    }
+
+    /// Takes `operations`, waiting at most `timeout`: a reconnection stuck in
+    /// a frozen MIDI service may hold it for good.
+    fn operations(&self, timeout: std::time::Duration) -> Option<std::sync::MutexGuard<'_, ()>> {
+        let deadline = std::time::Instant::now() + timeout;
+        loop {
+            match self.operations.try_lock() {
+                Ok(guard) => return Some(guard),
+                Err(std::sync::TryLockError::Poisoned(poisoned)) => return Some(poisoned.into_inner()),
+                Err(std::sync::TryLockError::WouldBlock) if std::time::Instant::now() < deadline => {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                Err(std::sync::TryLockError::WouldBlock) => return None,
+            }
+        }
     }
 
     /// Records a change of connection and tells the UI.
@@ -679,7 +733,9 @@ impl PadConnection {
     /// and keeps its settings, unless the connection changed since the
     /// watchdog looked (`generation`).
     fn lose_if(&self, app: &AppHandle, input: &str, generation: u64) {
-        let _operation = self.operations.lock().unwrap();
+        let Some(_operation) = self.operations(std::time::Duration::ZERO) else {
+            return;
+        };
         if self.generation() != generation || self.info().is_none_or(|info| info.input != input) {
             return;
         }
@@ -695,7 +751,9 @@ impl PadConnection {
     /// remembered settings, unless the user connected, disconnected or
     /// stopped waiting since the watchdog looked (`generation`).
     fn reconnect_if(&self, app: &AppHandle, generation: u64) {
-        let _operation = self.operations.lock().unwrap();
+        let Some(_operation) = self.operations(std::time::Duration::ZERO) else {
+            return;
+        };
         if self.generation() != generation
             || self.shutting_down.load(Ordering::SeqCst)
             || !self.waiting()
@@ -730,7 +788,10 @@ impl PadConnection {
         };
         // A failed attempt keeps waiting, and the kept engine: the next round
         // tries again.
-        if self.connect_locked(app, remembered.options, engine).is_err() {
+        if self
+            .connect_locked(app, remembered.options, engine, generation)
+            .is_err()
+        {
             return;
         }
         // Ports still listed but nobody behind them.
@@ -764,12 +825,14 @@ impl PadConnection {
         options: ConnectOptions,
         profile: Option<(String, Profile)>,
     ) -> Result<ConnectionInfo, String> {
-        let _operation = self.operations.lock().unwrap();
+        let Some(_operation) = self.operations(OPERATION_WAIT) else {
+            return Err(midi_service_frozen());
+        };
         if self.shutting_down.load(Ordering::SeqCst) {
             return Err(t!("core.connection.shuttingDown"));
         }
         let engine = profile.map(|(file, profile)| Engine::new(profile).with_file(file));
-        let result = self.connect_locked(app, options, engine);
+        let result = self.connect_locked(app, options, engine, self.generation());
         if result.is_ok() {
             self.kept.lock().unwrap().take();
             self.changed(app);
@@ -778,18 +841,22 @@ impl PadConnection {
     }
 
     /// Opens everything and replaces the current connection. The caller holds
-    /// `operations`.
+    /// `operations`. Gives up, handing the padKONTROL back, if the connection
+    /// changed meanwhile (`generation`): a user disconnecting, or the app
+    /// closing, while the MIDI service took its time.
     fn connect_locked(
         &self,
         app: &AppHandle,
         options: ConnectOptions,
         engine: Option<Engine>,
+        generation: u64,
     ) -> Result<ConnectionInfo, String> {
         if options.native_mode && options.output.is_none() {
             return Err(t!("core.connection.nativeModeNeedsOutput"));
         }
         check_no_loop(&options)?;
         self.close_current();
+        self.wait_for_closing_ports()?;
         let remembered = Remembered {
             options: options.clone(),
             profile: engine.as_ref().map(|engine| engine.file().to_string()),
@@ -916,12 +983,20 @@ impl PadConnection {
             osc_listen,
             global_channel: options.native_mode.then_some(channel + 1),
         };
-        *self.current.lock().unwrap() = Some(Connection {
+        let connection = Connection {
             _pad_in: pad_in,
             _feedback_in: feedback_in,
             shared,
             info: info.clone(),
-        });
+        };
+        let mut current = self.current.lock().unwrap();
+        if self.generation() != generation || self.shutting_down.load(Ordering::SeqCst) {
+            drop(current);
+            connection.close(&self.closing);
+            return Err(t!("core.connection.cancelled"));
+        }
+        *current = Some(connection);
+        drop(current);
         *self.emergency.lock().unwrap() = emergency;
         *self.remembered.lock().unwrap() = Some(remembered);
         self.waiting.store(false, Ordering::SeqCst);
@@ -930,7 +1005,9 @@ impl PadConnection {
 
     /// Disconnects on the user's request: nothing reconnects by itself.
     pub fn disconnect(&self, app: &AppHandle) {
-        let _operation = self.operations.lock().unwrap();
+        // Even if a reconnection stuck in the MIDI service holds the lock: the
+        // generation bump below makes it give up if it ever comes back.
+        let _operation = self.operations(OPERATION_WAIT);
         self.close_current();
         self.kept.lock().unwrap().take();
         *self.remembered.lock().unwrap() = None;
@@ -950,7 +1027,23 @@ impl PadConnection {
         // The writer only closes once every queue to it is gone.
         self.emergency.lock().unwrap().take();
         let connection = self.current.lock().unwrap().take();
-        connection.and_then(Connection::close)
+        connection.and_then(|connection| connection.close(&self.closing))
+    }
+
+    /// Waits a little more for the ports of a previous connection the driver
+    /// was slow to close: opening them again before would fail.
+    fn wait_for_closing_ports(&self) -> Result<(), String> {
+        let mut closing = self.closing.lock().unwrap();
+        let deadline = std::time::Instant::now() + CLOSE_TIMEOUT;
+        closing.retain(|closed| {
+            let left = deadline.saturating_duration_since(std::time::Instant::now());
+            matches!(closed.recv_timeout(left), Err(mpsc::RecvTimeoutError::Timeout))
+        });
+        if closing.is_empty() {
+            Ok(())
+        } else {
+            Err(t!("core.connection.portsStillClosing"))
+        }
     }
 
     /// Last resort while the app goes down after a panic: ends the notes and
@@ -1466,6 +1559,42 @@ mod tests {
         writer.close(std::time::Duration::from_secs(2));
         assert_eq!(sent.lock().unwrap().len(), 11, "closing sends what is queued");
         assert!(!port_open.load(Ordering::SeqCst), "and waits for the port to close");
+    }
+
+    #[test]
+    fn stuck_midi_work_is_not_piled_up() {
+        let ms = std::time::Duration::from_millis;
+        assert_eq!(with_timeout(ms(500), || 1), Some(1));
+        // Stuck past its timeout: later work is refused without a thread.
+        assert_eq!(with_timeout(ms(20), move || std::thread::sleep(ms(300))), None);
+        let ran = Arc::new(AtomicBool::new(false));
+        let flag = ran.clone();
+        assert_eq!(with_timeout(ms(500), move || flag.store(true, Ordering::SeqCst)), None);
+        assert!(!ran.load(Ordering::SeqCst), "refused work does not run");
+        // Once the stuck work is over, work runs again.
+        std::thread::sleep(ms(400));
+        assert_eq!(with_timeout(ms(500), || 2), Some(2));
+    }
+
+    #[test]
+    fn writer_reports_a_port_slow_to_close() {
+        struct SlowPort;
+        impl Drop for SlowPort {
+            fn drop(&mut self) {
+                std::thread::sleep(std::time::Duration::from_millis(200));
+            }
+        }
+        let port = SlowPort;
+        let writer = Writer::spawn(sink(move |_| {
+            let _keep = &port;
+        }));
+        let closing = writer
+            .close(std::time::Duration::from_millis(20))
+            .expect("still closing");
+        assert!(
+            closing.recv_timeout(std::time::Duration::from_secs(2)).is_ok(),
+            "then closed"
+        );
     }
 
     #[test]

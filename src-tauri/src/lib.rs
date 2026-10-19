@@ -28,16 +28,11 @@ fn load(store: &ProfileStore, file: &str) -> Result<Profile, String> {
 
 /// Runs blocking MIDI work off the main thread. Opening ports, and on Windows
 /// waiting for the MIDI service, can take seconds and would freeze the window.
-/// Gives up after `MIDI_TIMEOUT` if the system MIDI service hangs: the work
-/// keeps its thread, but the command returns and the window stays usable.
+/// Gives up after `MIDI_TIMEOUT` if the system MIDI service hangs, and while
+/// work is stuck there, refuses more at once (see `midi::with_timeout`).
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let (tx, rx) = std::sync::mpsc::channel();
-        std::thread::spawn(move || {
-            let _ = tx.send(f());
-        });
-        rx.recv_timeout(MIDI_TIMEOUT)
-            .unwrap_or_else(|_| Err(midi::midi_service_frozen()))
+        midi::with_timeout(MIDI_TIMEOUT, f).unwrap_or_else(|| Err(midi::midi_service_frozen()))
     })
     .await
     .map_err(|e| e.to_string())?

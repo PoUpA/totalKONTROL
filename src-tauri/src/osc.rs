@@ -85,8 +85,17 @@ impl OscArg {
     }
 }
 
+/// Most bundles a received packet may hold. rosc decodes nested bundles
+/// recursively, without a depth limit: thousands of them in one datagram
+/// would overflow the stack, and anyone allowed to send OSC could crash the
+/// app. Real senders nest one or two.
+const MAX_BUNDLES: usize = 8;
+/// Most messages taken from one packet.
+const MAX_MESSAGES: usize = 256;
+
 /// Messages of a received UDP packet, bundles flattened. Arguments of other
-/// types are converted when they map to a number, else dropped.
+/// types are converted when they map to a number, else dropped. A packet with
+/// too many bundles is ignored as a whole.
 pub fn decode(bytes: &[u8]) -> Vec<OscMessage> {
     fn collect(packet: OscPacket, out: &mut Vec<OscMessage>) {
         match packet {
@@ -105,10 +114,17 @@ pub fn decode(bytes: &[u8]) -> Vec<OscMessage> {
                         _ => None,
                     })
                     .collect();
-                out.push(OscMessage::new(m.addr, args));
+                if out.len() < MAX_MESSAGES {
+                    out.push(OscMessage::new(m.addr, args));
+                }
             }
             OscPacket::Bundle(bundle) => bundle.content.into_iter().for_each(|p| collect(p, out)),
         }
+    }
+    // Counted on the raw bytes, before rosc recurses into them.
+    let bundles = bytes.windows(BUNDLE_TAG.len()).filter(|w| *w == BUNDLE_TAG).count();
+    if bundles > MAX_BUNDLES {
+        return vec![];
     }
     let mut messages = vec![];
     if let Ok((_, packet)) = rosc::decoder::decode_udp(bytes) {
@@ -116,6 +132,9 @@ pub fn decode(bytes: &[u8]) -> Vec<OscMessage> {
     }
     messages
 }
+
+/// Start of every OSC bundle.
+const BUNDLE_TAG: &[u8] = b"#bundle\0";
 
 /// Arguments of a profile action, with `$velocity` replaced.
 pub fn resolve(values: &[OscValue], velocity: u8) -> Vec<OscArg> {
@@ -239,6 +258,35 @@ impl OscSender {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A bundle around `inner`, nested `depth` times, built without recursion.
+    fn nested_bundles(inner: &[u8], depth: usize) -> Vec<u8> {
+        let mut packet = inner.to_vec();
+        for _ in 0..depth {
+            let mut bundle = BUNDLE_TAG.to_vec();
+            bundle.extend([0, 0, 0, 0, 0, 0, 0, 1]);
+            bundle.extend((packet.len() as u32).to_be_bytes());
+            bundle.extend(packet);
+            packet = bundle;
+        }
+        packet
+    }
+
+    #[test]
+    fn deeply_nested_bundles_are_ignored() {
+        let message = rosc::encoder::encode(&OscPacket::Message(rosc::OscMessage {
+            addr: "/tk/bank".into(),
+            args: vec![OscType::Int(1)],
+        }))
+        .unwrap();
+        assert_eq!(
+            decode(&nested_bundles(&message, 2)).len(),
+            1,
+            "a sender nesting a little"
+        );
+        // Without the limit, rosc would overflow the stack here.
+        assert!(decode(&nested_bundles(&message, 3000)).is_empty());
+    }
 
     #[test]
     fn mirrors_plain_midi_notes_and_ccs() {

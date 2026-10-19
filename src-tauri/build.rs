@@ -81,7 +81,9 @@ mod windows_midi {
     /// windows-bindgen 0.66 generates broken code for static methods marked
     /// [noexcept] in the .winmd (MidiApi::EnsureServiceAvailable, etc.): the
     /// closure passed to the factory cache returns the raw value instead of a
-    /// Result. Wrap the value in Ok(..) and unwrap the Result.
+    /// Result. Wrap the value in Ok(..), and turn a failure to get the factory
+    /// (service missing) into the default value, false: release builds abort
+    /// on panic, so it must not panic.
     fn fix_noexcept_statics(code: &str) -> String {
         let mut lines: Vec<String> = code.lines().map(str::to_string).collect();
         let mut i = 0;
@@ -104,7 +106,7 @@ mod windows_midi {
                         lines[j - 1] = format!("{lindent}Ok({lt})");
                     }
                     let j = (i + 1..lines.len()).find(|&k| lines[k] == close).unwrap();
-                    lines[j] = format!("{indent}}}).unwrap()");
+                    lines[j] = format!("{indent}}}).unwrap_or_default()");
                     i = j;
                 }
             }

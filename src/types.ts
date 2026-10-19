@@ -11,7 +11,14 @@ export type MidiPorts = {
   virtualFeedbackName: string;
 };
 
-export type ProfileSummary = { file: string; name: string | null; bankCount: number; errors: string[] };
+/** `ports`: name fragments of the ports the profile asks for, when not the default ones. */
+export type ProfileSummary = {
+  file: string;
+  name: string | null;
+  bankCount: number;
+  errors: string[];
+  ports: { input: string | null; output: string | null };
+};
 
 /** An existing port, or a virtual port created by the app. */
 export type PortChoice = { port: string } | "virtual";

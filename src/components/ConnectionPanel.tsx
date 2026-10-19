@@ -206,6 +206,18 @@ function ConnectionPanelView({
 
   const connected = connection !== null;
   const canConnect = input !== "" && (!nativeMode || output !== "");
+
+  /** Picks a profile, and the ports it asks for (`ports` in the profile) when they exist. */
+  const pickProfile = (file: string) => {
+    setProfile(file);
+    const hints = profiles.find((p) => p.file === file)?.ports;
+    const find = (list: MidiPort[], part: string | null | undefined) =>
+      part ? list.find((port) => port.name.toLowerCase().includes(part.toLowerCase())) : undefined;
+    const hintedInput = find(ports?.inputs ?? [], hints?.input);
+    if (hintedInput) setInput(hintedInput.name);
+    const hintedDaw = find(ports?.outputs ?? [], hints?.output);
+    if (hintedDaw) setDaw(PORT_PREFIX + hintedDaw.name);
+  };
   const virtualSupported = ports?.virtualSupported ?? false;
 
   const connect = () => {
@@ -330,7 +342,7 @@ function ConnectionPanelView({
             />
             <label>
               {t("connection.profile")}
-              <select value={profile} onChange={(e) => setProfile(e.target.value)} disabled={connected || !nativeMode}>
+              <select value={profile} onChange={(e) => pickProfile(e.target.value)} disabled={connected || !nativeMode}>
                 <option value="">{t("common.none")}</option>
                 {validProfiles.map((p) => (
                   <option key={p.file} value={p.file}>
