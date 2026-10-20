@@ -21,16 +21,16 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 # Services, instead of loopMIDI. Requires the Windows.Devices.Midi2 package in
 # vendor/windows-midi2 (see scripts/fetch-windows-midi.ps1).
 windows-midi-services = [
-    "dep:windows",
     "dep:windows-core",
     "dep:windows-collections",
     "dep:windows-future",
+    "dep:windows-time",
     "dep:windows-bindgen",
 ]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
-windows-bindgen = { version = "0.66", optional = true }
+windows-bindgen = { version = "0.100", optional = true }
 
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
@@ -44,20 +44,10 @@ tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 
 [target.'cfg(windows)'.dependencies]
-windows-core = { version = "0.62", optional = true }
-windows-collections = { version = "0.3", optional = true }
-windows-future = { version = "0.3", optional = true }
-windows = { version = "0.62", optional = true, features = [
-    "Foundation",
-    "Foundation_Collections",
-    "Data_Json",
-    "Devices_Enumeration",
-    "Devices_Midi",
-    "Storage",
-    "Storage_Streams",
-    "Win32_Storage_FileSystem",
-    "Win32_System_WinRT",
-] }
+windows-core = { version = "0.100", optional = true }
+windows-collections = { version = "0.100", optional = true }
+windows-future = { version = "0.100", optional = true }
+windows-time = { version = "0.100", optional = true }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

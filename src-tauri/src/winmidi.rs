@@ -29,8 +29,7 @@ use bindings::Windows::Devices::Midi2::{
     IMidiMessageReceivedEventSource, MidiApi, MidiEndpointConnection, MidiGroup, MidiMessageProcessingPluginAddResult,
     MidiMessageReceivedEventArgs, MidiSession,
 };
-use windows::Foundation::TypedEventHandler;
-use windows::Win32::System::WinRT::{RO_INIT_MULTITHREADED, RoInitialize};
+use bindings::Windows::Win32::{RO_INIT_MULTITHREADED, RoInitialize};
 use windows_core::{HSTRING, Ref};
 
 use crate::midi::Handler;
@@ -141,9 +140,7 @@ pub fn availability() -> Availability {
 
 /// Version (major, minor, build) of the virtual transport shipped in Windows.
 fn transport_version() -> Option<(u16, u16, u16)> {
-    use windows::Win32::Storage::FileSystem::{
-        GetFileVersionInfoSizeW, GetFileVersionInfoW, VS_FIXEDFILEINFO, VerQueryValueW,
-    };
+    use bindings::Windows::Win32::{GetFileVersionInfoSizeW, GetFileVersionInfoW, VS_FIXEDFILEINFO, VerQueryValueW};
     use windows_core::PCWSTR;
 
     let system = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
@@ -154,7 +151,9 @@ fn transport_version() -> Option<(u16, u16, u16)> {
             return None;
         }
         let mut data = vec![0u8; size as usize];
-        GetFileVersionInfoW(PCWSTR(path.as_ptr()), None, size, data.as_mut_ptr().cast()).ok()?;
+        if !GetFileVersionInfoW(PCWSTR(path.as_ptr()), None, size, data.as_mut_ptr().cast()).as_bool() {
+            return None;
+        }
         let mut info: *mut std::ffi::c_void = std::ptr::null_mut();
         let mut len = 0u32;
         let root = HSTRING::from("\\");
@@ -242,17 +241,19 @@ fn create() -> Result<VirtualDevice, String> {
     let receiver: Receiver = Arc::default();
     let incoming = receiver.clone();
     connection
-        .MessageReceived(&TypedEventHandler::new(
+        .MessageReceived(
             move |_: Ref<IMidiMessageReceivedEventSource>, args: Ref<MidiMessageReceivedEventArgs>| {
                 if let (Some(args), Some(handler)) = (args.as_ref(), incoming.lock().unwrap().as_mut())
                     && let Some(message) = from_ump(args.PeekFirstWord())
                 {
                     handler(&message);
                 }
-                Ok(())
             },
-        ))
-        .map_err(error(t!("core.winmidi.stepMessageSubscription")))?;
+        )
+        .map_err(error(t!("core.winmidi.stepMessageSubscription")))?
+        // Dropping the revoker would unsubscribe: the subscription lasts as
+        // long as the device, which is never closed.
+        .forget();
 
     // Without this plugin, the device sends but never receives anything.
     if connection.AddMessageProcessingPlugin(&device) != MidiMessageProcessingPluginAddResult::Succeeded {

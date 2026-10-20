@@ -53,7 +53,7 @@ If the API is missing, or the service or transport is unavailable, the UI does n
 1. Run [scripts/fetch-windows-midi.ps1](../scripts/fetch-windows-midi.ps1). It downloads `Windows.Devices.Midi2.0.99.92-preview.11.nupkg` (103 MB) from the [inbox-preview-11](https://github.com/microsoft/MIDI/releases/tag/inbox-preview-11) release and extracts it into `src-tauri/vendor/windows-midi2/` (ignored by git).
 2. Build with the feature: `npm run dev:winmidi`, or `cargo build --features windows-midi-services` in `src-tauri`.
 
-At build time, [src-tauri/build.rs](../src-tauri/build.rs) generates the Rust bindings from the package's `.winmd` with `windows-bindgen`, and copies the DLL and `.pri` next to the executable. `windows-rs` then activates the API without registration, from the executable's folder.
+At build time, [src-tauri/build.rs](../src-tauri/build.rs) generates the Rust bindings from the package's `.winmd` with `windows-bindgen` (along with the few Windows.Foundation and Win32 items it uses: there is no dependency on the `windows` crate), and copies the DLL and `.pri` next to the executable. `windows-core` then activates the API without registration, from the executable's folder.
 
 ## Installers
 
@@ -94,5 +94,7 @@ What the DAW sees: Windows creates a second, client-side endpoint (`MidiVirtualD
 Points to keep in mind:
 
 - WinMM port names are at most 32 characters, terminator included.
-- `windows-bindgen` 0.66 generates static methods marked `[noexcept]` incorrectly. `build.rs` patches the generated code (`fix_noexcept_statics`).
+- `windows-bindgen` (0.66 to 0.100 at least) generates static methods marked `[noexcept]` incorrectly. `build.rs` patches the generated code (`fix_noexcept_statics`).
+- `windows-bindgen` silently leaves out the methods whose types are neither in its filter nor in a `windows-*` crate: `Windows.Foundation.TypedEventHandler` must stay in the filter, or `MessageReceived` disappears.
+- Since 0.100, an event subscription returns an `EventRevoker` that unsubscribes when dropped.
 - See also Microsoft's guide [Porting a MIDI library](https://microsoft.github.io/MIDI/kb/porting-midi-libraries/).

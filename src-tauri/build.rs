@@ -54,11 +54,17 @@ mod windows_midi {
             out.to_str().unwrap(),
             "--filter",
             "Windows.Devices.Midi2",
-            "--reference",
-            "windows,skip-root,Windows",
-            "--no-comment",
-        ])
-        .unwrap();
+            // Without it, the events (MessageReceived...) are left out.
+            "Windows.Foundation.TypedEventHandler",
+            // Win32 APIs used by winmidi.rs, generated here so that all the
+            // code shares one windows-core.
+            "RoInitialize",
+            "RO_INIT_MULTITHREADED",
+            "GetFileVersionInfoSizeW",
+            "GetFileVersionInfoW",
+            "VerQueryValueW",
+            "VS_FIXEDFILEINFO",
+        ]);
         // include!() rejects inner attributes: strip the leading #![allow(...)],
         // which is put back on the module in winmidi.rs.
         let code = std::fs::read_to_string(&out).unwrap();
@@ -78,8 +84,8 @@ mod windows_midi {
         }
     }
 
-    /// windows-bindgen 0.66 generates broken code for static methods marked
-    /// [noexcept] in the .winmd (MidiApi::EnsureServiceAvailable, etc.): the
+    /// windows-bindgen (0.66 to 0.100 at least) generates broken code for
+    /// static methods marked [noexcept] in the .winmd (MidiApi::EnsureServiceAvailable, etc.): the
     /// closure passed to the factory cache returns the raw value instead of a
     /// Result. Wrap the value in Ok(..), and turn a failure to get the factory
     /// (service missing) into the default value, false: release builds abort
