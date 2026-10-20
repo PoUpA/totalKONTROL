@@ -44,18 +44,18 @@ fn sysex(body: &[u8]) -> Vec<u8> {
 
 /// Messages to send to enter native mode: activation, reporting of all
 /// controls, LEDs off and text on the display (3 characters).
-pub fn enter_native_mode(display: &str) -> Vec<Vec<u8>> {
-    let mut text = [b' '; 3];
-    for (slot, c) in text.iter_mut().zip(display.bytes()) {
-        *slot = if c.is_ascii() { c } else { b'?' };
-    }
+pub fn enter_native_mode(text: &str) -> Vec<Vec<u8>> {
+    // The packet's display characters come out reversed on the device
+    // ("TK " shows " KT"), against TABLE 4: it only clears the display, and
+    // the text goes through the display command, whose order is right.
     let mut leds_and_display = vec![0x3F, 0x0A, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-    leds_and_display.extend_from_slice(&text);
+    leds_and_display.extend_from_slice(b"   ");
 
     vec![
         sysex(&[0x00, 0x00, 0x01]),
         report_all_controls(),
         sysex(&leds_and_display),
+        display(text),
     ]
 }
 
@@ -420,7 +420,12 @@ mod tests {
         let init = enter_native_mode("TK");
         assert_eq!(init[0], hex("f042406e08000001f7"));
         assert_eq!(to_hex(&init[1][..8]), "F0 42 40 6E 08 3F 2A 00");
-        assert_eq!(init[2], hex("f042406e083f0a01000000000000544b20f7"));
+        assert_eq!(
+            init[2],
+            hex("f042406e083f0a01000000000000202020f7"),
+            "LEDs off, display blank"
+        );
+        assert_eq!(init[3], display("TK"), "then the text, in the right order");
         assert!(
             init.iter()
                 .all(|m| m.len() >= 6 && m[..5] == HEADER && m.last() == Some(&SYSEX_END))
