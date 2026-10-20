@@ -125,6 +125,11 @@
     }
   },
   "$defs": {
+    "label": {
+      "description": "What the control does, in words: shown in the editor and the live view.",
+      "type": "string",
+      "maxLength": 60
+    },
     "channel": { "description": "MIDI channel, from 1 to 16.", "type": "integer", "minimum": 1, "maximum": 16 },
     "midiValue": { "type": "integer", "minimum": 0, "maximum": 127 },
     "velocity": { "description": "Fixed velocity, from 1 to 127.", "type": "integer", "minimum": 1, "maximum": 127 },
@@ -202,6 +207,8 @@
       "required": ["type", "channel", "note"],
       "properties": {
         "type": { "const": "note" },
+
+        "label": { "$ref": "#/$defs/label" },
         "channel": { "$ref": "#/$defs/channel" },
         "note": { "$ref": "#/$defs/midiValue" },
         "velocity": { "$ref": "#/$defs/velocity", "default": 127 },
@@ -215,6 +222,8 @@
       "required": ["type", "channel", "note"],
       "properties": {
         "type": { "const": "note" },
+
+        "label": { "$ref": "#/$defs/label" },
         "channel": { "$ref": "#/$defs/channel" },
         "note": { "$ref": "#/$defs/midiValue" },
         "velocity": {
@@ -232,6 +241,8 @@
       "required": ["type", "channel", "cc"],
       "properties": {
         "type": { "const": "cc" },
+
+        "label": { "$ref": "#/$defs/label" },
         "channel": { "$ref": "#/$defs/channel" },
         "cc": { "$ref": "#/$defs/midiValue" },
         "onValue": { "$ref": "#/$defs/midiValue", "default": 127 },
@@ -246,6 +257,8 @@
       "required": ["type", "channel", "program"],
       "properties": {
         "type": { "const": "programChange" },
+
+        "label": { "$ref": "#/$defs/label" },
         "channel": { "$ref": "#/$defs/channel" },
         "program": { "$ref": "#/$defs/midiValue" },
         "led": { "$ref": "#/$defs/led" }
@@ -257,6 +270,8 @@
       "required": ["type", "bank"],
       "properties": {
         "type": { "const": "switchBank" },
+
+        "label": { "$ref": "#/$defs/label" },
         "bank": { "description": "Index (from 0) of the target bank.", "type": "integer", "minimum": 0 },
         "momentary": {
           "description": "true: goes back to the previous bank on release.",
@@ -277,6 +292,8 @@
       "required": ["type", "keys"],
       "properties": {
         "type": { "const": "key" },
+
+        "label": { "$ref": "#/$defs/label" },
         "keys": { "$ref": "#/$defs/keys" },
         "hold": {
           "description": "true: the keys stay down while the control is held. false: a short tap on each press.",
@@ -291,14 +308,14 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["type"],
-      "properties": { "type": { "const": "roll" } }
+      "properties": { "type": { "const": "roll" }, "label": { "$ref": "#/$defs/label" } }
     },
     "flamAction": {
       "description": "Turns flam on or off: pads in momentary mode play a softer grace note just before the hit.",
       "type": "object",
       "additionalProperties": false,
       "required": ["type"],
-      "properties": { "type": { "const": "flam" } }
+      "properties": { "type": { "const": "flam" }, "label": { "$ref": "#/$defs/label" } }
     },
     "switchProfileAction": {
       "description": "Makes another profile the active one.",
@@ -307,6 +324,8 @@
       "required": ["type", "profile"],
       "properties": {
         "type": { "const": "switchProfile" },
+
+        "label": { "$ref": "#/$defs/label" },
         "profile": {
           "description": "File name of the profile, in the profiles folder, for example live.json.",
           "type": "string",
@@ -365,6 +384,8 @@
       "required": ["type", "address"],
       "properties": {
         "type": { "const": "osc" },
+
+        "label": { "$ref": "#/$defs/label" },
         "address": { "$ref": "#/$defs/oscAddress" },
         "args": {
           "description": "Arguments sent on press (or when the toggle turns on).",
@@ -388,6 +409,8 @@
           "required": ["type", "channel", "cc"],
           "properties": {
             "type": { "const": "cc" },
+
+            "label": { "$ref": "#/$defs/label" },
             "channel": { "$ref": "#/$defs/channel" },
             "cc": { "$ref": "#/$defs/midiValue" },
             "min": { "$ref": "#/$defs/midiValue", "default": 0 },
@@ -401,6 +424,8 @@
           "required": ["type", "address"],
           "properties": {
             "type": { "const": "osc" },
+
+            "label": { "$ref": "#/$defs/label" },
             "address": { "$ref": "#/$defs/oscAddress" },
             "min": {
               "description": "Value sent with the knob all the way to the left.",
@@ -430,6 +455,8 @@
           "required": ["type", "channel", "ccX", "ccY"],
           "properties": {
             "type": { "const": "xy" },
+
+            "label": { "$ref": "#/$defs/label" },
             "channel": { "$ref": "#/$defs/channel" },
             "ccX": { "$ref": "#/$defs/midiValue" },
             "ccY": { "$ref": "#/$defs/midiValue" }
@@ -442,6 +469,8 @@
           "required": ["type", "address"],
           "properties": {
             "type": { "const": "osc" },
+
+            "label": { "$ref": "#/$defs/label" },
             "address": { "$ref": "#/$defs/oscAddress" }
           }
         }
@@ -460,6 +489,8 @@
           "required": ["type", "channel", "cc"],
           "properties": {
             "type": { "const": "cc" },
+
+            "label": { "$ref": "#/$defs/label" },
             "channel": { "$ref": "#/$defs/channel" },
             "cc": { "$ref": "#/$defs/midiValue" },
             "encoding": { "$ref": "#/$defs/encoding" },
@@ -472,6 +503,8 @@
           "required": ["type", "address"],
           "properties": {
             "type": { "const": "osc" },
+
+            "label": { "$ref": "#/$defs/label" },
             "address": { "$ref": "#/$defs/oscAddress" },
             "encoding": { "$ref": "#/$defs/encoding" },
             "acceleration": { "$ref": "#/$defs/acceleration" }
@@ -484,6 +517,8 @@
           "required": ["type", "left", "right"],
           "properties": {
             "type": { "const": "key" },
+
+            "label": { "$ref": "#/$defs/label" },
             "left": { "$ref": "#/$defs/keys", "description": "Shortcut typed at each step to the left." },
             "right": { "$ref": "#/$defs/keys", "description": "Shortcut typed at each step to the right." }
           }

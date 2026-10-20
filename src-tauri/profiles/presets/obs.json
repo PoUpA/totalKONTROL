@@ -1,0 +1,34 @@
+{
+  "$schema": "../profile.schema.json",
+  "version": 1,
+  "name": "OBS Studio",
+  "banks": [
+    {
+      "name": "OBS",
+      "display": "OBS",
+      "pads": {
+        "1": { "type": "key", "keys": "f13", "led": "press", "label": "Scene 1 (F13)" },
+        "2": { "type": "key", "keys": "f14", "led": "press", "label": "Scene 2 (F14)" },
+        "3": { "type": "key", "keys": "f15", "led": "press", "label": "Scene 3 (F15)" },
+        "4": { "type": "key", "keys": "f16", "led": "press", "label": "Scene 4 (F16)" },
+        "5": { "type": "key", "keys": "f17", "led": "press", "label": "Scene 5 (F17)" },
+        "6": { "type": "key", "keys": "f18", "led": "press", "label": "Scene 6 (F18)" },
+        "7": { "type": "key", "keys": "f19", "led": "press", "label": "Scene 7 (F19)" },
+        "8": { "type": "key", "keys": "f20", "led": "press", "label": "Scene 8 (F20)" },
+        "9": { "type": "key", "keys": "shift+f13", "led": "toggle", "label": "Start / stop recording (Shift+F13)" },
+        "10": { "type": "key", "keys": "shift+f14", "led": "toggle", "label": "Start / stop streaming (Shift+F14)" },
+        "11": { "type": "key", "keys": "shift+f15", "led": "toggle", "label": "Mute / unmute mic (Shift+F15)" },
+        "12": {
+          "type": "key",
+          "keys": "shift+f16",
+          "led": "toggle",
+          "label": "Mute / unmute desktop audio (Shift+F16)"
+        },
+        "13": { "type": "key", "keys": "shift+f17", "led": "press", "label": "Save replay (Shift+F17)" },
+        "14": { "type": "key", "keys": "shift+f18", "led": "press", "label": "Screenshot (Shift+F18)" },
+        "15": { "type": "key", "keys": "shift+f19", "led": "toggle", "label": "Studio mode on / off (Shift+F19)" },
+        "16": { "type": "key", "keys": "shift+f20", "led": "press", "label": "Transition (Shift+F20)" }
+      }
+    }
+  ]
+}

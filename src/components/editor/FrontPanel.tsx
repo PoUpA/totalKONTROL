@@ -20,7 +20,9 @@ export function FrontPanel({ banks, bankIndex, selected, errors, onSelect }: Pro
     <PadLayout
       display={(bank.display ?? bank.name.replace(/\s/g, "")).toUpperCase()}
       render={(control, label, className) => {
-        const summary = summarize(getAction(bank, control), banks, t);
+        const action = getAction(bank, control);
+        const summary = summarize(action, banks, t);
+        const shown = action?.label || summary;
         const classes = [
           className,
           "editable",
@@ -34,11 +36,11 @@ export function FrontPanel({ banks, bankIndex, selected, errors, onSelect }: Pro
             type="button"
             className={classes}
             onClick={() => onSelect(control)}
-            title={summary}
+            title={action?.label ? `${action.label} · ${summary}` : summary}
             aria-pressed={sameControl(control, selected)}
           >
             <span>{label}</span>
-            {summary && <small>{summary}</small>}
+            {shown && <small>{shown}</small>}
           </button>
         );
       }}

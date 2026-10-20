@@ -1,0 +1,39 @@
+{
+  "$schema": "../profile.schema.json",
+  "version": 1,
+  "name": "rekordbox",
+  "banks": [
+    {
+      "name": "Decks",
+      "display": "RKB",
+      "pads": {
+        "1": { "type": "note", "channel": 1, "note": 36, "velocity": 127, "led": "press", "label": "A hot cue 1" },
+        "2": { "type": "note", "channel": 1, "note": 37, "velocity": 127, "led": "press", "label": "A hot cue 2" },
+        "3": { "type": "note", "channel": 1, "note": 38, "velocity": 127, "led": "press", "label": "A hot cue 3" },
+        "4": { "type": "note", "channel": 1, "note": 39, "velocity": 127, "led": "press", "label": "A hot cue 4" },
+        "5": { "type": "note", "channel": 1, "note": 40, "velocity": 127, "led": "press", "label": "B hot cue 1" },
+        "6": { "type": "note", "channel": 1, "note": 41, "velocity": 127, "led": "press", "label": "B hot cue 2" },
+        "7": { "type": "note", "channel": 1, "note": 42, "velocity": 127, "led": "press", "label": "B hot cue 3" },
+        "8": { "type": "note", "channel": 1, "note": 43, "velocity": 127, "led": "press", "label": "B hot cue 4" },
+        "9": { "type": "note", "channel": 1, "note": 44, "velocity": 127, "led": "press", "label": "A cue" },
+        "10": { "type": "note", "channel": 1, "note": 45, "velocity": 127, "led": "toggle", "label": "A play" },
+        "11": { "type": "note", "channel": 1, "note": 46, "velocity": 127, "led": "press", "label": "B cue" },
+        "12": { "type": "note", "channel": 1, "note": 47, "velocity": 127, "led": "toggle", "label": "B play" },
+        "13": { "type": "note", "channel": 1, "note": 48, "velocity": 127, "led": "toggle", "label": "A sync" },
+        "14": { "type": "note", "channel": 1, "note": 49, "velocity": 127, "led": "toggle", "label": "A loop 4" },
+        "15": { "type": "note", "channel": 1, "note": 50, "velocity": 127, "led": "toggle", "label": "B sync" },
+        "16": { "type": "note", "channel": 1, "note": 51, "velocity": 127, "led": "toggle", "label": "B loop 4" }
+      },
+      "buttons": {
+        "x": { "type": "note", "channel": 1, "note": 52, "velocity": 127, "led": "press", "label": "Load deck A" },
+        "y": { "type": "note", "channel": 1, "note": 53, "velocity": 127, "led": "press", "label": "Load deck B" }
+      },
+      "knobs": {
+        "1": { "type": "cc", "channel": 1, "cc": 20, "pickup": true, "label": "Filter A" },
+        "2": { "type": "cc", "channel": 1, "cc": 21, "pickup": true, "label": "Filter B" }
+      },
+      "xy": { "type": "xy", "channel": 1, "ccX": 22, "ccY": 23, "label": "Crossfader (X), FX (Y)" },
+      "encoder": { "type": "cc", "channel": 1, "cc": 24, "label": "Browse" }
+    }
+  ]
+}

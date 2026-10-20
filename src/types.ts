@@ -83,19 +83,24 @@ export type EngineState = {
 export type Mode = "momentary" | "toggle";
 export type Led = "none" | "press" | "toggle" | "follow";
 
-export type ButtonAction =
-  | { type: "note"; channel: number; note: number; velocity?: number | "pad"; mode?: Mode; led?: Led }
-  | { type: "cc"; channel: number; cc: number; onValue?: number; offValue?: number; mode?: Mode; led?: Led }
-  | { type: "programChange"; channel: number; program: number; led?: Led }
-  | { type: "switchBank"; bank: number; momentary?: boolean }
-  /** Makes another profile, by its file name, the active one. */
-  | { type: "switchProfile"; profile: string }
-  | { type: "osc"; address: string; args?: OscValue[]; releaseArgs?: OscValue[]; mode?: Mode; led?: Led }
-  /** Types a keyboard shortcut such as "ctrl+s"; with `hold`, keeps it down while held. */
-  | { type: "key"; keys: string; hold?: boolean; led?: Led }
-  /** Turns roll (held pads repeat) or flam (softer grace note first) on or off. */
-  | { type: "roll" }
-  | { type: "flam" };
+/** What a control does, in words: shown in the editor and the live view. */
+export type Labelled = { label?: string };
+
+export type ButtonAction = Labelled &
+  (
+    | { type: "note"; channel: number; note: number; velocity?: number | "pad"; mode?: Mode; led?: Led }
+    | { type: "cc"; channel: number; cc: number; onValue?: number; offValue?: number; mode?: Mode; led?: Led }
+    | { type: "programChange"; channel: number; program: number; led?: Led }
+    | { type: "switchBank"; bank: number; momentary?: boolean }
+    /** Makes another profile, by its file name, the active one. */
+    | { type: "switchProfile"; profile: string }
+    | { type: "osc"; address: string; args?: OscValue[]; releaseArgs?: OscValue[]; mode?: Mode; led?: Led }
+    /** Types a keyboard shortcut such as "ctrl+s"; with `hold`, keeps it down while held. */
+    | { type: "key"; keys: string; hold?: boolean; led?: Led }
+    /** Turns roll (held pads repeat) or flam (softer grace note first) on or off. */
+    | { type: "roll" }
+    | { type: "flam" }
+  );
 
 /** OSC argument; the string "$velocity" stands for the velocity of the hit. */
 export type OscValue = number | boolean | string;
@@ -103,16 +108,21 @@ export type OscValue = number | boolean | string;
 export type Encoding = "relative" | "absolute";
 
 /** `pickup`: after a bank change, the knob waits to reach its value in this bank. */
-export type KnobAction =
-  | { type: "cc"; channel: number; cc: number; min?: number; max?: number; pickup?: boolean }
-  | { type: "osc"; address: string; min?: number; max?: number; float?: boolean; pickup?: boolean };
-export type XyAction = { type: "xy"; channel: number; ccX: number; ccY: number } | { type: "osc"; address: string };
+export type KnobAction = Labelled &
+  (
+    | { type: "cc"; channel: number; cc: number; min?: number; max?: number; pickup?: boolean }
+    | { type: "osc"; address: string; min?: number; max?: number; float?: boolean; pickup?: boolean }
+  );
+export type XyAction = Labelled &
+  ({ type: "xy"; channel: number; ccX: number; ccY: number } | { type: "osc"; address: string });
 /** `acceleration`: turned fast, the encoder moves several steps per detent. */
-export type EncoderAction =
-  | { type: "cc"; channel: number; cc: number; encoding?: Encoding; acceleration?: boolean }
-  | { type: "osc"; address: string; encoding?: Encoding; acceleration?: boolean }
-  /** Types a shortcut for each step to the left or to the right. */
-  | { type: "key"; left: string; right: string };
+export type EncoderAction = Labelled &
+  (
+    | { type: "cc"; channel: number; cc: number; encoding?: Encoding; acceleration?: boolean }
+    | { type: "osc"; address: string; encoding?: Encoding; acceleration?: boolean }
+    /** Types a shortcut for each step to the left or to the right. */
+    | { type: "key"; left: string; right: string }
+  );
 
 export type Bank = {
   name: string;

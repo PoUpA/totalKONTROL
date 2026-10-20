@@ -321,5 +321,9 @@
   "update.never": "Never check",
   "editor.notActive": "This profile is not the one the padKONTROL plays: « {active} » is.",
   "editor.noActiveProfile": "The padKONTROL plays no profile.",
-  "editor.makeActive": "Play this profile"
+  "editor.makeActive": "Play this profile",
+  "core.validation.longLabel": "a label has {max} characters at most",
+  "action.label": "Description",
+  "action.labelPlaceholder": "Play deck A",
+  "action.labelHint": "What the control does, shown on the front panel and in the live view."
 }

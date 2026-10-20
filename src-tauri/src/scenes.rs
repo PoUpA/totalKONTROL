@@ -210,6 +210,7 @@ pub fn to_bank(data: &[u8], name: String) -> Bank {
                 velocity: (velocity > 128).then(|| Velocity::Fixed(velocity - 128)),
                 mode: mode_kind,
                 led: None,
+                label: None,
             }
         } else {
             ButtonAction::Cc {
@@ -219,6 +220,7 @@ pub fn to_bank(data: &[u8], name: String) -> Bank {
                 off_value: data[48 + i] & 0x7F,
                 mode: mode_kind,
                 led: None,
+                label: None,
             }
         };
         pads.insert(i as u8 + 1, action);
@@ -234,6 +236,7 @@ pub fn to_bank(data: &[u8], name: String) -> Bank {
                 min: 0,
                 max: 127,
                 pickup: false,
+                label: None,
             };
             Some((i as u8 + 1, action))
         })
@@ -244,6 +247,7 @@ pub fn to_bank(data: &[u8], name: String) -> Bank {
             channel: control_channel(data, X_BLOCK),
             cc_x,
             cc_y,
+            label: None,
         });
     Bank {
         name,
@@ -329,7 +333,9 @@ pub fn apply_bank(data: &mut [u8], bank: &Bank) -> Vec<Left> {
         }
     }
     match &bank.xy {
-        Some(XyAction::Xy { channel, cc_x, cc_y }) => {
+        Some(XyAction::Xy {
+            channel, cc_x, cc_y, ..
+        }) => {
             for (block, cc) in [(X_BLOCK, cc_x), (Y_BLOCK, cc_y)] {
                 data[block] = (data[block] & 0x0F) | ASSIGN_CC << 4;
                 data[block + 1] = *cc;
@@ -555,7 +561,8 @@ mod tests {
                 note: 36,
                 velocity: None,
                 mode: Mode::Momentary,
-                led: None
+                led: None,
+                label: None,
             }
         );
         assert_eq!(
@@ -566,7 +573,8 @@ mod tests {
                 on_value: 127,
                 off_value: 0,
                 mode: Mode::Toggle,
-                led: None
+                led: None,
+                label: None,
             }
         );
         assert_eq!(
@@ -576,7 +584,8 @@ mod tests {
                 cc: 7,
                 min: 0,
                 max: 127,
-                pickup: false
+                pickup: false,
+                label: None,
             }
         );
         assert!(!bank.knobs.contains_key(&2), "knob 2 is off");
@@ -585,7 +594,8 @@ mod tests {
             Some(XyAction::Xy {
                 channel: 10,
                 cc_x: 1,
-                cc_y: 2
+                cc_y: 2,
+                label: None,
             })
         );
     }
@@ -606,9 +616,10 @@ mod tests {
                 velocity: Some(Velocity::Fixed(90)),
                 mode: Mode::Toggle,
                 led: None,
+                label: None,
             },
         );
-        bank.pads.insert(3, ButtonAction::Roll {});
+        bank.pads.insert(3, ButtonAction::Roll { label: None });
         bank.pads.remove(&4);
         bank.knobs.remove(&1);
         let left = apply_bank(&mut data, &bank);

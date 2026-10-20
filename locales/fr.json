@@ -321,5 +321,9 @@
   "update.never": "Ne jamais vérifier",
   "editor.notActive": "Ce profil n'est pas celui que joue le padKONTROL : c'est « {active} ».",
   "editor.noActiveProfile": "Le padKONTROL ne joue aucun profil.",
-  "editor.makeActive": "Jouer ce profil"
+  "editor.makeActive": "Jouer ce profil",
+  "core.validation.longLabel": "un libellé fait {max} caractères au plus",
+  "action.label": "Description",
+  "action.labelPlaceholder": "Lecture platine A",
+  "action.labelHint": "Ce que fait le contrôle, affiché sur la façade et dans la vue en direct."
 }

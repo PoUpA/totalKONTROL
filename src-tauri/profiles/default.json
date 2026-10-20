@@ -9,25 +9,25 @@
       "name": "Drums",
       "display": "DRM",
       "pads": {
-        "1": { "type": "note", "channel": 10, "note": 36 },
-        "2": { "type": "note", "channel": 10, "note": 37 },
-        "3": { "type": "note", "channel": 10, "note": 38 },
-        "4": { "type": "note", "channel": 10, "note": 39 },
-        "5": { "type": "note", "channel": 10, "note": 40 },
-        "6": { "type": "note", "channel": 10, "note": 41 },
-        "7": { "type": "note", "channel": 10, "note": 42 },
-        "8": { "type": "note", "channel": 10, "note": 43 },
-        "9": { "type": "note", "channel": 10, "note": 44 },
-        "10": { "type": "note", "channel": 10, "note": 45 },
-        "11": { "type": "note", "channel": 10, "note": 46 },
-        "12": { "type": "note", "channel": 10, "note": 47 },
-        "13": { "type": "note", "channel": 10, "note": 48 },
-        "14": { "type": "note", "channel": 10, "note": 49 },
-        "15": { "type": "note", "channel": 10, "note": 50 },
-        "16": { "type": "note", "channel": 10, "note": 51 }
+        "1": { "type": "note", "channel": 10, "note": 36, "label": "Kick" },
+        "2": { "type": "note", "channel": 10, "note": 37, "label": "Side stick" },
+        "3": { "type": "note", "channel": 10, "note": 38, "label": "Snare" },
+        "4": { "type": "note", "channel": 10, "note": 39, "label": "Clap" },
+        "5": { "type": "note", "channel": 10, "note": 40, "label": "Snare 2" },
+        "6": { "type": "note", "channel": 10, "note": 41, "label": "Low floor tom" },
+        "7": { "type": "note", "channel": 10, "note": 42, "label": "Closed hat" },
+        "8": { "type": "note", "channel": 10, "note": 43, "label": "High floor tom" },
+        "9": { "type": "note", "channel": 10, "note": 44, "label": "Pedal hat" },
+        "10": { "type": "note", "channel": 10, "note": 45, "label": "Low tom" },
+        "11": { "type": "note", "channel": 10, "note": 46, "label": "Open hat" },
+        "12": { "type": "note", "channel": 10, "note": 47, "label": "Low mid tom" },
+        "13": { "type": "note", "channel": 10, "note": 48, "label": "High mid tom" },
+        "14": { "type": "note", "channel": 10, "note": 49, "label": "Crash" },
+        "15": { "type": "note", "channel": 10, "note": 50, "label": "High tom" },
+        "16": { "type": "note", "channel": 10, "note": 51, "label": "Ride" }
       },
       "buttons": {
-        "setting": { "type": "switchBank", "bank": 1 },
+        "setting": { "type": "switchBank", "bank": 1, "label": "Clips bank" },
         "scene": { "type": "note", "channel": 1, "note": 1, "mode": "toggle" },
         "message": { "type": "note", "channel": 1, "note": 2, "mode": "toggle" },
         "noteCc": { "type": "note", "channel": 1, "note": 3, "mode": "toggle" },
@@ -43,50 +43,50 @@
         "knob1Assign": { "type": "note", "channel": 1, "note": 13, "mode": "toggle" },
         "knob2Assign": { "type": "note", "channel": 1, "note": 14, "mode": "toggle" },
         "pedal": { "type": "note", "channel": 1, "note": 15 },
-        "roll": { "type": "roll" },
-        "flam": { "type": "flam" },
+        "roll": { "type": "roll", "label": "Roll" },
+        "flam": { "type": "flam", "label": "Flam" },
         "hold": { "type": "note", "channel": 1, "note": 18, "mode": "toggle" }
       },
       "knobs": {
-        "1": { "type": "cc", "channel": 1, "cc": 1 },
-        "2": { "type": "cc", "channel": 1, "cc": 2 }
+        "1": { "type": "cc", "channel": 1, "cc": 1, "label": "Knob 1 (CC 1)" },
+        "2": { "type": "cc", "channel": 1, "cc": 2, "label": "Knob 2 (CC 2)" }
       },
-      "xy": { "type": "xy", "channel": 1, "ccX": 3, "ccY": 4 },
-      "encoder": { "type": "cc", "channel": 1, "cc": 10 }
+      "xy": { "type": "xy", "channel": 1, "ccX": 3, "ccY": 4, "label": "XY (CC 3, 4)" },
+      "encoder": { "type": "cc", "channel": 1, "cc": 10, "label": "Encoder (CC 10)" }
     },
     {
       "name": "Clips",
       "display": "CLP",
       "pads": {
-        "1": { "type": "note", "channel": 2, "note": 60, "velocity": 127, "led": "follow" },
-        "2": { "type": "note", "channel": 2, "note": 61, "velocity": 127, "led": "follow" },
-        "3": { "type": "note", "channel": 2, "note": 62, "velocity": 127, "led": "follow" },
-        "4": { "type": "note", "channel": 2, "note": 63, "velocity": 127, "led": "follow" },
-        "5": { "type": "note", "channel": 2, "note": 64, "velocity": 127, "led": "follow" },
-        "6": { "type": "note", "channel": 2, "note": 65, "velocity": 127, "led": "follow" },
-        "7": { "type": "note", "channel": 2, "note": 66, "velocity": 127, "led": "follow" },
-        "8": { "type": "note", "channel": 2, "note": 67, "velocity": 127, "led": "follow" },
-        "9": { "type": "note", "channel": 2, "note": 68, "velocity": 127, "led": "follow" },
-        "10": { "type": "note", "channel": 2, "note": 69, "velocity": 127, "led": "follow" },
-        "11": { "type": "note", "channel": 2, "note": 70, "velocity": 127, "led": "follow" },
-        "12": { "type": "note", "channel": 2, "note": 71, "velocity": 127, "led": "follow" },
-        "13": { "type": "note", "channel": 2, "note": 72, "velocity": 127, "led": "follow" },
-        "14": { "type": "note", "channel": 2, "note": 73, "velocity": 127, "led": "follow" },
-        "15": { "type": "note", "channel": 2, "note": 74, "velocity": 127, "led": "follow" },
-        "16": { "type": "note", "channel": 2, "note": 75, "velocity": 127, "led": "follow" }
+        "1": { "type": "note", "channel": 2, "note": 60, "velocity": 127, "led": "follow", "label": "Clip 1" },
+        "2": { "type": "note", "channel": 2, "note": 61, "velocity": 127, "led": "follow", "label": "Clip 2" },
+        "3": { "type": "note", "channel": 2, "note": 62, "velocity": 127, "led": "follow", "label": "Clip 3" },
+        "4": { "type": "note", "channel": 2, "note": 63, "velocity": 127, "led": "follow", "label": "Clip 4" },
+        "5": { "type": "note", "channel": 2, "note": 64, "velocity": 127, "led": "follow", "label": "Clip 5" },
+        "6": { "type": "note", "channel": 2, "note": 65, "velocity": 127, "led": "follow", "label": "Clip 6" },
+        "7": { "type": "note", "channel": 2, "note": 66, "velocity": 127, "led": "follow", "label": "Clip 7" },
+        "8": { "type": "note", "channel": 2, "note": 67, "velocity": 127, "led": "follow", "label": "Clip 8" },
+        "9": { "type": "note", "channel": 2, "note": 68, "velocity": 127, "led": "follow", "label": "Clip 9" },
+        "10": { "type": "note", "channel": 2, "note": 69, "velocity": 127, "led": "follow", "label": "Clip 10" },
+        "11": { "type": "note", "channel": 2, "note": 70, "velocity": 127, "led": "follow", "label": "Clip 11" },
+        "12": { "type": "note", "channel": 2, "note": 71, "velocity": 127, "led": "follow", "label": "Clip 12" },
+        "13": { "type": "note", "channel": 2, "note": 72, "velocity": 127, "led": "follow", "label": "Clip 13" },
+        "14": { "type": "note", "channel": 2, "note": 73, "velocity": 127, "led": "follow", "label": "Clip 14" },
+        "15": { "type": "note", "channel": 2, "note": 74, "velocity": 127, "led": "follow", "label": "Clip 15" },
+        "16": { "type": "note", "channel": 2, "note": 75, "velocity": 127, "led": "follow", "label": "Clip 16" }
       },
       "buttons": {
-        "setting": { "type": "switchBank", "bank": 0 },
+        "setting": { "type": "switchBank", "bank": 0, "label": "Drums bank" },
         "x": { "type": "cc", "channel": 2, "cc": 20 },
         "y": { "type": "cc", "channel": 2, "cc": 21 },
         "pedal": { "type": "switchBank", "bank": 0, "momentary": true }
       },
       "knobs": {
-        "1": { "type": "cc", "channel": 2, "cc": 7 },
-        "2": { "type": "cc", "channel": 2, "cc": 10, "min": 32, "max": 96 }
+        "1": { "type": "cc", "channel": 2, "cc": 7, "label": "Knob 1 (CC 7)" },
+        "2": { "type": "cc", "channel": 2, "cc": 10, "min": 32, "max": 96, "label": "Knob 2 (CC 10)" }
       },
-      "xy": { "type": "xy", "channel": 2, "ccX": 3, "ccY": 4 },
-      "encoder": { "type": "cc", "channel": 2, "cc": 11, "encoding": "absolute" }
+      "xy": { "type": "xy", "channel": 2, "ccX": 3, "ccY": 4, "label": "XY (CC 3, 4)" },
+      "encoder": { "type": "cc", "channel": 2, "cc": 11, "encoding": "absolute", "label": "Encoder (CC 11)" }
     }
   ]
 }

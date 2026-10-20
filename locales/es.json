@@ -321,5 +321,9 @@
   "update.never": "No comprobar nunca",
   "editor.notActive": "Este perfil no es el que toca el padKONTROL: es «{active}».",
   "editor.noActiveProfile": "El padKONTROL no toca ningún perfil.",
-  "editor.makeActive": "Tocar este perfil"
+  "editor.makeActive": "Tocar este perfil",
+  "core.validation.longLabel": "una etiqueta tiene {max} caracteres como máximo",
+  "action.label": "Descripción",
+  "action.labelPlaceholder": "Reproducir plato A",
+  "action.labelHint": "Lo que hace el control, mostrado en el panel frontal y en la vista en directo."
 }

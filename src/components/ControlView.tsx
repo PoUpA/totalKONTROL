@@ -44,8 +44,21 @@ function seenKey(control: ControlRef): string {
   }
 }
 
-/** `leds`: keys (as in `ControlState.seen`) of the LEDs lit on the padKONTROL. */
-export function ControlView({ state, display, leds }: { state: ControlState; display: string; leds: Set<string> }) {
+/**
+ * `leds`: keys (as in `ControlState.seen`) of the LEDs lit on the padKONTROL.
+ * `labels`: what each control does in the bank playing, by the same keys.
+ */
+export function ControlView({
+  state,
+  display,
+  leds,
+  labels,
+}: {
+  state: ControlState;
+  display: string;
+  leds: Set<string>;
+  labels: Record<string, string>;
+}) {
   const { t, tn } = useI18n();
   return (
     <section className="card">
@@ -58,6 +71,8 @@ export function ControlView({ state, display, leds }: { state: ControlState; dis
         display={display}
         render={(control, label, className) => {
           const lit = leds.has(seenKey(control));
+          const described = labels[seenKey(control)];
+          const title = [described, lit ? t("controls.ledOn") : ""].filter(Boolean).join(" · ") || undefined;
           const seen = (state.seen.has(seenKey(control)) ? " seen" : "") + (lit ? " lit" : "");
           switch (control.kind) {
             case "pad": {
@@ -68,11 +83,11 @@ export function ControlView({ state, display, leds }: { state: ControlState; dis
                   key={label}
                   className={`${className}${on ? " on" : ""}${seen}`}
                   style={on ? { opacity: 0.4 + (velocity / 127) * 0.6 } : undefined}
-                  title={lit ? t("controls.ledOn") : undefined}
-                  aria-label={lit ? `${label}, ${t("controls.ledOn")}` : undefined}
+                  title={title}
+                  aria-label={title ? `${label}, ${title}` : undefined}
                 >
                   <span>{label}</span>
-                  {on && <small>{velocity}</small>}
+                  {on ? <small>{velocity}</small> : described && <small className="label">{described}</small>}
                 </div>
               );
             }
@@ -81,8 +96,8 @@ export function ControlView({ state, display, leds }: { state: ControlState; dis
                 <span
                   key={label}
                   className={`${className}${state.buttons[control.button] ? " on" : ""}${seen}`}
-                  title={lit ? t("controls.ledOn") : undefined}
-                  aria-label={lit ? `${label}, ${t("controls.ledOn")}` : undefined}
+                  title={title}
+                  aria-label={title ? `${label}, ${title}` : undefined}
                 >
                   {label}
                 </span>
@@ -95,7 +110,7 @@ export function ControlView({ state, display, leds }: { state: ControlState; dis
               );
             case "knob":
               return (
-                <div key={label} className={`${className}${seen}`}>
+                <div key={label} className={`${className}${seen}`} title={title}>
                   <span className="muted">{label}</span>
                   <meter min={0} max={127} value={state.knobs[control.knob] ?? 0} />
                   <strong>{state.knobs[control.knob] ?? "–"}</strong>
@@ -103,14 +118,14 @@ export function ControlView({ state, display, leds }: { state: ControlState; dis
               );
             case "encoder":
               return (
-                <div key={label} className={`${className}${seen}`}>
+                <div key={label} className={`${className}${seen}`} title={title}>
                   <span className="muted">{label}</span>
                   <strong>{state.encoder}</strong>
                 </div>
               );
             case "xy":
               return (
-                <div key={label} className={`${className}${seen}`}>
+                <div key={label} className={`${className}${seen}`} title={title}>
                   {state.xy && (
                     <div
                       className="xy-dot"

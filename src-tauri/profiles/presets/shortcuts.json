@@ -7,24 +7,24 @@
       "name": "Transport",
       "display": "KEY",
       "pads": {
-        "1": { "type": "key", "keys": "cmdorctrl+z" },
-        "2": { "type": "key", "keys": "cmdorctrl+shift+z" },
-        "3": { "type": "key", "keys": "cmdorctrl+c" },
-        "4": { "type": "key", "keys": "cmdorctrl+v" },
-        "5": { "type": "key", "keys": "cmdorctrl+x" },
-        "6": { "type": "key", "keys": "delete" },
-        "7": { "type": "key", "keys": "cmdorctrl+a" },
-        "8": { "type": "key", "keys": "cmdorctrl+s" },
-        "9": { "type": "key", "keys": "home" },
-        "10": { "type": "key", "keys": "left" },
-        "11": { "type": "key", "keys": "right" },
-        "12": { "type": "key", "keys": "end" },
-        "13": { "type": "key", "keys": "space" },
-        "14": { "type": "key", "keys": "enter" },
-        "15": { "type": "key", "keys": "shift", "hold": true },
-        "16": { "type": "key", "keys": "esc" }
+        "1": { "type": "key", "keys": "cmdorctrl+z", "label": "Undo" },
+        "2": { "type": "key", "keys": "cmdorctrl+shift+z", "label": "Redo" },
+        "3": { "type": "key", "keys": "cmdorctrl+c", "label": "Copy" },
+        "4": { "type": "key", "keys": "cmdorctrl+v", "label": "Paste" },
+        "5": { "type": "key", "keys": "cmdorctrl+x", "label": "Cut" },
+        "6": { "type": "key", "keys": "delete", "label": "Delete" },
+        "7": { "type": "key", "keys": "cmdorctrl+a", "label": "Select all" },
+        "8": { "type": "key", "keys": "cmdorctrl+s", "label": "Save" },
+        "9": { "type": "key", "keys": "home", "label": "Start" },
+        "10": { "type": "key", "keys": "left", "label": "Left" },
+        "11": { "type": "key", "keys": "right", "label": "Right" },
+        "12": { "type": "key", "keys": "end", "label": "End" },
+        "13": { "type": "key", "keys": "space", "label": "Play / pause" },
+        "14": { "type": "key", "keys": "enter", "label": "Enter" },
+        "15": { "type": "key", "keys": "shift", "hold": true, "label": "Shift (held)" },
+        "16": { "type": "key", "keys": "esc", "label": "Escape" }
       },
-      "encoder": { "type": "key", "left": "left", "right": "right" }
+      "encoder": { "type": "key", "left": "left", "right": "right", "label": "Left / right" }
     }
   ]
 }

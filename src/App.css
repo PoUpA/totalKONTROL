@@ -365,6 +365,14 @@ h3 {
   margin-top: 8px;
 }
 
+/* What a pad does, in the live view: small, and cut when long. */
+.pad small.label {
+  padding: 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* LED lit on the padKONTROL. */
 .lit::after {
   content: "";

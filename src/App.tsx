@@ -9,6 +9,8 @@ import { LANGUAGES, sendLangToCore, useI18n, type Lang } from "./i18n";
 import { Monitor } from "./components/Monitor";
 import { UpdateNotice } from "./components/UpdateNotice";
 import type {
+  Bank,
+  Profile,
   ConnectionInfo,
   ConnectionState,
   ConnectOptions,
@@ -30,6 +32,19 @@ const MONITOR_INTERVAL_MS = 100;
 // Screen frames stop while the window is hidden in the tray: past this many
 // waiting events, the live view takes them at once rather than piling them up.
 const MAX_PENDING_CONTROLS = 500;
+
+/** Labels of a bank, keyed like ControlState.seen. */
+function bankLabels(bank: Bank | undefined): Record<string, string> {
+  const labels: Record<string, string> = {};
+  if (!bank) return labels;
+  for (const [pad, action] of Object.entries(bank.pads ?? {})) if (action.label) labels[`pad${pad}`] = action.label;
+  for (const [button, action] of Object.entries(bank.buttons ?? {})) if (action?.label) labels[button] = action.label;
+  for (const [knob, action] of Object.entries(bank.knobs ?? {})) if (action.label) labels[`knob${knob}`] = action.label;
+  if (bank.xy?.label) labels.xy = bank.xy.label;
+  if (bank.xyTouch?.label) labels.xyTouch = bank.xyTouch.label;
+  if (bank.encoder?.label) labels.encoder = bank.encoder.label;
+  return labels;
+}
 
 /** Without a profile, the live view counts like a relative encoder: -99 to 999. */
 const clampCounter = (value: number) => Math.min(999, Math.max(-99, value));
@@ -88,6 +103,24 @@ function App() {
   const [tab, setTab] = useState<"control" | "profiles">("control");
   // LEDs lit on the padKONTROL, keyed like ControlState.seen.
   const [leds, setLeds] = useState<Set<string>>(() => new Set());
+  // What each control does in the bank playing, from the profile's labels.
+  const [labels, setLabels] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!engine?.file) {
+      setLabels({});
+      return;
+    }
+    let current = true;
+    invoke<Profile>("load_profile", { file: engine.file })
+      .then((profile) => {
+        if (current) setLabels(bankLabels(profile.banks[engine.bank]));
+      })
+      .catch(() => current && setLabels({}));
+    return () => {
+      current = false;
+    };
+  }, [engine]);
+
   // Quitting from the tray while the editor has unsaved changes.
   const [quitAsked, setQuitAsked] = useState(false);
   const editorDirty = useRef(false);
@@ -390,6 +423,7 @@ function App() {
           state={controls}
           display={engine ? engine.display.toUpperCase() : connection?.nativeMode ? "TK" : "---"}
           leds={leds}
+          labels={labels}
         />
         <Monitor messages={messages} paused={paused} onTogglePause={togglePause} onClear={clearMonitor} />
       </div>

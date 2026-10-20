@@ -57,7 +57,7 @@ The feedback port must differ from the output port: a loopMIDI port echoes every
 A profile describes, bank by bank, what each control does:
 
 - **Controls**: pads `1` to `16` (pad 1 top left), buttons (`setting`, `x`, `pedal`…), knobs `1` and `2`, the XY pad, touching the XY pad (`xyTouch`: an action on touch and release, like a button without an LED), and the encoder.
-- **Actions**: `note`, `cc`, `programChange`, `switchBank`, `switchProfile` (makes another profile, by its file name, the active one), `osc`, `key`, `roll` or `flam`. Pads and buttons can be `momentary` or `toggle`, and their LED `none`, `press`, `toggle` or `follow` (driven by the DAW or by OSC). On a momentary action, a `toggle` LED flips on each press, for targets that toggle in the DAW.
+- **Actions**: `note`, `cc`, `programChange`, `switchBank`, `switchProfile` (makes another profile, by its file name, the active one), `osc`, `key`, `roll` or `flam`. Each can have a `label`, what it does in words, shown on the editor's front panel and in the live view. Pads and buttons can be `momentary` or `toggle`, and their LED `none`, `press`, `toggle` or `follow` (driven by the DAW or by OSC). On a momentary action, a `toggle` LED flips on each press, for targets that toggle in the DAW.
 - **Display**: each bank shows its `display` text, or the start of its name. When a knob turns, the display shows the value sent; when the encoder turns, its position: 0 to 127 in absolute mode, a free counter from -99 to 999 in relative mode, where the DAW only gets steps. The bank comes back after `display.duration` milliseconds. A pad hit can show its note or velocity (`display.pads`).
 - **Knobs and encoder**: with `pickup`, a knob waits after a bank change until it reaches the value it had in that bank, so the target does not jump. With `acceleration`, the encoder moves up to four steps per detent when turned fast.
 - **Velocity**: a `soft`, `linear` or `hard` curve, and the velocities sent for the softest and hardest hits (`velocity`). It shapes pad hits everywhere: notes, OSC `$velocity` and the display.
@@ -68,7 +68,7 @@ A profile describes, bank by bank, what each control does:
 
 Edit profiles in the **Profiles** tab, or by hand: they live in the app's config folder, under `profiles/` (**Open the folder**), next to a copy of the [JSON Schema](src-tauri/profiles/profile.schema.json), so an editor such as VS Code offers completion and flags errors. See the [default profile](src-tauri/profiles/default.json) for an example.
 
-The Profiles tab also starts a profile from a preset, and imports or exports profile files, checked before they are added. Presets: Ableton Live, Bitwig Studio, Cubase, Traktor Pro and Mixxx (see [docs/daws.md](docs/daws.md) for setting each program up, and a [Mixxx mapping](mappings/mixxx/totalKONTROL.midi.xml)), General MIDI drums, a CC toggles mixer and transport shortcuts.
+The Profiles tab also starts a profile from a preset, and imports or exports profile files, checked before they are added. Presets: Ableton Live, Bitwig Studio, Cubase, FL Studio, Logic Pro, REAPER, Traktor Pro, Mixxx, Serato DJ, rekordbox and OBS Studio (see [docs/daws.md](docs/daws.md) for setting each program up, and a [Mixxx mapping](mappings/mixxx/totalKONTROL.midi.xml)), General MIDI drums, a CC toggles mixer and transport shortcuts.
 
 ### The padKONTROL's scenes
 

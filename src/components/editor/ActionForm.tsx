@@ -728,6 +728,15 @@ export function ActionForm({ control, action, banks, profiles, errors, onChange 
         {control.kind === "encoder" && (
           <EncoderFields action={action as EncoderAction | undefined} onChange={onChange} />
         )}
+        {action && (
+          <TextField
+            label={t("action.label")}
+            value={action.label ?? ""}
+            placeholder={t("action.labelPlaceholder")}
+            hint={t("action.labelHint")}
+            onChange={(label) => onChange(withField(action, "label", label === "" ? undefined : label))}
+          />
+        )}
       </div>
       {errors.length > 0 && (
         <ul className="errors">

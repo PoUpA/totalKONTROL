@@ -458,7 +458,9 @@ impl Engine {
                 self.show_value(format!("{shown:>DISPLAY_LENGTH$}"), now, &mut out);
             }
             ControlEvent::Xy { x, y } => match self.bank().xy.clone() {
-                Some(XyAction::Xy { channel, cc_x, cc_y }) => {
+                Some(XyAction::Xy {
+                    channel, cc_x, cc_y, ..
+                }) => {
                     let last = self.last_xy;
                     if last.map(|(lx, _)| lx) != Some(x) {
                         out.daw.push(control_change(channel, cc_x, x));
@@ -468,7 +470,7 @@ impl Engine {
                     }
                     self.last_xy = Some((x, y));
                 }
-                Some(XyAction::Osc { address }) => {
+                Some(XyAction::Osc { address, .. }) => {
                     out.osc.push(OscMessage::new(
                         address,
                         vec![OscArg::Int(x.into()), OscArg::Int(y.into())],
@@ -508,7 +510,7 @@ impl Engine {
                             };
                             out.osc.push(OscMessage::new(address, vec![OscArg::Int(value)]));
                         }
-                        EncoderAction::Key { left, right } => {
+                        EncoderAction::Key { left, right, .. } => {
                             let keys = if delta < 0 { left } else { right };
                             let steps = delta.unsigned_abs().min(MAX_KEY_STEPS);
                             out.keys
@@ -637,7 +639,7 @@ impl Engine {
                 out.daw.push(vec![0xC0 | (channel - 1), program]);
             }
             ButtonAction::SwitchBank { bank: target, .. } => self.switch_bank(target, out),
-            ButtonAction::SwitchProfile { profile } => out.switch_profile = Some(profile),
+            ButtonAction::SwitchProfile { profile, .. } => out.switch_profile = Some(profile),
             ButtonAction::Osc {
                 address,
                 args,
@@ -657,14 +659,14 @@ impl Engine {
                 let direction = if hold { KeyDirection::Press } else { KeyDirection::Tap };
                 out.keys.push(KeyEvent::new(&keys, direction));
             }
-            ButtonAction::Roll {} => {
+            ButtonAction::Roll { .. } => {
                 self.roll_on = !self.roll_on;
                 if !self.roll_on {
                     // Held notes stop repeating and end on release.
                     self.rolls.clear();
                 }
             }
-            ButtonAction::Flam {} => self.flam_on = !self.flam_on,
+            ButtonAction::Flam { .. } => self.flam_on = !self.flam_on,
         }
         if flip_led {
             self.flip(bank, control);
@@ -703,6 +705,7 @@ impl Engine {
             ButtonAction::SwitchBank {
                 bank: target,
                 momentary: true,
+                ..
             } if self.bank == target => self.switch_bank(pressed_in, out),
             action => end_action(&action, Mode::Momentary, out),
         }
@@ -788,8 +791,8 @@ impl Engine {
             return false;
         };
         match action {
-            ButtonAction::Roll {} => return self.roll_on,
-            ButtonAction::Flam {} => return self.flam_on,
+            ButtonAction::Roll { .. } => return self.roll_on,
+            ButtonAction::Flam { .. } => return self.flam_on,
             _ => {}
         }
         match led_mode(action) {
@@ -919,7 +922,7 @@ fn led_mode(action: &ButtonAction) -> Led {
         ButtonAction::ProgramChange { led, .. } | ButtonAction::Key { led, .. } => led.unwrap_or(Led::Press),
         ButtonAction::SwitchBank { .. } | ButtonAction::SwitchProfile { .. } => Led::Press,
         // Lit while the mode is on (see `led_state`).
-        ButtonAction::Roll {} | ButtonAction::Flam {} => Led::Toggle,
+        ButtonAction::Roll { .. } | ButtonAction::Flam { .. } => Led::Toggle,
     }
 }
 
@@ -930,7 +933,7 @@ fn toggles_itself(action: &ButtonAction) -> bool {
         ButtonAction::Note { mode, .. } | ButtonAction::Cc { mode, .. } | ButtonAction::Osc { mode, .. } => {
             *mode == Mode::Toggle
         }
-        ButtonAction::Roll {} | ButtonAction::Flam {} => true,
+        ButtonAction::Roll { .. } | ButtonAction::Flam { .. } => true,
         _ => false,
     }
 }

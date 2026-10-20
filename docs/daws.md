@@ -1,9 +1,11 @@
 # Profiles for DAWs and DJ software
 
-totalKONTROL ships profiles for Ableton Live, Bitwig Studio, Cubase, Traktor Pro and Mixxx: in the **Profiles** tab, pick one in the preset list, click **Use**, then **Play this profile**. None of these programs knows the padKONTROL; each profile follows the program's conventions:
+totalKONTROL ships profiles for Ableton Live, Bitwig Studio, Cubase, FL Studio, Logic Pro, REAPER, Traktor Pro, Mixxx, Serato DJ, rekordbox and OBS Studio: in the **Profiles** tab, pick one in the preset list, click **Use**, then **Play this profile**. None of these programs knows the padKONTROL; each profile follows the program's conventions:
 
 - **What works at once**: the drum pads (each program's drum instrument starts at C1 = note 36), and the transport through the program's own keyboard shortcuts (`key` actions: the program must be in front).
 - **What you map once**: the knobs, the XY pad, the encoder and the mixer pads send plain CCs and notes, for the program's MIDI learn.
+
+Every control of these profiles has a **label** saying what it does: it shows on the editor's front panel, and under the pads of the live view while the profile plays. Change them in the editor's **Description** field when you map a control to something else.
 
 Every profile sends to the DAW port picked in the connection card (**Virtual port**, or loopMIDI's `totalKONTROL` on Windows); enable that port as a MIDI input in the program. Shortcuts use `cmdorctrl`: Cmd on macOS, Ctrl elsewhere.
 
@@ -72,6 +74,40 @@ The **Mixxx** profile has the same layout as Traktor's, and Mixxx loads a mappin
 
 The mapping does not send LED states back to the padKONTROL: play, sync and the loops flip their LED on each press, cues light while held. When they are changed from Mixxx's window, the LEDs no longer match until pressed again.
 
+## FL Studio
+
+Banks **FPC** and **Mixer**, like Live's. The buttons use FL Studio's default keys: X Space (play / stop), Y R (record), SCENE L (pattern / song mode), NOTE/CC# F5 (playlist), MIDI CH F6 (channel rack), SW TYPE F7 (piano roll), REL. VAL F9 (mixer), MESSAGE undo, PROG CHANGE save. In **Options › MIDI settings**, enable the DAW port as an input; map the CCs with a right-click on a control › **Link to controller**, then touching the padKONTROL. Set FPC's pads, or a channel's notes, to the profile's notes 36-51.
+
+## REAPER
+
+Banks **Drums** and **Mixer**. Buttons: X Space (play / stop), Y Ctrl/Cmd+R (record), SCENE R (repeat), NOTE/CC# Home (go to start), MIDI CH End (go to end), MESSAGE undo, FIXED VEL redo, PROG CHANGE save. Enable the DAW port in **Preferences › MIDI Devices** (input, and _Enable input for control messages_); map the CCs with a right-click on a control › **Learn**, or from the **Actions** list (_Add shortcut_, then touch the padKONTROL).
+
+## Logic Pro
+
+Banks **Drum Machine** (Drum Machine Designer starts at C1) and **Mixer**. Buttons: X Space (play / stop), Y R (record), SCENE C (cycle), NOTE/CC# Return (go to beginning), MIDI CH K (metronome), MESSAGE undo, FIXED VEL redo, PROG CHANGE save. Map the CCs with **Logic Pro › Control Surfaces › Learn Assignment** (Cmd+L): click a control in Logic, touch the padKONTROL.
+
+## Serato DJ and rekordbox
+
+The **Serato DJ** and **rekordbox** profiles have the DJ layout of Traktor's and Mixxx's (hot cues, cue, play, sync and loops for two decks, filters, crossfader, browse, load). Map them with the program's MIDI learn: in Serato DJ, the **MIDI** button of the setup screen, then click a control and touch the padKONTROL; in rekordbox, **MIDI** in the top bar, **LEARN**. Their LEDs keep their own state: play, sync and loops flip on each press, cues light while held.
+
+## OBS Studio
+
+OBS has no default hotkeys, so the **OBS Studio** profile types keys nothing else uses: pads 1-8 F13 to F20, pads 9-16 Shift+F13 to Shift+F20. In **Settings › Hotkeys**, click the field of an action and hit the pad:
+
+| Pads | Keys      | Bind to (labels)            |
+| ---- | --------- | --------------------------- |
+| 1-8  | F13-F20   | scenes 1-8                  |
+| 9    | Shift+F13 | start / stop recording      |
+| 10   | Shift+F14 | start / stop streaming      |
+| 11   | Shift+F15 | mute / unmute the mic       |
+| 12   | Shift+F16 | mute / unmute desktop audio |
+| 13   | Shift+F17 | save the replay buffer      |
+| 14   | Shift+F18 | screenshot                  |
+| 15   | Shift+F19 | studio mode                 |
+| 16   | Shift+F20 | transition                  |
+
+OBS must be in front for the keys to reach it, unless its hotkeys are set to work in the background.
+
 ## Others worth adding
 
-Profiles that could follow the same way: FL Studio, REAPER, Logic Pro, Serato DJ and rekordbox (DJ layout and MIDI learn), and, for keyboard shortcuts rather than MIDI, OBS (scenes, recording) or video editors.
+The same way: Studio One, Pro Tools, Reason, Resolume and other VJ software (MIDI learn or OSC), Ableton Live clip launching with LED feedback through an OSC bridge such as AbletonOSC, and video editors (DaVinci Resolve, Premiere Pro) through their keyboard shortcuts.

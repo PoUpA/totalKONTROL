@@ -7,30 +7,30 @@
       "name": "GM drums",
       "display": "GM",
       "pads": {
-        "1": { "type": "note", "channel": 10, "note": 49 },
-        "2": { "type": "note", "channel": 10, "note": 57 },
-        "3": { "type": "note", "channel": 10, "note": 51 },
-        "4": { "type": "note", "channel": 10, "note": 53 },
-        "5": { "type": "note", "channel": 10, "note": 50 },
-        "6": { "type": "note", "channel": 10, "note": 48 },
-        "7": { "type": "note", "channel": 10, "note": 47 },
-        "8": { "type": "note", "channel": 10, "note": 45 },
-        "9": { "type": "note", "channel": 10, "note": 42 },
-        "10": { "type": "note", "channel": 10, "note": 44 },
-        "11": { "type": "note", "channel": 10, "note": 46 },
-        "12": { "type": "note", "channel": 10, "note": 39 },
-        "13": { "type": "note", "channel": 10, "note": 36 },
-        "14": { "type": "note", "channel": 10, "note": 38 },
-        "15": { "type": "note", "channel": 10, "note": 37 },
-        "16": { "type": "note", "channel": 10, "note": 40 }
+        "1": { "type": "note", "channel": 10, "note": 49, "label": "Crash" },
+        "2": { "type": "note", "channel": 10, "note": 57, "label": "Crash 2" },
+        "3": { "type": "note", "channel": 10, "note": 51, "label": "Ride" },
+        "4": { "type": "note", "channel": 10, "note": 53, "label": "Ride bell" },
+        "5": { "type": "note", "channel": 10, "note": 50, "label": "High tom" },
+        "6": { "type": "note", "channel": 10, "note": 48, "label": "High mid tom" },
+        "7": { "type": "note", "channel": 10, "note": 47, "label": "Low mid tom" },
+        "8": { "type": "note", "channel": 10, "note": 45, "label": "Low tom" },
+        "9": { "type": "note", "channel": 10, "note": 42, "label": "Closed hat" },
+        "10": { "type": "note", "channel": 10, "note": 44, "label": "Pedal hat" },
+        "11": { "type": "note", "channel": 10, "note": 46, "label": "Open hat" },
+        "12": { "type": "note", "channel": 10, "note": 39, "label": "Clap" },
+        "13": { "type": "note", "channel": 10, "note": 36, "label": "Kick" },
+        "14": { "type": "note", "channel": 10, "note": 38, "label": "Snare" },
+        "15": { "type": "note", "channel": 10, "note": 37, "label": "Side stick" },
+        "16": { "type": "note", "channel": 10, "note": 40, "label": "Snare 2" }
       },
       "buttons": {
-        "roll": { "type": "roll" },
-        "flam": { "type": "flam" }
+        "roll": { "type": "roll", "label": "Roll" },
+        "flam": { "type": "flam", "label": "Flam" }
       },
       "knobs": {
-        "1": { "type": "cc", "channel": 10, "cc": 7, "pickup": true },
-        "2": { "type": "cc", "channel": 10, "cc": 10, "pickup": true }
+        "1": { "type": "cc", "channel": 10, "cc": 7, "pickup": true, "label": "Volume" },
+        "2": { "type": "cc", "channel": 10, "cc": 10, "pickup": true, "label": "Pan" }
       }
     }
   ]

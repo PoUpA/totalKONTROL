@@ -16,12 +16,18 @@ pub const DEFAULT_PROFILE_FILE: &str = "default.json";
 pub const DEFAULT_PROFILE_JSON: &str = include_str!("../profiles/default.json");
 
 /// Profiles to start from, bundled with the app: id and JSON.
-pub const PRESETS: [(&str, &str); 8] = [
+pub const PRESETS: [(&str, &str); 14] = [
     ("ableton-live", include_str!("../profiles/presets/ableton-live.json")),
     ("bitwig-studio", include_str!("../profiles/presets/bitwig-studio.json")),
     ("cubase", include_str!("../profiles/presets/cubase.json")),
+    ("fl-studio", include_str!("../profiles/presets/fl-studio.json")),
+    ("logic-pro", include_str!("../profiles/presets/logic-pro.json")),
+    ("reaper", include_str!("../profiles/presets/reaper.json")),
     ("traktor-pro", include_str!("../profiles/presets/traktor-pro.json")),
     ("mixxx", include_str!("../profiles/presets/mixxx.json")),
+    ("serato-dj", include_str!("../profiles/presets/serato-dj.json")),
+    ("rekordbox", include_str!("../profiles/presets/rekordbox.json")),
+    ("obs", include_str!("../profiles/presets/obs.json")),
     ("drums-gm", include_str!("../profiles/presets/drums-gm.json")),
     ("mixer-cc", include_str!("../profiles/presets/mixer-cc.json")),
     ("shortcuts", include_str!("../profiles/presets/shortcuts.json")),
@@ -41,6 +47,8 @@ pub fn presets() -> Vec<PresetSummary> {
 }
 
 const PAD_COUNT: u8 = 16;
+/// Longest label of an action, in characters.
+const MAX_LABEL: usize = 60;
 const KNOB_COUNT: u8 = 2;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -268,6 +276,8 @@ pub enum ButtonId {
     rename_all_fields = "camelCase",
     deny_unknown_fields
 )]
+/// Every variant takes a `label`: what the control does, in words, shown in
+/// the editor and the live view.
 pub enum ButtonAction {
     Note {
         channel: u8,
@@ -278,6 +288,8 @@ pub enum ButtonAction {
         mode: Mode,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         led: Option<Led>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
     },
     Cc {
         channel: u8,
@@ -290,20 +302,30 @@ pub enum ButtonAction {
         mode: Mode,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         led: Option<Led>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
     },
     ProgramChange {
         channel: u8,
         program: u8,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         led: Option<Led>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
     },
     SwitchBank {
         bank: usize,
         #[serde(default, skip_serializing_if = "is_default")]
         momentary: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
     },
     /// Makes another profile, by its file name, the active one.
-    SwitchProfile { profile: String },
+    SwitchProfile {
+        profile: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
+    },
     /// OSC message to the connection's OSC destination: `args` on press
     /// (or when a toggle turns on), `release_args` on release (or when it
     /// turns off), if set.
@@ -317,6 +339,8 @@ pub enum ButtonAction {
         mode: Mode,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         led: Option<Led>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
     },
     /// Types a keyboard shortcut such as "ctrl+s" on press or, with `hold`,
     /// keeps its keys down while the control is held.
@@ -326,12 +350,20 @@ pub enum ButtonAction {
         hold: bool,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         led: Option<Led>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
     },
     /// Turns roll on or off: held pads repeat their note. The LED shows it.
-    Roll {},
+    Roll {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
+    },
     /// Turns flam on or off: each hit plays a softer grace note first. The
     /// LED shows it.
-    Flam {},
+    Flam {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
+    },
 }
 
 /// Roll and flam settings.
@@ -443,6 +475,8 @@ pub enum Led {
     rename_all_fields = "camelCase",
     deny_unknown_fields
 )]
+/// Every variant takes a `label`: what the control does, in words, shown in
+/// the editor and the live view.
 pub enum KnobAction {
     Cc {
         channel: u8,
@@ -454,6 +488,8 @@ pub enum KnobAction {
         /// See `KnobAction::pickup`.
         #[serde(default, skip_serializing_if = "is_default")]
         pickup: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
     },
     /// Sends the knob position scaled from `min` to `max`, as a float when
     /// `float` is set, else rounded to an integer.
@@ -467,10 +503,34 @@ pub enum KnobAction {
         float: bool,
         #[serde(default, skip_serializing_if = "is_default")]
         pickup: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
     },
 }
 
+impl ButtonAction {
+    pub fn label(&self) -> Option<&str> {
+        match self {
+            ButtonAction::Note { label, .. }
+            | ButtonAction::Cc { label, .. }
+            | ButtonAction::ProgramChange { label, .. }
+            | ButtonAction::SwitchBank { label, .. }
+            | ButtonAction::SwitchProfile { label, .. }
+            | ButtonAction::Osc { label, .. }
+            | ButtonAction::Key { label, .. }
+            | ButtonAction::Roll { label }
+            | ButtonAction::Flam { label } => label.as_deref(),
+        }
+    }
+}
+
 impl KnobAction {
+    pub fn label(&self) -> Option<&str> {
+        match self {
+            KnobAction::Cc { label, .. } | KnobAction::Osc { label, .. } => label.as_deref(),
+        }
+    }
+
     /// After a bank change, the knob sends nothing until it reaches the value
     /// it had in this bank, so the target does not jump.
     pub fn pickup(&self) -> bool {
@@ -487,15 +547,21 @@ impl KnobAction {
     rename_all_fields = "camelCase",
     deny_unknown_fields
 )]
+/// Every variant takes a `label`: what the control does, in words, shown in
+/// the editor and the live view.
 pub enum XyAction {
     Xy {
         channel: u8,
         cc_x: u8,
         cc_y: u8,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
     },
     /// Sends x and y (0 to 127) as two integers.
     Osc {
         address: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
     },
 }
 
@@ -506,6 +572,8 @@ pub enum XyAction {
     rename_all_fields = "camelCase",
     deny_unknown_fields
 )]
+/// Every variant takes a `label`: what the control does, in words, shown in
+/// the editor and the live view.
 pub enum EncoderAction {
     Cc {
         channel: u8,
@@ -515,6 +583,8 @@ pub enum EncoderAction {
         /// See `EncoderAction::acceleration`.
         #[serde(default, skip_serializing_if = "is_default")]
         acceleration: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
     },
     /// Sends the step (relative) or the position (absolute) as an integer.
     Osc {
@@ -523,12 +593,35 @@ pub enum EncoderAction {
         encoding: Encoding,
         #[serde(default, skip_serializing_if = "is_default")]
         acceleration: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
     },
     /// Types a keyboard shortcut for each step to the left or to the right.
-    Key { left: String, right: String },
+    Key {
+        left: String,
+        right: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
+    },
+}
+
+impl XyAction {
+    pub fn label(&self) -> Option<&str> {
+        match self {
+            XyAction::Xy { label, .. } | XyAction::Osc { label, .. } => label.as_deref(),
+        }
+    }
 }
 
 impl EncoderAction {
+    pub fn label(&self) -> Option<&str> {
+        match self {
+            EncoderAction::Cc { label, .. } | EncoderAction::Osc { label, .. } | EncoderAction::Key { label, .. } => {
+                label.as_deref()
+            }
+        }
+    }
+
     pub fn encoding(&self) -> Encoding {
         match self {
             EncoderAction::Cc { encoding, .. } | EncoderAction::Osc { encoding, .. } => *encoding,
@@ -727,6 +820,7 @@ pub fn validate(profile: &Profile) -> Vec<String> {
             if !(1..=KNOB_COUNT).contains(knob) {
                 v.error(&p, t!("core.validation.unknownKnob", count = KNOB_COUNT));
             }
+            v.label(&p, action.label());
             match action {
                 KnobAction::Cc {
                     channel, cc, min, max, ..
@@ -748,14 +842,22 @@ pub fn validate(profile: &Profile) -> Vec<String> {
                 }
             }
         }
+        if let Some(xy) = &bank.xy {
+            v.label(&format!("{path}.xy"), xy.label());
+        }
+        if let Some(encoder) = &bank.encoder {
+            v.label(&format!("{path}.encoder"), encoder.label());
+        }
         match &bank.xy {
-            Some(XyAction::Xy { channel, cc_x, cc_y }) => {
+            Some(XyAction::Xy {
+                channel, cc_x, cc_y, ..
+            }) => {
                 let p = format!("{path}.xy");
                 v.channel(&p, *channel);
                 v.midi_value(&p, "ccX", *cc_x);
                 v.midi_value(&p, "ccY", *cc_y);
             }
-            Some(XyAction::Osc { address }) => v.osc_address(&format!("{path}.xy"), address),
+            Some(XyAction::Osc { address, .. }) => v.osc_address(&format!("{path}.xy"), address),
             None => {}
         }
         match &bank.encoder {
@@ -765,7 +867,7 @@ pub fn validate(profile: &Profile) -> Vec<String> {
                 v.midi_value(&p, "cc", *cc);
             }
             Some(EncoderAction::Osc { address, .. }) => v.osc_address(&format!("{path}.encoder"), address),
-            Some(EncoderAction::Key { left, right }) => {
+            Some(EncoderAction::Key { left, right, .. }) => {
                 v.keys(&format!("{path}.encoder.left"), left);
                 v.keys(&format!("{path}.encoder.right"), right);
             }
@@ -806,7 +908,20 @@ impl Validator {
         }
     }
 
+    /// A label stays short: it shows on a pad of the front panel.
+    fn label(&mut self, path: &str, label: Option<&str>) {
+        if let Some(label) = label
+            && label.chars().count() > MAX_LABEL
+        {
+            self.error(
+                format!("{path}.label"),
+                t!("core.validation.longLabel", max = MAX_LABEL),
+            );
+        }
+    }
+
     fn button_action(&mut self, path: &str, action: &ButtonAction, is_pad: bool, bank_count: usize) {
+        self.label(path, action.label());
         match action {
             ButtonAction::Note {
                 channel,
@@ -849,7 +964,7 @@ impl Validator {
             }
             ButtonAction::Osc { address, .. } => self.osc_address(path, address),
             ButtonAction::Key { keys, .. } => self.keys(&format!("{path}.keys"), keys),
-            ButtonAction::SwitchProfile { profile } => {
+            ButtonAction::SwitchProfile { profile, .. } => {
                 // A file name from the profiles folder.
                 if !profile.ends_with(".json") || profile.contains(['/', '\\']) || profile == SCHEMA_FILE {
                     self.error(
@@ -858,7 +973,7 @@ impl Validator {
                     );
                 }
             }
-            ButtonAction::Roll {} | ButtonAction::Flam {} => {}
+            ButtonAction::Roll { .. } | ButtonAction::Flam { .. } => {}
         }
     }
 
@@ -1281,13 +1396,41 @@ mod tests {
         );
         assert_eq!(
             profile.banks[0].buttons.get(&ButtonId::Roll),
-            Some(&ButtonAction::Roll {})
+            Some(&ButtonAction::Roll { label: None })
         );
         let saved = serde_json::to_string(&profile).unwrap();
         assert_eq!(parse_profile(&saved).unwrap(), profile);
         // Defaults are left out when saving.
         let plain = parse_profile(&minimal(r#"{ "name": "A" }"#)).unwrap();
         assert!(!serde_json::to_string(&plain).unwrap().contains("repeat"));
+    }
+
+    #[test]
+    fn labels_parse_and_match_schema() {
+        let json = minimal(
+            r#"{ "name": "A", "pads": { "1": { "type": "note", "channel": 1, "note": 36, "label": "Kick" },
+                                       "2": { "type": "roll", "label": "Roll" } },
+                             "knobs": { "1": { "type": "cc", "channel": 1, "cc": 7, "label": "Volume" } },
+                             "xy": { "type": "xy", "channel": 1, "ccX": 1, "ccY": 2, "label": "Filter" },
+                             "encoder": { "type": "key", "left": "left", "right": "right", "label": "Scroll" } }"#,
+        );
+        assert_eq!(schema_errors(&json), Vec::<String>::new());
+        let profile = parse_profile(&json).unwrap();
+        let bank = &profile.banks[0];
+        assert_eq!(bank.pads[&1].label(), Some("Kick"));
+        assert_eq!(bank.pads[&2].label(), Some("Roll"));
+        assert_eq!(bank.knobs[&1].label(), Some("Volume"));
+        assert_eq!(bank.xy.as_ref().unwrap().label(), Some("Filter"));
+        assert_eq!(bank.encoder.as_ref().unwrap().label(), Some("Scroll"));
+        let saved = serde_json::to_string(&profile).unwrap();
+        assert_eq!(parse_profile(&saved).unwrap(), profile);
+
+        let long = minimal(&format!(
+            r#"{{ "name": "A", "pads": {{ "1": {{ "type": "roll", "label": "{}" }} }} }}"#,
+            "x".repeat(61)
+        ));
+        assert!(!schema_errors(&long).is_empty());
+        assert!(parse_profile(&long).unwrap_err()[0].starts_with("banks[0].pads.1.label"));
     }
 
     #[test]
@@ -1364,7 +1507,8 @@ mod tests {
                 note: 36,
                 velocity: None,
                 mode: Mode::Momentary,
-                led: None
+                led: None,
+                label: None,
             }
         );
         assert_eq!(
@@ -1375,7 +1519,8 @@ mod tests {
                 on_value: 127,
                 off_value: 0,
                 mode: Mode::Momentary,
-                led: None
+                led: None,
+                label: None,
             }
         );
     }
@@ -1512,6 +1657,7 @@ mod tests {
                 velocity: None,
                 mode: Mode::Momentary,
                 led: None,
+                label: None,
             },
         );
         store.save(&file, profile.clone()).unwrap();
@@ -1594,7 +1740,7 @@ mod tests {
         let root = std::env::temp_dir().join(format!("totalkontrol-import-{}", std::process::id()));
         let store = ProfileStore::open(root.join("profiles")).unwrap();
         let outside = root.join("mine.json");
-        fs::write(&outside, PRESETS[5].1).unwrap();
+        fs::write(&outside, PRESETS[11].1).unwrap();
         let file = store.import(&outside).unwrap();
         assert_eq!(store.load(&file).unwrap().name, "General MIDI drums");
         fs::write(&outside, "{ \"version\": 1 }").unwrap();
