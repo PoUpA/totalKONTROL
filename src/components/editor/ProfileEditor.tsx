@@ -364,6 +364,27 @@ function ProfileEditorView({
 
             {message && <p className={message.error ? "error" : "ok"}>{message.text}</p>}
 
+            {/* Editing a profile does not make it the one the padKONTROL plays. */}
+            {canLearn && file && engine?.file !== file && (
+              <div className="banner" role="status">
+                {engine ? t("editor.notActive", { active: engine.profile }) : t("editor.noActiveProfile")}
+                <div className="actions">
+                  <button
+                    className="primary"
+                    disabled={busy || dirty}
+                    title={dirty ? t("scenes.saveFirst") : undefined}
+                    onClick={() =>
+                      run(async () => {
+                        onEngineState(await invoke<EngineState>("set_profile", { file }));
+                      })
+                    }
+                  >
+                    {t("editor.makeActive")}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="banks">
               {draft.banks.map((b, i) => (
                 <button

@@ -318,5 +318,8 @@
   "update.available": "totalKONTROL {version} est disponible.",
   "update.download": "Télécharger",
   "update.later": "Ignorer cette version",
-  "update.never": "Ne jamais vérifier"
+  "update.never": "Ne jamais vérifier",
+  "editor.notActive": "Ce profil n'est pas celui que joue le padKONTROL : c'est « {active} ».",
+  "editor.noActiveProfile": "Le padKONTROL ne joue aucun profil.",
+  "editor.makeActive": "Jouer ce profil"
 }
