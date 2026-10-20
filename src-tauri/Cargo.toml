@@ -30,7 +30,7 @@ windows-midi-services = [
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
-windows-bindgen = { version = "0.66", optional = true }
+windows-bindgen = { version = "0.100", optional = true }
 
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
@@ -44,9 +44,9 @@ tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 
 [target.'cfg(windows)'.dependencies]
-windows-core = { version = "0.62", optional = true }
-windows-collections = { version = "0.3", optional = true }
-windows-future = { version = "0.3", optional = true }
+windows-core = { version = "0.100", optional = true }
+windows-collections = { version = "0.100", optional = true }
+windows-future = { version = "0.100", optional = true }
 windows = { version = "0.62", optional = true, features = [
     "Foundation",
     "Foundation_Collections",
