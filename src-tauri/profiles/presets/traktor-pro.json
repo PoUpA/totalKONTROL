@@ -1,0 +1,39 @@
+{
+  "$schema": "../profile.schema.json",
+  "version": 1,
+  "name": "Traktor Pro",
+  "banks": [
+    {
+      "name": "Decks",
+      "display": "TRK",
+      "pads": {
+        "1": { "type": "note", "channel": 1, "note": 36, "velocity": 127, "led": "follow" },
+        "2": { "type": "note", "channel": 1, "note": 37, "velocity": 127, "led": "follow" },
+        "3": { "type": "note", "channel": 1, "note": 38, "velocity": 127, "led": "follow" },
+        "4": { "type": "note", "channel": 1, "note": 39, "velocity": 127, "led": "follow" },
+        "5": { "type": "note", "channel": 1, "note": 40, "velocity": 127, "led": "follow" },
+        "6": { "type": "note", "channel": 1, "note": 41, "velocity": 127, "led": "follow" },
+        "7": { "type": "note", "channel": 1, "note": 42, "velocity": 127, "led": "follow" },
+        "8": { "type": "note", "channel": 1, "note": 43, "velocity": 127, "led": "follow" },
+        "9": { "type": "note", "channel": 1, "note": 44, "velocity": 127, "led": "follow" },
+        "10": { "type": "note", "channel": 1, "note": 45, "velocity": 127, "led": "follow" },
+        "11": { "type": "note", "channel": 1, "note": 46, "velocity": 127, "led": "follow" },
+        "12": { "type": "note", "channel": 1, "note": 47, "velocity": 127, "led": "follow" },
+        "13": { "type": "note", "channel": 1, "note": 48, "velocity": 127, "led": "follow" },
+        "14": { "type": "note", "channel": 1, "note": 49, "velocity": 127, "led": "follow" },
+        "15": { "type": "note", "channel": 1, "note": 50, "velocity": 127, "led": "follow" },
+        "16": { "type": "note", "channel": 1, "note": 51, "velocity": 127, "led": "follow" }
+      },
+      "buttons": {
+        "x": { "type": "note", "channel": 1, "note": 52, "velocity": 127, "led": "press" },
+        "y": { "type": "note", "channel": 1, "note": 53, "velocity": 127, "led": "press" }
+      },
+      "knobs": {
+        "1": { "type": "cc", "channel": 1, "cc": 20, "pickup": true },
+        "2": { "type": "cc", "channel": 1, "cc": 21, "pickup": true }
+      },
+      "xy": { "type": "xy", "channel": 1, "ccX": 22, "ccY": 23 },
+      "encoder": { "type": "cc", "channel": 1, "cc": 24 }
+    }
+  ]
+}

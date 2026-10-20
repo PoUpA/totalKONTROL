@@ -577,6 +577,10 @@ impl Engine {
             return;
         };
         self.held.insert(control, bank);
+        // A "toggle" LED on an action that does not toggle by itself (a
+        // momentary note playing a target that toggles in the DAW, say)
+        // flips on each press.
+        let flip_led = led_mode(&action) == Led::Toggle && !toggles_itself(&action);
 
         match action {
             ButtonAction::Note {
@@ -661,6 +665,9 @@ impl Engine {
                 }
             }
             ButtonAction::Flam {} => self.flam_on = !self.flam_on,
+        }
+        if flip_led {
+            self.flip(bank, control);
         }
         self.update_led(control, out);
     }
@@ -913,6 +920,18 @@ fn led_mode(action: &ButtonAction) -> Led {
         ButtonAction::SwitchBank { .. } | ButtonAction::SwitchProfile { .. } => Led::Press,
         // Lit while the mode is on (see `led_state`).
         ButtonAction::Roll {} | ButtonAction::Flam {} => Led::Toggle,
+    }
+}
+
+/// Whether an action keeps an on/off state of its own, which a "toggle"
+/// LED shows.
+fn toggles_itself(action: &ButtonAction) -> bool {
+    match action {
+        ButtonAction::Note { mode, .. } | ButtonAction::Cc { mode, .. } | ButtonAction::Osc { mode, .. } => {
+            *mode == Mode::Toggle
+        }
+        ButtonAction::Roll {} | ButtonAction::Flam {} => true,
+        _ => false,
     }
 }
 
@@ -1684,6 +1703,31 @@ mod tests {
         assert!((e.roll_interval(now).as_secs_f32() - 0.25).abs() < 0.01);
         // The clock stopped: back to the profile's tempo.
         assert_eq!(e.bpm(now + Duration::from_secs(1)), 120.0);
+    }
+
+    #[test]
+    fn toggle_leds_flip_on_momentary_actions() {
+        let mut e = engine(
+            r#"{ "name": "A", "pads": { "1": { "type": "note", "channel": 1, "note": 45, "led": "toggle" },
+                                       "2": { "type": "key", "keys": "space", "led": "toggle" } } }"#,
+        );
+        let first = e.handle(&pad(1, true, 100));
+        assert_eq!(first.daw, vec![vec![0x90, 45, 100]], "still a momentary note");
+        assert_eq!(led_on(&first, Control::Pad(1)), Some(true));
+        assert_eq!(
+            led_on(&e.handle(&pad(1, false, 0)), Control::Pad(1)),
+            Some(true),
+            "stays lit"
+        );
+        let second = e.handle(&pad(1, true, 100));
+        assert_eq!(second.daw, vec![vec![0x90, 45, 100]]);
+        assert_eq!(led_on(&second, Control::Pad(1)), Some(false), "off on the next press");
+        assert_eq!(led_on(&e.handle(&pad(2, true, 100)), Control::Pad(2)), Some(true));
+        // Nothing to end for these: release_all sends no note off for the LED.
+        e.handle(&pad(1, false, 0));
+        e.handle(&pad(1, true, 100));
+        e.handle(&pad(1, false, 0));
+        assert!(e.release_all().daw.is_empty());
     }
 
     #[test]

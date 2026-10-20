@@ -16,7 +16,12 @@ pub const DEFAULT_PROFILE_FILE: &str = "default.json";
 pub const DEFAULT_PROFILE_JSON: &str = include_str!("../profiles/default.json");
 
 /// Profiles to start from, bundled with the app: id and JSON.
-pub const PRESETS: [(&str, &str); 3] = [
+pub const PRESETS: [(&str, &str); 8] = [
+    ("ableton-live", include_str!("../profiles/presets/ableton-live.json")),
+    ("bitwig-studio", include_str!("../profiles/presets/bitwig-studio.json")),
+    ("cubase", include_str!("../profiles/presets/cubase.json")),
+    ("traktor-pro", include_str!("../profiles/presets/traktor-pro.json")),
+    ("mixxx", include_str!("../profiles/presets/mixxx.json")),
     ("drums-gm", include_str!("../profiles/presets/drums-gm.json")),
     ("mixer-cc", include_str!("../profiles/presets/mixer-cc.json")),
     ("shortcuts", include_str!("../profiles/presets/shortcuts.json")),
@@ -1589,7 +1594,7 @@ mod tests {
         let root = std::env::temp_dir().join(format!("totalkontrol-import-{}", std::process::id()));
         let store = ProfileStore::open(root.join("profiles")).unwrap();
         let outside = root.join("mine.json");
-        fs::write(&outside, PRESETS[0].1).unwrap();
+        fs::write(&outside, PRESETS[5].1).unwrap();
         let file = store.import(&outside).unwrap();
         assert_eq!(store.load(&file).unwrap().name, "General MIDI drums");
         fs::write(&outside, "{ \"version\": 1 }").unwrap();

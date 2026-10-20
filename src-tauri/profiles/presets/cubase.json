@@ -1,0 +1,87 @@
+{
+  "$schema": "../profile.schema.json",
+  "version": 1,
+  "name": "Cubase",
+  "banks": [
+    {
+      "name": "Groove Agent",
+      "display": "DRM",
+      "pads": {
+        "13": { "type": "note", "channel": 10, "note": 36 },
+        "14": { "type": "note", "channel": 10, "note": 37 },
+        "15": { "type": "note", "channel": 10, "note": 38 },
+        "16": { "type": "note", "channel": 10, "note": 39 },
+        "9": { "type": "note", "channel": 10, "note": 40 },
+        "10": { "type": "note", "channel": 10, "note": 41 },
+        "11": { "type": "note", "channel": 10, "note": 42 },
+        "12": { "type": "note", "channel": 10, "note": 43 },
+        "5": { "type": "note", "channel": 10, "note": 44 },
+        "6": { "type": "note", "channel": 10, "note": 45 },
+        "7": { "type": "note", "channel": 10, "note": 46 },
+        "8": { "type": "note", "channel": 10, "note": 47 },
+        "1": { "type": "note", "channel": 10, "note": 48 },
+        "2": { "type": "note", "channel": 10, "note": 49 },
+        "3": { "type": "note", "channel": 10, "note": 50 },
+        "4": { "type": "note", "channel": 10, "note": 51 }
+      },
+      "buttons": {
+        "x": { "type": "key", "keys": "space" },
+        "y": { "type": "key", "keys": "num*" },
+        "scene": { "type": "key", "keys": "num/" },
+        "message": { "type": "key", "keys": "num1" },
+        "fixedVelocity": { "type": "key", "keys": "num." },
+        "knob1Assign": { "type": "key", "keys": "cmdorctrl+z" },
+        "progChange": { "type": "key", "keys": "cmdorctrl+s" },
+        "roll": { "type": "roll" },
+        "flam": { "type": "flam" },
+        "setting": { "type": "switchBank", "bank": 1 }
+      },
+      "knobs": {
+        "1": { "type": "cc", "channel": 1, "cc": 21, "pickup": true },
+        "2": { "type": "cc", "channel": 1, "cc": 22, "pickup": true }
+      },
+      "xy": { "type": "xy", "channel": 1, "ccX": 23, "ccY": 24 },
+      "encoder": { "type": "cc", "channel": 1, "cc": 25, "acceleration": true }
+    },
+    {
+      "name": "Mixer",
+      "display": "MIX",
+      "pads": {
+        "1": { "type": "cc", "channel": 1, "cc": 102, "mode": "toggle", "led": "toggle" },
+        "2": { "type": "cc", "channel": 1, "cc": 103, "mode": "toggle", "led": "toggle" },
+        "3": { "type": "cc", "channel": 1, "cc": 104, "mode": "toggle", "led": "toggle" },
+        "4": { "type": "cc", "channel": 1, "cc": 105, "mode": "toggle", "led": "toggle" },
+        "5": { "type": "cc", "channel": 1, "cc": 106, "mode": "toggle", "led": "toggle" },
+        "6": { "type": "cc", "channel": 1, "cc": 107, "mode": "toggle", "led": "toggle" },
+        "7": { "type": "cc", "channel": 1, "cc": 108, "mode": "toggle", "led": "toggle" },
+        "8": { "type": "cc", "channel": 1, "cc": 109, "mode": "toggle", "led": "toggle" },
+        "9": { "type": "note", "channel": 2, "note": 36, "velocity": 127 },
+        "10": { "type": "note", "channel": 2, "note": 37, "velocity": 127 },
+        "11": { "type": "note", "channel": 2, "note": 38, "velocity": 127 },
+        "12": { "type": "note", "channel": 2, "note": 39, "velocity": 127 },
+        "13": { "type": "note", "channel": 2, "note": 40, "velocity": 127 },
+        "14": { "type": "note", "channel": 2, "note": 41, "velocity": 127 },
+        "15": { "type": "note", "channel": 2, "note": 42, "velocity": 127 },
+        "16": { "type": "note", "channel": 2, "note": 43, "velocity": 127 }
+      },
+      "buttons": {
+        "x": { "type": "key", "keys": "space" },
+        "y": { "type": "key", "keys": "num*" },
+        "scene": { "type": "key", "keys": "num/" },
+        "message": { "type": "key", "keys": "num1" },
+        "fixedVelocity": { "type": "key", "keys": "num." },
+        "knob1Assign": { "type": "key", "keys": "cmdorctrl+z" },
+        "progChange": { "type": "key", "keys": "cmdorctrl+s" },
+        "roll": { "type": "roll" },
+        "flam": { "type": "flam" },
+        "setting": { "type": "switchBank", "bank": 0 }
+      },
+      "knobs": {
+        "1": { "type": "cc", "channel": 1, "cc": 26, "pickup": true },
+        "2": { "type": "cc", "channel": 1, "cc": 27, "pickup": true }
+      },
+      "xy": { "type": "xy", "channel": 1, "ccX": 28, "ccY": 29 },
+      "encoder": { "type": "cc", "channel": 1, "cc": 30, "acceleration": true }
+    }
+  ]
+}

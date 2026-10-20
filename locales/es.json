@@ -115,7 +115,7 @@
   "action.keysStop": "Cancelar",
   "action.keysRecording": "Pulsa el atajo…",
   "action.keysHold": "Mantener las teclas pulsadas mientras se mantiene el control",
-  "action.keysHint": "Se escribe en la aplicación en primer plano. Nombres separados por +: ctrl, shift, alt, meta, un carácter, plus, space, enter, f1…f20, up, volumeup, playpause…",
+  "action.keysHint": "Se escribe en la aplicación en primer plano. Nombres separados por +: ctrl, shift, alt, meta, cmdorctrl (Cmd en macOS, Ctrl en otros), un carácter, plus, space, enter, f1…f20, up, volumeup, playpause…",
   "action.oscXy": "Mensaje OSC (x y)",
   "action.oscAddress": "Dirección OSC",
   "action.oscArgs": "Argumentos al pulsar",

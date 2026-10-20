@@ -115,7 +115,7 @@
   "action.keysStop": "Annuler",
   "action.keysRecording": "Appuie sur le raccourci…",
   "action.keysHold": "Garder les touches enfoncées tant que le contrôle est tenu",
-  "action.keysHint": "Tapé dans l'application au premier plan. Noms séparés par + : ctrl, shift, alt, meta, un caractère, plus, space, enter, f1…f20, up, volumeup, playpause…",
+  "action.keysHint": "Tapé dans l'application au premier plan. Noms séparés par + : ctrl, shift, alt, meta, cmdorctrl (Cmd sur macOS, Ctrl ailleurs), un caractère, plus, space, enter, f1…f20, up, volumeup, playpause…",
   "action.oscXy": "Message OSC (x y)",
   "action.oscAddress": "Adresse OSC",
   "action.oscArgs": "Arguments à l'appui",

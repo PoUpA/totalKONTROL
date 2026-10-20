@@ -115,7 +115,7 @@
   "action.keysStop": "Cancel",
   "action.keysRecording": "Press the shortcut…",
   "action.keysHold": "Hold the keys while the control is held",
-  "action.keysHint": "Typed into the app in front. Names separated by +: ctrl, shift, alt, meta, a character, plus, space, enter, f1…f20, up, volumeup, playpause…",
+  "action.keysHint": "Typed into the app in front. Names separated by +: ctrl, shift, alt, meta, cmdorctrl (Cmd on macOS, Ctrl elsewhere), a character, plus, space, enter, f1…f20, up, volumeup, playpause…",
   "action.oscXy": "OSC message (x y)",
   "action.oscAddress": "OSC address",
   "action.oscArgs": "Arguments on press",

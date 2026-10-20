@@ -266,7 +266,7 @@
       }
     },
     "keys": {
-      "description": "Keyboard shortcut: names separated by +, for example ctrl+shift+s. Modifiers: ctrl, shift, alt (option), meta (win, cmd). Keys: a character, plus, minus, space, enter, tab, esc, backspace, delete, insert, home, end, pageup, pagedown, up, down, left, right, f1 to f20, num0 to num9, capslock, printscreen, pause, volumeup, volumedown, mute, playpause, next, previous.",
+      "description": "Keyboard shortcut: names separated by +, for example ctrl+shift+s. Modifiers: ctrl, shift, alt (option), meta (win, cmd), cmdorctrl (Cmd on macOS, Ctrl elsewhere). Keys: a character, plus, minus, space, enter, tab, esc, backspace, delete, insert, home, end, pageup, pagedown, up, down, left, right, f1 to f20, num0 to num9, num*, num/, num+, num-, num., capslock, printscreen, pause, volumeup, volumedown, mute, playpause, next, previous.",
       "type": "string",
       "minLength": 1
     },

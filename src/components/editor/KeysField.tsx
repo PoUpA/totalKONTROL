@@ -30,6 +30,14 @@ const NAMED: Record<string, string> = {
   MediaTrackPrevious: "previous",
 };
 
+const NUMPAD_OPERATORS: Record<string, string> = {
+  NumpadMultiply: "num*",
+  NumpadDivide: "num/",
+  NumpadAdd: "num+",
+  NumpadSubtract: "num-",
+  NumpadDecimal: "num.",
+};
+
 const MODIFIER_KEYS = new Set(["Control", "Shift", "Alt", "Meta", "OS", "AltGraph"]);
 
 function modifiers(e: KeyboardEvent): string[] {
@@ -46,6 +54,8 @@ function keyName(e: KeyboardEvent): string | null {
   if (MODIFIER_KEYS.has(e.key)) return null;
   const numpad = /^Numpad(\d)$/.exec(e.code);
   if (numpad) return `num${numpad[1]}`;
+  const operator = NUMPAD_OPERATORS[e.code];
+  if (operator) return operator;
   if (/^F([1-9]|1\d|20)$/.test(e.key)) return e.key.toLowerCase();
   if (NAMED[e.key]) return NAMED[e.key];
   return e.key.length === 1 ? e.key.toLowerCase() : null;

@@ -12,6 +12,9 @@ pub enum Modifier {
     Alt,
     /// Windows key, Command on macOS, Super on Linux.
     Meta,
+    /// Command on macOS, Ctrl elsewhere: the key of most shortcuts, so a
+    /// profile works on both.
+    Primary,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,6 +40,12 @@ pub enum Key {
     F(u8),
     /// Numeric keypad digit.
     Numpad(u8),
+    /// Numeric keypad *, /, +, - and the decimal point.
+    NumpadMultiply,
+    NumpadDivide,
+    NumpadAdd,
+    NumpadSubtract,
+    NumpadDecimal,
     CapsLock,
     PrintScreen,
     Pause,
@@ -68,6 +77,7 @@ fn modifier(name: &str) -> Option<Modifier> {
         "shift" => Modifier::Shift,
         "alt" | "option" => Modifier::Alt,
         "meta" | "win" | "cmd" | "command" | "super" => Modifier::Meta,
+        "cmdorctrl" | "primary" => Modifier::Primary,
         _ => return None,
     })
 }
@@ -87,6 +97,16 @@ fn key(name: &str) -> Option<Key> {
     }
     if let Some(n) = numbered("num", 0..=9) {
         return Some(Key::Numpad(n));
+    }
+    if let Some(op) = name.strip_prefix("num") {
+        return match op {
+            "*" => Some(Key::NumpadMultiply),
+            "/" => Some(Key::NumpadDivide),
+            "+" => Some(Key::NumpadAdd),
+            "-" => Some(Key::NumpadSubtract),
+            "." => Some(Key::NumpadDecimal),
+            _ => None,
+        };
     }
     Some(match name {
         "plus" => Key::Char('+'),
@@ -317,6 +337,10 @@ fn system_keys(combo: &Combo) -> Vec<enigo::Key> {
         Modifier::Shift => K::Shift,
         Modifier::Alt => K::Alt,
         Modifier::Meta => K::Meta,
+        #[cfg(target_os = "macos")]
+        Modifier::Primary => K::Meta,
+        #[cfg(not(target_os = "macos"))]
+        Modifier::Primary => K::Control,
     });
     modifiers.chain(combo.key.and_then(system_key)).collect()
 }
@@ -387,6 +411,11 @@ fn system_key(key: Key) -> Option<enigo::Key> {
             K::Numpad8,
             K::Numpad9,
         ][usize::from(n)],
+        Key::NumpadMultiply => K::Multiply,
+        Key::NumpadDivide => K::Divide,
+        Key::NumpadAdd => K::Add,
+        Key::NumpadSubtract => K::Subtract,
+        Key::NumpadDecimal => K::Decimal,
         Key::CapsLock => K::CapsLock,
         Key::VolumeUp => K::VolumeUp,
         Key::VolumeDown => K::VolumeDown,
@@ -427,6 +456,10 @@ mod tests {
         );
         assert_eq!(parse("f12").unwrap().key, Some(Key::F(12)));
         assert_eq!(parse("num7").unwrap().key, Some(Key::Numpad(7)));
+        assert_eq!(parse("num*").unwrap().key, Some(Key::NumpadMultiply));
+        assert_eq!(parse("num.").unwrap().key, Some(Key::NumpadDecimal));
+        assert_eq!(parse("CmdOrCtrl+s").unwrap().modifiers, vec![Modifier::Primary]);
+        assert_eq!(parse("numx"), Err(KeysError::Unknown("numx".into())));
         assert_eq!(parse("space").unwrap().key, Some(Key::Space));
         assert_eq!(parse("é").unwrap().key, Some(Key::Char('é')));
         assert_eq!(
@@ -452,6 +485,15 @@ mod tests {
         let combo = parse("ctrl+alt+f20").unwrap();
         assert_eq!(system_keys(&combo).len(), 3);
         assert_eq!(system_keys(&parse("num0").unwrap()), vec![enigo::Key::Numpad0]);
+        let primary = if cfg!(target_os = "macos") {
+            enigo::Key::Meta
+        } else {
+            enigo::Key::Control
+        };
+        assert_eq!(
+            system_keys(&parse("cmdorctrl+num*").unwrap()),
+            vec![primary, enigo::Key::Multiply]
+        );
         #[cfg(windows)]
         assert_eq!(
             system_keys(&parse("ctrl+plus").unwrap()),
