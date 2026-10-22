@@ -347,7 +347,7 @@ impl DawOutput {
 }
 
 /// How long the padKONTROL has to answer a data dump or a request.
-const EXCHANGE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
+pub const EXCHANGE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
 /// How long connecting and disconnecting wait for an operation under way.
 const OPERATION_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
 /// How long the padKONTROL has to answer native mode on, telling its global
@@ -1269,16 +1269,26 @@ impl PadConnection {
         self.with_scenes(|this| (0..scenes::SCENE_COUNT).map(|scene| this.read_scene(scene)).collect())
     }
 
-    /// Stores 16 scenes, from a backup, into the padKONTROL's memory.
-    pub fn restore_scenes(&self, backup: &scenes::Backup) -> Result<(), String> {
+    /// Stores 16 scenes, from a backup, into the padKONTROL's memory. First
+    /// reads the scenes there and hands them to `save`: nothing is written
+    /// unless it succeeds.
+    pub fn restore_scenes<T>(
+        &self,
+        backup: &scenes::Backup,
+        save: impl FnOnce(&[scenes::Scene]) -> Result<T, String>,
+    ) -> Result<T, String> {
         if backup.scenes.len() != usize::from(scenes::SCENE_COUNT) {
             return Err(t!("core.scenes.badBackup"));
         }
         self.with_scenes(|this| {
+            let replaced: Vec<scenes::Scene> = (0..scenes::SCENE_COUNT)
+                .map(|scene| this.read_scene(scene))
+                .collect::<Result<_, _>>()?;
+            let saved = save(&replaced)?;
             for (index, scene) in (0..).zip(&backup.scenes) {
                 this.store_scene(index, scene)?;
             }
-            Ok(())
+            Ok(saved)
         })
     }
 

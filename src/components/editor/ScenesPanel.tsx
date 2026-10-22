@@ -30,6 +30,8 @@ export function ScenesPanel({ available, file, bank, bankName, dirty, onProfileC
   const [confirm, setConfirm] = useState<"restore" | "write" | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
+  // A confirmation is for what was on screen when asked.
+  useEffect(() => setConfirm(null), [available, file, bank, dirty, scene, backup]);
 
   const refreshBackups = async () => {
     const list = await invoke<string[]>("list_scene_backups");
@@ -70,7 +72,8 @@ export function ScenesPanel({ available, file, bank, bankName, dirty, onProfileC
   const summary = (b: Bank) => {
     const pads = Object.values(b.pads ?? {});
     const notes = pads.filter((p) => p.type === "note").length;
-    return t("scenes.summary", { notes, ccs: pads.length - notes });
+    const ccs = pads.filter((p) => p.type === "cc").length;
+    return t("scenes.summary", { notes, ccs });
   };
 
   return (
@@ -146,7 +149,7 @@ export function ScenesPanel({ available, file, bank, bankName, dirty, onProfileC
           <>
             <button
               className="danger"
-              disabled={busy}
+              disabled={!available || busy}
               onClick={() =>
                 run(async () => {
                   const left = await invoke<Left[]>("write_bank_to_scene", { file, bank, scene });
@@ -183,11 +186,12 @@ export function ScenesPanel({ available, file, bank, bankName, dirty, onProfileC
           <>
             <button
               className="danger"
-              disabled={busy}
+              disabled={!available || busy}
               onClick={() =>
                 run(async () => {
-                  await invoke("restore_scenes", { file: backup });
-                  return t("scenes.restored");
+                  const previous = await invoke<string>("restore_scenes", { file: backup });
+                  await refreshBackups();
+                  return t("scenes.restored", { file: previous });
                 })
               }
             >

@@ -203,7 +203,8 @@ impl KeyEvent {
 
 enum Command {
     Type(KeyEvent),
-    ReleaseAll,
+    /// Answered by dropping the sender, once the keys are up.
+    ReleaseAll(Sender<()>),
 }
 
 /// Started with the first shortcut, so that releasing alone starts nothing.
@@ -225,11 +226,18 @@ pub fn send(events: &[KeyEvent]) {
 }
 
 /// Releases the keys still held, when the connection or the profile goes.
+/// Waits for them to be up, so that quitting right after leaves none down.
 pub fn release_all() {
     if let Some(sender) = SENDER.get() {
-        let _ = sender.send(Command::ReleaseAll);
+        let (done, released) = channel();
+        if sender.send(Command::ReleaseAll(done)).is_ok() {
+            let _ = released.recv_timeout(RELEASE_WAIT);
+        }
     }
 }
+
+/// How long `release_all` waits for the keys to be up.
+const RELEASE_WAIT: Duration = Duration::from_millis(500);
 
 /// Wait before trying again to reach the system keyboard, for instance
 /// after the user grants the permission on macOS.
@@ -254,7 +262,7 @@ impl Typist {
                     let keys = system_keys(&combo);
                     type_keys(enigo, &keys, event.direction, &mut self.held);
                 }
-                Command::ReleaseAll => {
+                Command::ReleaseAll(_done) => {
                     for key in self.held.drain(..).rev() {
                         let _ = enigo::Keyboard::key(enigo, key, enigo::Direction::Release);
                     }
@@ -342,7 +350,10 @@ fn system_keys(combo: &Combo) -> Vec<enigo::Key> {
         #[cfg(not(target_os = "macos"))]
         Modifier::Primary => K::Control,
     });
-    modifiers.chain(combo.key.and_then(system_key)).collect()
+    let shortcut = !combo.modifiers.is_empty();
+    modifiers
+        .chain(combo.key.and_then(|key| system_key(key, shortcut)))
+        .collect()
 }
 
 /// Windows virtual keys of the "=+" and "-_" keys.
@@ -351,17 +362,20 @@ const VK_OEM_PLUS: u32 = 0xBB;
 #[cfg(windows)]
 const VK_OEM_MINUS: u32 = 0xBD;
 
-/// The system's name of a key, if it has one.
-fn system_key(key: Key) -> Option<enigo::Key> {
+/// The system's name of a key, if it has one. `shortcut`: modifiers come
+/// with it.
+#[cfg_attr(not(windows), allow(unused_variables))]
+fn system_key(key: Key, shortcut: bool) -> Option<enigo::Key> {
     use enigo::Key as K;
     Some(match key {
         // On Windows, enigo maps '+' and '-' with the Shift state of the
-        // layout's key, so ctrl+plus would arrive as ctrl+shift+=: the keys
-        // themselves go instead, which is what shortcuts mean.
+        // layout's key, so ctrl+plus would arrive as ctrl+shift+=: in a
+        // shortcut the keys themselves go instead, which is what shortcuts
+        // mean. Alone, the characters are typed.
         #[cfg(windows)]
-        Key::Char('+') => K::Other(VK_OEM_PLUS),
+        Key::Char('+') if shortcut => K::Other(VK_OEM_PLUS),
         #[cfg(windows)]
-        Key::Char('-') => K::Other(VK_OEM_MINUS),
+        Key::Char('-') if shortcut => K::Other(VK_OEM_MINUS),
         Key::Char(c) => K::Unicode(c),
         Key::Space => K::Space,
         Key::Enter => K::Return,
@@ -499,5 +513,8 @@ mod tests {
             system_keys(&parse("ctrl+plus").unwrap()),
             vec![enigo::Key::Control, enigo::Key::Other(VK_OEM_PLUS)]
         );
+        // Alone, the character itself: VK_OEM_PLUS would type "=".
+        assert_eq!(system_keys(&parse("plus").unwrap()), vec![enigo::Key::Unicode('+')]);
+        assert_eq!(system_keys(&parse("minus").unwrap()), vec![enigo::Key::Unicode('-')]);
     }
 }

@@ -74,7 +74,7 @@ The Profiles tab also starts a profile from a preset, and imports or exports pro
 
 Outside native mode, the padKONTROL plays one of the 16 scenes stored in it. Under **padKONTROL scenes**, in the Profiles tab, with the padKONTROL connected:
 
-- **Read the 16 scenes**, then **Back up to a file** (under `scene-backups/` in the app's config folder) or make a **New profile from these scenes**, one bank per scene. **Restore** writes a backup's 16 scenes back.
+- **Read the 16 scenes**, then **Back up to a file** (under `scene-backups/` in the app's config folder) or make a **New profile from these scenes**, one bank per scene. **Restore** writes a backup's 16 scenes back, after backing up the scenes it replaces.
 - **Write** the bank on screen into a scene, so the padKONTROL plays it on its own. A scene holds the pads (note or CC, channel, momentary or toggle, fixed velocity, CC values), the knobs and the XY pad (CC numbers); what it cannot hold is listed after writing, and the rest of the scene (pedal, roll and flam settings, ports) is kept.
 
 Writing replaces the scene in the padKONTROL's memory: back the scenes up first. The data format follows Korg's _padKONTROL MIDI Implementation_; the app refuses a scene it cannot decode rather than guess.

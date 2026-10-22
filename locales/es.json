@@ -297,7 +297,7 @@
   "scenes.noBackup": "Ninguna copia",
   "scenes.restore": "Restaurar…",
   "scenes.confirmRestore": "Reemplazar las 16 escenas",
-  "scenes.restored": "Las 16 escenas están restauradas.",
+  "scenes.restored": "Las 16 escenas están restauradas. Las que reemplazaron están guardadas en {file}.",
   "scenes.working": "Comunicando con el padKONTROL…",
   "scenes.leftPad": "Pad {pad}: su acción no tiene equivalente en una escena, se desactiva o mantiene una velocidad fija.",
   "scenes.leftKnob": "Perilla {knob}: se deja como en la escena.",

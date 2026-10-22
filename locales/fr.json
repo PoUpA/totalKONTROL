@@ -297,7 +297,7 @@
   "scenes.noBackup": "Aucune sauvegarde",
   "scenes.restore": "Restaurer…",
   "scenes.confirmRestore": "Remplacer les 16 scènes",
-  "scenes.restored": "Les 16 scènes sont restaurées.",
+  "scenes.restored": "Les 16 scènes sont restaurées. Celles qu'elles remplacent sont sauvegardées dans {file}.",
   "scenes.working": "Échange avec le padKONTROL…",
   "scenes.leftPad": "Pad {pad} : son action n'a pas d'équivalent dans une scène, il est désactivé ou garde une vélocité fixe.",
   "scenes.leftKnob": "Potard {knob} : laissé comme dans la scène.",

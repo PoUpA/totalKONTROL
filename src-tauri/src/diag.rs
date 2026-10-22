@@ -51,7 +51,10 @@ pub fn tail(max: usize) -> String {
         return String::new();
     };
     let text = std::fs::read_to_string(path).unwrap_or_default();
-    let start = text.len().saturating_sub(max);
+    let mut start = text.len().saturating_sub(max);
+    while !text.is_char_boundary(start) {
+        start += 1;
+    }
     // Starts on a whole line.
     let start = text[start..].find('\n').map_or(start, |i| start + i + 1);
     text[start.min(text.len())..].to_string()
@@ -85,10 +88,10 @@ pub fn now() -> String {
     format!("{y:04}-{mo:02}-{d:02} {h:02}:{mi:02}:{s:02}Z")
 }
 
-/// `2026-10-19-1830`, for file names.
+/// `2026-10-19-183005`, for file names.
 pub fn file_stamp() -> String {
-    let (y, mo, d, h, mi, _) = civil(unix_now());
-    format!("{y:04}-{mo:02}-{d:02}-{h:02}{mi:02}")
+    let (y, mo, d, h, mi, s) = civil(unix_now());
+    format!("{y:04}-{mo:02}-{d:02}-{h:02}{mi:02}{s:02}")
 }
 
 #[cfg(test)]
@@ -102,5 +105,20 @@ mod tests {
         assert_eq!(civil(1_792_434_605), (2026, 10, 19, 18, 30, 5));
         // A leap day.
         assert_eq!(civil(1_709_164_800), (2024, 2, 29, 0, 0, 0));
+    }
+
+    #[test]
+    fn tail_cuts_between_characters() {
+        let path = std::env::temp_dir().join(format!("totalkontrol-log-{}.txt", std::process::id()));
+        std::fs::write(&path, "première ligne\nété\nfin\n").unwrap();
+        *FILE.lock().unwrap() = Some(path.clone());
+        // Every cut, in the middle of "é" too, ends on whole lines.
+        for max in 0..30 {
+            let tail = tail(max);
+            assert!("première ligne\nété\nfin\n".ends_with(&tail), "{max}: {tail:?}");
+            assert!(tail.is_empty() || tail.starts_with(['p', 'é', 'f']), "{max}: {tail:?}");
+        }
+        *FILE.lock().unwrap() = None;
+        let _ = std::fs::remove_file(path);
     }
 }

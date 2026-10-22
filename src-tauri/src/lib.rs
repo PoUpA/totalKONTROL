@@ -33,14 +33,24 @@ fn load(store: &ProfileStore, file: &str) -> Result<Profile, String> {
 /// Gives up after `MIDI_TIMEOUT` if the system MIDI service hangs, and while
 /// work is stuck there, refuses more at once (see `midi::with_timeout`).
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
+    blocking_for(MIDI_TIMEOUT, f).await
+}
+
+async fn blocking_for<T: Send + 'static>(
+    timeout: std::time::Duration,
+    f: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        midi::with_timeout(MIDI_TIMEOUT, f).unwrap_or_else(|| Err(midi::midi_service_frozen()))
+        midi::with_timeout(timeout, f).unwrap_or_else(|| Err(midi::midi_service_frozen()))
     })
     .await
     .map_err(|e| e.to_string())?
 }
 
 const MIDI_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+/// Scene work: up to 48 exchanges (a restore reads the 16 scenes for a
+/// backup, then loads and writes them) of `midi::EXCHANGE_TIMEOUT` each.
+const SCENES_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(180);
 
 /// Language of the messages produced by the Rust core, sent by the UI.
 #[tauri::command]
@@ -179,7 +189,7 @@ struct ReadScenes(std::sync::Mutex<Vec<scenes::Scene>>);
 /// Reads the padKONTROL's 16 scenes and returns them as profile banks.
 #[tauri::command]
 async fn read_scenes(app: AppHandle) -> Result<Vec<config::Bank>, String> {
-    blocking(move || {
+    blocking_for(SCENES_TIMEOUT, move || {
         let read = app.state::<PadConnection>().read_scenes()?;
         let banks = (1..)
             .zip(&read)
@@ -229,12 +239,15 @@ fn scene_backups_dir(backups: State<scenes::Backups>) -> String {
     backups.dir().display().to_string()
 }
 
-/// Stores a backup's 16 scenes into the padKONTROL, for good.
+/// Stores a backup's 16 scenes into the padKONTROL, for good, after saving
+/// the scenes it replaces to a new backup; returns that backup's name.
 #[tauri::command]
-async fn restore_scenes(app: AppHandle, file: String) -> Result<(), String> {
-    blocking(move || {
-        let backup = app.state::<scenes::Backups>().load(&file)?;
-        app.state::<PadConnection>().restore_scenes(&backup)
+async fn restore_scenes(app: AppHandle, file: String) -> Result<String, String> {
+    blocking_for(SCENES_TIMEOUT, move || {
+        let backups = app.state::<scenes::Backups>();
+        let backup = backups.load(&file)?;
+        app.state::<PadConnection>()
+            .restore_scenes(&backup, |replaced| backups.save(replaced))
     })
     .await
 }
@@ -248,7 +261,7 @@ async fn write_bank_to_scene(
     bank: usize,
     scene: u8,
 ) -> Result<Vec<scenes::Left>, String> {
-    blocking(move || {
+    blocking_for(SCENES_TIMEOUT, move || {
         let profile = load(&app.state::<ProfileStore>(), &file)?;
         let bank = profile
             .banks

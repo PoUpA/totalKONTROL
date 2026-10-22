@@ -46,6 +46,8 @@ function ProfileEditorView({
 }: Props) {
   const [file, setFile] = useState<string | null>(null);
   const [draft, setDraft] = useState<Profile | null>(null);
+  // File the draft was loaded from: `file` changes first, while it loads.
+  const [loaded, setLoaded] = useState<string | null>(null);
   const [saved, setSaved] = useState("");
   const [loadErrors, setLoadErrors] = useState<string[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
@@ -83,11 +85,13 @@ function ProfileEditorView({
       const profile = await invoke<Profile>("load_profile", { file: next });
       if (request !== openRequest.current) return;
       setDraft(profile);
+      setLoaded(next);
       setSaved(JSON.stringify(profile));
       setLoadErrors([]);
     } catch (e) {
       if (request !== openRequest.current) return;
       setDraft(null);
+      setLoaded(null);
       setSaved("");
       setLoadErrors(Array.isArray(e) ? e.map(String) : [String(e)]);
     }
@@ -168,11 +172,16 @@ function ProfileEditorView({
     if (next !== file) guarded(() => open(next));
   };
 
+  // Saving while another profile loads would write this draft over it.
+  const ready = draft !== null && loaded === file;
+
   const save = () =>
     run(async () => {
-      if (!file || !draft) return;
+      if (!ready || !file) return;
+      const request = openRequest.current;
       const state = await invoke<EngineState | null>("save_profile", { file, profile: draft });
-      setSaved(JSON.stringify(draft));
+      // Another profile opened meanwhile: its own saved state stays.
+      if (request === openRequest.current) setSaved(JSON.stringify(draft));
       if (state) onEngineState(state);
       await onProfilesChanged();
       setMessage({ error: false, text: state ? t("editor.savedApplied") : t("editor.saved") });
@@ -338,7 +347,11 @@ function ProfileEditorView({
                 aria-label={t("editor.profileName")}
               />
               <div className="actions">
-                <button className="primary" onClick={save} disabled={busy || !dirty || validating || errors.length > 0}>
+                <button
+                  className="primary"
+                  onClick={save}
+                  disabled={busy || !ready || !dirty || validating || errors.length > 0}
+                >
                   {t("editor.save")}
                 </button>
                 <button onClick={() => setDraft(JSON.parse(saved))} disabled={busy || !dirty}>
@@ -546,13 +559,13 @@ function ProfileEditorView({
 
             <ScenesPanel
               available={canUseScenes}
-              file={file}
+              file={ready ? file : null}
               bank={bank}
               bankName={currentBank.name}
               dirty={dirty}
               onProfileCreated={async (created) => {
                 await onProfilesChanged();
-                await open(created);
+                guarded(() => open(created));
               }}
             />
           </>

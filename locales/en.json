@@ -297,7 +297,7 @@
   "scenes.noBackup": "No backup yet",
   "scenes.restore": "Restore…",
   "scenes.confirmRestore": "Overwrite the 16 scenes",
-  "scenes.restored": "The 16 scenes are restored.",
+  "scenes.restored": "The 16 scenes are restored. Those they replaced are backed up to {file}.",
   "scenes.working": "Talking to the padKONTROL…",
   "scenes.leftPad": "Pad {pad}: its action has no equivalent in a scene, so it is turned off or keeps a fixed velocity.",
   "scenes.leftKnob": "Knob {knob}: kept as the scene had it.",

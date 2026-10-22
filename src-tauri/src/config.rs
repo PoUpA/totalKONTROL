@@ -1196,7 +1196,7 @@ impl ProfileStore {
         let mut profile = profile;
         // The schema stays behind: point editors at none rather than a missing file.
         profile.schema = None;
-        let json = to_saved_json(profile).map_err(|e| e.to_string())?;
+        let json = to_json(&profile).map_err(|e| e.to_string())?;
         write_atomically(path, &json).map_err(|e| format!("{} : {e}", path.display()))
     }
 
@@ -1242,7 +1242,12 @@ impl ProfileStore {
             && file
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
-            && !file.starts_with('.');
+            && !file.starts_with('.')
+            // Windows opens the device, not a file, for CON.json and the like.
+            && !file
+                .split('.')
+                .next()
+                .is_some_and(|stem| is_reserved_on_windows(&stem.to_ascii_lowercase()));
         if valid {
             Ok(self.dir.join(file))
         } else {
@@ -1254,7 +1259,12 @@ impl ProfileStore {
 /// JSON written to a profile file: pretty-printed, with the `$schema` line.
 fn to_saved_json(mut profile: Profile) -> serde_json::Result<String> {
     profile.schema = Some(format!("./{SCHEMA_FILE}"));
-    let mut json = serde_json::to_string_pretty(&profile)?;
+    to_json(&profile)
+}
+
+/// Pretty-printed, as it is.
+fn to_json(profile: &Profile) -> serde_json::Result<String> {
+    let mut json = serde_json::to_string_pretty(profile)?;
     json.push('\n');
     Ok(json)
 }
@@ -1748,10 +1758,12 @@ mod tests {
 
         let exported = root.join("out.json");
         store.export(&file, &exported).unwrap();
-        assert_eq!(
-            parse_profile(&fs::read_to_string(&exported).unwrap()).unwrap().name,
-            "General MIDI drums"
-        );
+        let json = fs::read_to_string(&exported).unwrap();
+        assert!(!json.contains("$schema"), "the schema stays behind");
+        assert_eq!(parse_profile(&json).unwrap().name, "General MIDI drums");
+        for reserved in ["con.json", "NUL.json", "com1.json", "aux.backup.json"] {
+            assert!(store.resolve(reserved).is_err(), "{reserved}");
+        }
         let from_preset = store.create_from_preset("shortcuts").unwrap();
         assert_eq!(store.load(&from_preset).unwrap().name, "Transport shortcuts");
         assert!(store.create_from_preset("nope").is_err());

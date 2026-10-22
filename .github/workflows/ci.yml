@@ -81,9 +81,10 @@ jobs:
           path: src-tauri/vendor/windows-midi2
           key: windows-midi2-${{ hashFiles('scripts/fetch-windows-midi.ps1') }}
 
-      - name: Clippy (Windows MIDI Services)
+      - name: Clippy and tests (Windows MIDI Services)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           ./scripts/fetch-windows-midi.ps1
           cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets --features windows-midi-services -- -D warnings
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --all-targets --features windows-midi-services

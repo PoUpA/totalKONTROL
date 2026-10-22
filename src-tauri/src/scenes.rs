@@ -18,6 +18,9 @@ use crate::config::{Bank, ButtonAction, KnobAction, Mode, Velocity, XyAction};
 
 /// Bytes of a scene, TABLE 1.
 pub const SCENE_SIZE: usize = 120;
+/// Longest framing seen before a scene's data: function code and a few
+/// bytes of length, as in `7F 02 0A 02 40`.
+const MAX_PREFIX: usize = 8;
 /// The same, encoded 7 bits per byte: 17 groups of 8 bytes, then 2.
 const SCENE_WIRE_SIZE: usize = 138;
 pub const SCENE_COUNT: u8 = 16;
@@ -131,14 +134,20 @@ impl Scene {
         }
         // The data closes the message; the function code comes right before.
         let (prefix, wire) = rest.split_at(rest.len() - SCENE_WIRE_SIZE);
-        if prefix.last() != Some(&CURRENT_SCENE_DUMP) {
-            return None;
-        }
-        let data = unpack(wire);
-        plausible(&data).then(|| Scene {
-            data,
+        let scene = Scene {
+            data: unpack(wire),
             prefix: prefix.to_vec(),
-        })
+        };
+        scene.is_valid().then_some(scene)
+    }
+
+    /// Data that looks like a scene, framed like a current scene dump: only
+    /// such a scene is sent back to the padKONTROL.
+    pub fn is_valid(&self) -> bool {
+        plausible(&self.data)
+            && (1..=MAX_PREFIX).contains(&self.prefix.len())
+            && self.prefix.iter().all(|b| *b < 0x80)
+            && self.prefix.last() == Some(&CURRENT_SCENE_DUMP)
     }
 
     /// The dump that loads this scene into the edit buffer.
@@ -380,7 +389,15 @@ impl Backups {
     /// Saves the scenes as `scenes-<date>.json` and returns the file name.
     pub fn save(&self, scenes: &[Scene]) -> Result<String, String> {
         std::fs::create_dir_all(&self.dir).map_err(|e| e.to_string())?;
-        let file = format!("scenes-{}.json", crate::diag::file_stamp());
+        // Two backups in the same second get a number rather than one file.
+        let stamp = crate::diag::file_stamp();
+        let file = (1..)
+            .map(|n| match n {
+                1 => format!("scenes-{stamp}.json"),
+                n => format!("scenes-{stamp}-{n}.json"),
+            })
+            .find(|file| !self.dir.join(file).exists())
+            .expect("a free name");
         let json = serde_json::to_string_pretty(&Backup {
             scenes: scenes.to_vec(),
         })
@@ -408,11 +425,7 @@ impl Backups {
         }
         let json = std::fs::read_to_string(self.dir.join(file)).map_err(|e| e.to_string())?;
         let backup: Backup = serde_json::from_str(&json).map_err(|_| t!("core.scenes.badBackup"))?;
-        let valid = backup.scenes.len() == usize::from(SCENE_COUNT)
-            && backup
-                .scenes
-                .iter()
-                .all(|scene| plausible(&scene.data) && !scene.prefix.is_empty());
+        let valid = backup.scenes.len() == usize::from(SCENE_COUNT) && backup.scenes.iter().all(Scene::is_valid);
         if valid {
             Ok(backup)
         } else {
@@ -478,6 +491,24 @@ mod tests {
         assert!(backups.load("../profiles/x.json").is_err());
         std::fs::write(dir.join("scenes-bad.json"), r#"{ "scenes": [] }"#).unwrap();
         assert!(backups.load("scenes-bad.json").is_err());
+        assert_ne!(
+            backups.save(&vec![scene.clone(); 16]).unwrap(),
+            file,
+            "never overwritten"
+        );
+
+        // The prefix goes to the padKONTROL as is: only a dump's framing.
+        for prefix in [
+            vec![],
+            vec![0x7F, 0x02],
+            vec![0xF7, 0x40],
+            vec![0x00; 9].into_iter().chain([0x40]).collect(),
+        ] {
+            let mut tampered = vec![scene.clone(); 16];
+            tampered[3].prefix = prefix.clone();
+            let file = backups.save(&tampered).unwrap();
+            assert!(backups.load(&file).is_err(), "{prefix:02X?}");
+        }
         let _ = std::fs::remove_dir_all(dir);
     }
 
