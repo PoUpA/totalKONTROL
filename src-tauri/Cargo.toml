@@ -59,4 +59,4 @@ panic = "abort"
 strip = true
 
 [dev-dependencies]
-jsonschema = "0.59.0"
+jsonschema = "0.60.0"
