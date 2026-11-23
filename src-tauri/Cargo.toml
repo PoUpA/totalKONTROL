@@ -1,6 +1,6 @@
 [package]
 name = "totalkontrol"
-version = "0.1.7"
+version = "0.1.8"
 description = "Full control of the Korg padKONTROL"
 authors = ["PoUpA"]
 license = "MIT"
